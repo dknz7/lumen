@@ -91,7 +91,7 @@ Six sessions. Session 0 is a go / no-go spike added during brainstorming because
 - **Image proxy** endpoint (`/api/image-proxy?path=...&server=...`) so the SPA never sees raw Plex URLs containing `X-Plex-Token=`. The backend holds tokens; the browser holds opaque proxy paths.
 - **Full navigation shell** — top bar and left menu (full spec in §10).
 - **Shelf-and-card system** — two-level group / shelf model (full spec in §11).
-- Home page with all 15 shelves live (full spec in §12.1).
+- Home page with all 14 shelves live — 1 pinned (Continue Watching) + 7 in the Stargaze group + 6 in the DKNZPLEX group (full spec in §12.1).
 - Library grid views with sort & filter dropdowns.
 - **Item detail page** skeleton with availability block (full spec in §12.6).
 - Play button present but stubbed (logs to console; real launch lands in Session 4).
@@ -206,7 +206,7 @@ Re-discovery is triggered on: manual "Refresh connections" in Settings, a 401 fr
 
 ### 5.2 Plex Discover hub client
 
-All twelve cloud-sourced shelves across Recommended and Discover go through one endpoint family:
+All thirteen cloud-sourced shelves across Recommended and Discover (4 watchlist + 8 known home + 1 pending "Pick Up Again" slug) go through one endpoint family:
 
 ```
 GET https://discover.provider.plex.tv/hubs/sections/<namespace>/<slug>
