@@ -69,7 +69,7 @@ export default function Library() {
   });
 
   const [items] = createResource(
-    () => ({ server: params.serverID, lib: params.libraryID, sort: sort(), page: page(), type: viewMode(), isTV: isTVLibrary() }),
+    () => ({ server: params.serverID!, lib: params.libraryID!, sort: sort(), page: page(), type: viewMode(), isTV: isTVLibrary() }),
     ({ server, lib, sort, page, type, isTV }) => {
       const opts: { sort: string; start: number; size: number; filters?: Record<string, string> } = {
         sort,
@@ -118,7 +118,7 @@ export default function Library() {
       <div class="library-grid">
         <Show when={items()} fallback={<Skeleton kind="card" count={12} />}>
           <For each={currentPageItems()}>
-            {(it) => <Card item={it} serverID={params.serverID} />}
+            {(it) => <Card item={it} serverID={params.serverID!} />}
           </For>
         </Show>
       </div>

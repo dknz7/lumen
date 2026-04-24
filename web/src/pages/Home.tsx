@@ -239,16 +239,19 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
   if (props.def.kind === "ondeck-merged") {
     return null;
   }
-  // server-recent
+  // From here the discriminated union narrows to "server-recent" — bind the
+  // required fields locally so the closures below can reference them without
+  // TypeScript losing the narrowing inside async callback bodies.
+  const def = props.def; // narrowed as { kind: "server-recent"; libraryName: string; ... }
   const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
   const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
   return (
-    <Shelf id={props.def.id} title={props.def.title}>
+    <Shelf id={def.id} title={def.title}>
       <Show when={libs()}>
         {(libList) => {
-          const lib = (libList() as Library[]).find((l) => l.title === props.def.libraryName);
+          const lib = (libList() as Library[]).find((l) => l.title === def.libraryName);
           if (!lib) {
-            return <div class="shelf-stub">(library "{props.def.libraryName}" not found on {props.server.displayName})</div>;
+            return <div class="shelf-stub">(library "{def.libraryName}" not found on {props.server.displayName})</div>;
           }
           const hidden = hiddenSet().has(`${props.server.machineIdentifier}:${lib.key}`);
           if (hidden) return <div class="shelf-stub">(library hidden — toggle in left menu)</div>;

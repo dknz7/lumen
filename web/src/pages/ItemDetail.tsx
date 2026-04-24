@@ -8,7 +8,7 @@ import "./ItemDetail.css";
 export default function ItemDetail() {
   const params = useParams();
   const [item] = createResource(
-    () => ({ server: params.serverID, rk: params.ratingKey }),
+    () => ({ server: params.serverID!, rk: params.ratingKey! }),
     ({ server, rk }) => api.item(server, rk)
   );
   const [availability] = createResource(
@@ -21,8 +21,8 @@ export default function ItemDetail() {
       <Show when={item()} fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}>
         {(it) => (
           <>
-            <Hero item={it() as Item} serverID={params.serverID} />
-            <ActionRow item={it() as Item} serverID={params.serverID} />
+            <Hero item={it() as Item} serverID={params.serverID!} />
+            <ActionRow item={it() as Item} serverID={params.serverID!} />
             <section class="overview">
               <h3>Overview</h3>
               <p>{(it() as Item).summary ?? "No synopsis available."}</p>

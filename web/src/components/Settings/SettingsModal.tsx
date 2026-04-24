@@ -1,4 +1,6 @@
 import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { Dynamic } from "solid-js/web";
+// @ts-expect-error — motionone/solid's package.json exports field hides its d.ts file
 import { Motion, Presence } from "@motionone/solid";
 import Appearance from "./Appearance";
 import KioskShortcuts from "./KioskShortcuts";
@@ -46,7 +48,7 @@ export default function SettingsModal(props: { open: boolean; onClose: () => voi
         >
           <Motion.div
             class="settings-modal"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: Event) => e.stopPropagation()}
             role="dialog"
             aria-label="Settings"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
@@ -76,7 +78,7 @@ export default function SettingsModal(props: { open: boolean; onClose: () => voi
               </nav>
             </aside>
             <main class="settings-detail">
-              {activeSection().component({})}
+              <Dynamic component={activeSection().component} />
             </main>
           </Motion.div>
         </Motion.div>
