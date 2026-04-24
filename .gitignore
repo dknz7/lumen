@@ -1,0 +1,12 @@
+# Vite build output — embedded into lumen.exe, not checked in
+web/dist/
+web/node_modules/
+
+# Vite output lives inside the Go embed target.
+# Commit only the placeholder index.html so a fresh checkout builds.
+internal/server/web/dist/*
+!internal/server/web/dist/index.html
+
+# Compiled binaries
+lumen.exe
+probe/probe.exe
