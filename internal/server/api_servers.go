@@ -1,0 +1,138 @@
+package server
+
+import (
+	"net/http"
+	"strconv"
+	"strings"
+
+	"lumen/internal/config"
+	"lumen/internal/plex"
+)
+
+// serverDTO is what the SPA consumes — never the raw config (tokens stay server-side).
+type serverDTO struct {
+	MachineID   string `json:"machineIdentifier"`
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"` // name, or machineIdentifier if name empty
+	BaseURL     string `json:"baseURL"`
+	Status      string `json:"status"` // "connected" | "offline"
+}
+
+// handleServers returns the full server list known to config.
+func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
+	out := make([]serverDTO, 0, len(s.cfg.Plex.Servers))
+	for _, srv := range s.cfg.Plex.Servers {
+		status := "offline"
+		if srv.LastGoodConnection != "" {
+			status = "connected"
+		}
+		name := srv.Name
+		display := name
+		if display == "" {
+			display = srv.MachineIdentifier
+		}
+		out = append(out, serverDTO{
+			MachineID:   srv.MachineIdentifier,
+			Name:        name,
+			DisplayName: display,
+			BaseURL:     srv.LastGoodConnection,
+			Status:      status,
+		})
+	}
+	writeJSON(w, out)
+}
+
+// handleServerScoped dispatches everything under /api/servers/<id>/...
+// Subpaths: libraries, libraries/<key>/items, ondeck.
+func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
+	rest := strings.TrimPrefix(r.URL.Path, "/api/servers/")
+	parts := strings.Split(rest, "/")
+	if len(parts) < 2 {
+		writeError(w, http.StatusNotFound, "path too short")
+		return
+	}
+	machineID := parts[0]
+	srv := s.serverByID(machineID)
+	if srv == nil {
+		writeError(w, http.StatusNotFound, "unknown server")
+		return
+	}
+	switch {
+	case len(parts) == 2 && parts[1] == "libraries":
+		s.handleLibraries(w, r, srv)
+	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "items":
+		s.handleLibraryItems(w, r, srv, parts[2])
+	case len(parts) == 2 && parts[1] == "ondeck":
+		s.handleOnDeck(w, r, srv)
+	default:
+		writeError(w, http.StatusNotFound, "unknown server sub-path")
+	}
+}
+
+func (s *Server) handleLibraries(w http.ResponseWriter, r *http.Request, srv *config.Server) {
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	plexSrv := toPlexServer(srv)
+	libs, err := s.plex.GetLibraries(plexSrv)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, libs)
+}
+
+func (s *Server) handleLibraryItems(w http.ResponseWriter, r *http.Request, srv *config.Server, libraryKey string) {
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	q := r.URL.Query()
+	iq := plex.ItemQuery{
+		Sort:    q.Get("sort"),
+		Filters: map[string]string{},
+	}
+	if v, err := strconv.Atoi(q.Get("start")); err == nil {
+		iq.Start = v
+	}
+	if v, err := strconv.Atoi(q.Get("size")); err == nil {
+		iq.Size = v
+	}
+	for key := range q {
+		if strings.HasPrefix(key, "filter.") {
+			iq.Filters[strings.TrimPrefix(key, "filter.")] = q.Get(key)
+		}
+	}
+	plexSrv := toPlexServer(srv)
+	items, err := s.plex.GetItems(plexSrv, libraryKey, iq)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, items)
+}
+
+func (s *Server) handleOnDeck(w http.ResponseWriter, r *http.Request, srv *config.Server) {
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	items, err := s.plex.GetOnDeck(toPlexServer(srv))
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, items)
+}
+
+// toPlexServer maps a config.Server to the plex.Server shape the client needs.
+// BaseURL is read from LastGoodConnection; AccessToken is propagated.
+func toPlexServer(srv *config.Server) *plex.Server {
+	return &plex.Server{
+		Name:              srv.Name,
+		MachineIdentifier: srv.MachineIdentifier,
+		AccessToken:       srv.AccessToken,
+		BaseURL:           srv.LastGoodConnection,
+	}
+}
