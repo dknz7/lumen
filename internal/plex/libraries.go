@@ -25,10 +25,17 @@ type directoryWire struct {
 type metadataWire struct {
 	RatingKey string `json:"ratingKey"`
 	GUID      string `json:"guid"`
-	Title     string `json:"title"`
-	Type      string `json:"type"`
-	Year      int    `json:"year"`
-	Summary   string `json:"summary"`
+	// GuidArray absorbs Plex's capital-"Guid" array of external IDs (imdb/tmdb/tvdb)
+	// so Go's case-insensitive json matching doesn't spill it into the GUID string
+	// field and fail to unmarshal. Not consumed by Session 2 — parsed in Session 5
+	// for OMDB lookup via imdb IDs.
+	GuidArray []struct {
+		ID string `json:"id"`
+	} `json:"Guid"`
+	Title   string `json:"title"`
+	Type    string `json:"type"`
+	Year    int    `json:"year"`
+	Summary string `json:"summary"`
 }
 
 // GetLibraries returns all top-level library sections on the server.

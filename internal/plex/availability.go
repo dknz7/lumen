@@ -24,6 +24,9 @@ type availabilityWire struct {
 		Metadata []struct {
 			RatingKey           string `json:"ratingKey"`
 			GUID                string `json:"guid"`
+			GuidArray           []struct {
+				ID string `json:"id"`
+			} `json:"Guid"` // absorbs the external-ID array — see metadataWire comment
 			Title               string `json:"title"`
 			LibrarySectionTitle string `json:"librarySectionTitle"`
 			Media               []struct {
