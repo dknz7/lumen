@@ -3,55 +3,56 @@ package plex
 // Server is one Plex Media Server the account has access to.
 // BaseURL is set by PickConnection.
 type Server struct {
-	Name              string
-	MachineIdentifier string
-	AccessToken       string
-	BaseURL           string      // populated by connection picker
-	Connections       []Connection
+	Name              string       `json:"name"`
+	MachineIdentifier string       `json:"machineIdentifier"`
+	AccessToken       string       `json:"accessToken,omitempty"` // never sent to the SPA
+	BaseURL           string       `json:"baseURL"`               // populated by connection picker
+	Connections       []Connection `json:"connections,omitempty"`
 }
 
 // Connection is a single advertised URI for a Plex server.
 type Connection struct {
-	URI      string // e.g. https://1-2-3-4.plex.direct:32400
-	Address  string
-	Port     int
-	Local    bool
-	Relay    bool
-	Protocol string // "https" only in practice (we pass includeHttps=1)
-	IPv6     bool
+	URI      string `json:"uri"`
+	Address  string `json:"address"`
+	Port     int    `json:"port"`
+	Local    bool   `json:"local"`
+	Relay    bool   `json:"relay"`
+	Protocol string `json:"protocol"`
+	IPv6     bool   `json:"IPv6"`
 }
 
 // Library is a top-level section on a server (Movies, TV Shows, Anime, etc.).
 type Library struct {
-	ID    string
-	Key   string // numeric section key used in URLs
-	Title string
-	Type  string // "movie" | "show" | ...
+	ID    string `json:"id"`
+	Key   string `json:"key"`
+	Title string `json:"title"`
+	Type  string `json:"type"`
 }
 
 // Item is a single piece of media — movie, show, season, or episode.
 type Item struct {
-	RatingKey string
-	GUID      string // plex://movie/<guid>, plex://show/<guid>, etc.
-	Title     string
-	Type      string
-	Year      int
-	Summary   string
+	RatingKey string `json:"ratingKey"`
+	GUID      string `json:"guid,omitempty"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	Year      int    `json:"year,omitempty"`
+	Summary   string `json:"summary,omitempty"`
 }
 
 // HubItem is one card on a plex.tv Discover hub (home or watchlist namespace).
 type HubItem struct {
-	GUID      string
-	RatingKey string
-	Title     string
-	Type      string
-	Year      int
+	GUID      string `json:"guid,omitempty"`
+	RatingKey string `json:"ratingKey"`
+	Title     string `json:"title"`
+	Type      string `json:"type"`
+	Year      int    `json:"year,omitempty"`
 }
 
 // ItemQuery carries optional filter/sort parameters for GetItems.
+// Not serialized — input to the Go client only.
 type ItemQuery struct {
-	Sort    string // e.g. "addedAt:desc"
+	Sort    string
 	Filters map[string]string
-	Start   int // pagination offset
-	Size    int // page size
+	Start   int
+	Size    int
 }
