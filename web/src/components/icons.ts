@@ -20,4 +20,5 @@ export {
   Sparkles,       // brand logo placeholder
   ExternalLink,   // "Get a free key" link in OMDB field
   RefreshCw,      // refresh connections button
+  ImageOff,       // fallback when a poster fails to load
 } from "lucide-solid";

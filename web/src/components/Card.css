@@ -51,8 +51,7 @@
   display: grid;
   place-items: center;
   color: var(--text-muted);
-  font-size: 32px;
-  font-weight: 700;
+  background: var(--bg-elevated);
 }
 
 /* Bin icon overlay — only appears on hover when onRemove is supplied (Continue Watching).

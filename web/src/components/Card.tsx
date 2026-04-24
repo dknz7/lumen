@@ -1,7 +1,8 @@
 import { A } from "@solidjs/router";
+import { createSignal, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
-import { Trash2 } from "./icons";
+import { ImageOff, Trash2 } from "./icons";
 import "./Card.css";
 
 export interface CardProps {
@@ -39,6 +40,11 @@ function derive(item: Item) {
 
 export default function Card(props: CardProps) {
   const d = () => derive(props.item);
+  // True when either no thumb is available, OR the <img> emitted onError
+  // (e.g. Plex CDN returned 404 for this specific poster — Session 2 finding).
+  const [imgFailed, setImgFailed] = createSignal(false);
+  const showImage = () => !!d().thumb && !imgFailed();
+
   const progressPct = () => {
     const dur = props.item.duration ?? 0;
     const off = props.item.viewOffset ?? 0;
@@ -49,13 +55,21 @@ export default function Card(props: CardProps) {
   return (
     <A class="card" href={`/item/${props.serverID}/${d().linkKey}`}>
       <div class="card-poster">
-        {d().thumb ? (
-          <img src={api.image(props.serverID, d().thumb!)} alt={d().title} loading="lazy" />
-        ) : (
-          <div class="card-poster-placeholder">
-            <span>{d().title.slice(0, 1)}</span>
-          </div>
-        )}
+        <Show
+          when={showImage()}
+          fallback={
+            <div class="card-poster-placeholder" aria-label="Cover unavailable">
+              <ImageOff size={32} strokeWidth={1.5} />
+            </div>
+          }
+        >
+          <img
+            src={api.image(props.serverID, d().thumb!)}
+            alt={d().title}
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+          />
+        </Show>
         {props.onRemove && (
           <button
             class="card-remove-btn"
