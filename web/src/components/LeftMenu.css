@@ -91,3 +91,56 @@
 .menu-spacer {
   flex: 0 0 12px;
 }
+
+.menu-settings-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  background: transparent;
+  color: var(--menu-icon);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.menu-settings-btn:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.library-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.library-row > a {
+  flex: 1;
+  min-width: 0;
+}
+
+.library-eye {
+  padding: 2px 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.library-row:hover .library-eye {
+  opacity: 1;
+}
+
+.library-row.is-hidden > a {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.library-row.is-hidden .library-eye {
+  opacity: 1;
+}

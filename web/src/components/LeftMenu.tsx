@@ -2,9 +2,10 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { A } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Library, Server } from "../api/types";
+import { store as settingsStore } from "../state/settings";
 import "./LeftMenu.css";
 
-export default function LeftMenu() {
+export default function LeftMenu(props: { onOpenSettings: () => void }) {
   const [servers] = createResource(() => api.servers());
   return (
     <nav class="left-menu">
@@ -26,7 +27,9 @@ export default function LeftMenu() {
       </div>
       <div class="menu-spacer" />
       <ul class="menu-bottom">
-        <li><A href="/settings" activeClass="active">⚙ Settings</A></li>
+        <li>
+          <button class="menu-settings-btn" onClick={props.onOpenSettings}>Settings</button>
+        </li>
       </ul>
     </nav>
   );
@@ -35,10 +38,21 @@ export default function LeftMenu() {
 function ServerLibraries(props: { server: Server }) {
   const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
   const [expanded, setExpanded] = createSignal(true);
+  const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
+  const key = (libKey: string) => `${props.server.machineIdentifier}:${libKey}`;
+  const isHidden = (libKey: string) => hiddenSet().has(key(libKey));
+
+  function toggleHidden(libKey: string) {
+    const set = new Set(hiddenSet());
+    const k = key(libKey);
+    if (set.has(k)) set.delete(k); else set.add(k);
+    settingsStore.patch({ hiddenLibraries: Array.from(set) });
+  }
+
   return (
     <div class="server-group">
       <button class="server-group-header" onClick={() => setExpanded(!expanded())}>
-        <span class="caret">{expanded() ? "▾" : "▸"}</span>
+        <span class="caret">{expanded() ? "v" : ">"}</span>
         <span>{props.server.displayName}</span>
         <span class="server-status" data-status={props.server.status} />
       </button>
@@ -47,13 +61,21 @@ function ServerLibraries(props: { server: Server }) {
           <ul class="library-list">
             <For each={libList() as Library[]}>
               {(l) => (
-                <li>
+                <li class="library-row" classList={{ "is-hidden": isHidden(l.key) }}>
                   <A
                     href={`/library/${props.server.machineIdentifier}/${l.key}`}
                     activeClass="active"
                   >
                     {l.title}
                   </A>
+                  <button
+                    class="library-eye"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleHidden(l.key); }}
+                    title={isHidden(l.key) ? "Show library" : "Hide library"}
+                    aria-label="Toggle library visibility"
+                  >
+                    {isHidden(l.key) ? "H" : "V"}
+                  </button>
                 </li>
               )}
             </For>
