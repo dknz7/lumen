@@ -110,6 +110,7 @@ var (
 	procFindWindow = user32.NewProc("FindWindowW")
 	procIsWindow   = user32.NewProc("IsWindow")
 	procSendMsgW   = user32.NewProc("SendMessageW")
+	procPostMsgW   = user32.NewProc("PostMessageW")
 )
 
 // findPotPlayerHWND polls for up to 3 s waiting for the window to appear.
@@ -216,6 +217,12 @@ const (
 	PP_CMD_STOP         = 0x4E67 // 20071
 )
 
+const (
+	WM_APPCOMMAND              = 0x0319
+	APPCOMMAND_MEDIA_STOP      = 13
+	APPCOMMAND_MEDIA_PLAY_PAUSE = 14
+)
+
 func step8SendCommand() {
 	if *videoFlag == "" {
 		log.Fatal("--video=<path> required")
@@ -225,17 +232,37 @@ func step8SendCommand() {
 		log.Fatalf("launch: %v", err)
 	}
 	hwnd := findPotPlayerHWND()
-	log.Printf("HWND=0x%x — will send pause toggle 4 times every 3 s.", hwnd)
+	log.Printf("HWND=0x%x — trying 4 write-side approaches. WATCH THE VIDEO for visible pause/resume/stop.", hwnd)
+	time.Sleep(3 * time.Second) // let playback start
 
-	time.Sleep(2 * time.Second) // let playback start
-	for i := 0; i < 4; i++ {
-		time.Sleep(3 * time.Second)
-		log.Printf("sending PAUSE_TOGGLE (%d/4)", i+1)
-		procSendMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_PAUSE_TOGGLE), 0)
-	}
-	log.Println("done — closing in 3 s via STOP command")
+	// Approach A: original — SendMessage + WM_COMMAND + PAUSE_TOGGLE (0x4E5E=20062)
+	log.Printf("approach A: SendMessage + WM_COMMAND + 0x4E5E (pause toggle)")
+	retA, _, _ := procSendMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_PAUSE_TOGGLE), 0)
+	log.Printf("  return=%d  observe for 3 s", retA)
 	time.Sleep(3 * time.Second)
-	procSendMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_STOP), 0)
+
+	// Approach B: PostMessage + WM_COMMAND + same ID
+	log.Printf("approach B: PostMessage + WM_COMMAND + 0x4E5E (pause toggle)")
+	retB, _, _ := procPostMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_PAUSE_TOGGLE), 0)
+	log.Printf("  return=%d  observe for 3 s", retB)
+	time.Sleep(3 * time.Second)
+
+	// Approach C: SendMessage + WM_APPCOMMAND + MEDIA_PLAY_PAUSE.
+	// lParam encodes the app command in the high word.
+	log.Printf("approach C: SendMessage + WM_APPCOMMAND + MEDIA_PLAY_PAUSE (14)")
+	lparamPP := uintptr(APPCOMMAND_MEDIA_PLAY_PAUSE) << 16
+	retC, _, _ := procSendMsgW.Call(hwnd, WM_APPCOMMAND, 0, lparamPP)
+	log.Printf("  return=%d  observe for 3 s", retC)
+	time.Sleep(3 * time.Second)
+
+	// Approach D: SendMessage + WM_APPCOMMAND + MEDIA_STOP.
+	log.Printf("approach D: SendMessage + WM_APPCOMMAND + MEDIA_STOP (13)")
+	lparamStop := uintptr(APPCOMMAND_MEDIA_STOP) << 16
+	retD, _, _ := procSendMsgW.Call(hwnd, WM_APPCOMMAND, 0, lparamStop)
+	log.Printf("  return=%d", retD)
+
+	log.Println("done — tell Archie which approaches (A/B/C/D) caused visible action")
+	log.Println("close Pot Player manually")
 }
 func step9DetectExit() {
 	if *videoFlag == "" {
