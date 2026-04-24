@@ -1,0 +1,42 @@
+.shelf {
+  margin-bottom: 32px;
+}
+
+.shelf-header {
+  margin-bottom: 12px;
+}
+
+.shelf-collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.shelf-collapse-btn:hover {
+  color: var(--text-muted);
+}
+
+.shelf-collapse-btn .caret {
+  color: var(--text-muted);
+}
+
+.shelf-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+/*
+ * Cards wrap up to --rows-per-shelf rows without horizontal scroll (spec §11.1).
+ * Default 3 rows (set via --rows-per-shelf on inline style).
+ * After 3 rows, items are simply not rendered (pagination is a Session 5 concern).
+ * For now we cap the container height instead so overflow just hides extras.
+ */
+.shelf-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px 16px;
+  max-height: calc((240px + 60px) * var(--rows-per-shelf, 3));
+  overflow: hidden;
+}
