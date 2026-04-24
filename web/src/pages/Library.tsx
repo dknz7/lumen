@@ -3,6 +3,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { api } from "../api/client";
 import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
+import { store as settingsStore } from "../state/settings";
 import "./Library.css";
 
 const SORT_OPTIONS = [
@@ -14,43 +15,30 @@ const SORT_OPTIONS = [
 ];
 
 // Plex library "type" query param: 4=episode. Empty = library default (Shows
-// for TV libraries, Movies for Movies libraries). Default is "4" (Episodes)
+// for TV libraries, Movies for Movies libraries). Default is "episodes"
 // for TV libraries per Byron's design call — he finds episodes more useful
 // at the browse level than the show roll-up view.
+// Session 3: previously persisted in localStorage (LS_SORT, LS_VIEW);
+// now persists to config.json via the settings store.
 const VIEW_MODE_OPTIONS = [
   { value: "",  label: "Shows" },
   { value: "4", label: "Episodes" },
 ];
 
+// Map between settings store value ("episodes"|"shows"|"") and Plex type filter ("4"|"")
+const viewModeToFilter = (mode: string) => (mode === "episodes" ? "4" : "");
+const filterToViewMode = (filter: string) => (filter === "4" ? "episodes" : "");
+
 const PAGE_SIZE = 50;
-
-// localStorage keys for sticky dropdown preferences. Survive refresh; cleared
-// only when browser data is cleared. Session 3 replaces this with config.json
-// persistence via the Settings panel.
-const LS_SORT = "lumen.library.sort";
-const LS_VIEW = "lumen.library.viewMode";
-
-function loadLS(key: string, fallback: string): string {
-  try {
-    return localStorage.getItem(key) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function saveLS(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    // Quota exceeded or storage unavailable — silently ignore.
-  }
-}
 
 export default function Library() {
   const params = useParams();
-  const [sort, setSort] = createSignal(loadLS(LS_SORT, SORT_OPTIONS[0].value));
-  // Episodes is the default for TV libraries per Byron's preference.
-  const [viewMode, setViewMode] = createSignal(loadLS(LS_VIEW, "4"));
+
+  // Initialise from settings store; fall back to defaults if store not yet loaded.
+  const [sort, setSort] = createSignal(settingsStore.settings()?.defaultSort ?? SORT_OPTIONS[0].value);
+  const [viewMode, setViewMode] = createSignal(
+    viewModeToFilter(settingsStore.settings()?.defaultViewMode ?? "episodes")
+  );
   const [page, setPage] = createSignal(0);
 
   const [allLibs] = createResource(
@@ -61,7 +49,7 @@ export default function Library() {
     ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
   const isTVLibrary = () => currentLibrary()?.type === "show";
 
-  // Reset page on library/server change. Sort and viewMode persist.
+  // Reset page on library/server change.
   createEffect(() => {
     params.serverID; params.libraryID;
     setPage(0);
@@ -70,12 +58,12 @@ export default function Library() {
   // Reset page whenever sort/mode changes, and persist the new preference.
   createEffect(() => {
     const s = sort();
-    saveLS(LS_SORT, s);
+    settingsStore.patch({ defaultSort: s });
     setPage(0);
   });
   createEffect(() => {
     const v = viewMode();
-    saveLS(LS_VIEW, v);
+    settingsStore.patch({ defaultViewMode: filterToViewMode(v) as any });
     setPage(0);
   });
 
@@ -87,8 +75,7 @@ export default function Library() {
         start: page * PAGE_SIZE,
         size: PAGE_SIZE + 1,
       };
-      // Only apply the type filter when it's a TV library — it'd be a no-op on
-      // Movies libraries but pointless to send.
+      // Only apply the type filter when it's a TV library.
       if (isTV && type) opts.filters = { type };
       return api.items(server, lib, opts);
     }
@@ -141,7 +128,7 @@ export default function Library() {
             onClick={() => setPage(page() - 1)}
             aria-label="Previous page"
           >
-            ← Prev
+            Prev
           </button>
           <span class="page-indicator">Page {page() + 1}</span>
           <button
@@ -149,7 +136,7 @@ export default function Library() {
             onClick={() => setPage(page() + 1)}
             aria-label="Next page"
           >
-            Next →
+            Next
           </button>
         </nav>
       </Show>
