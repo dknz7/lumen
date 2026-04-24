@@ -22,8 +22,10 @@ export interface Item {
   summary?: string;
   thumb?: string;
   art?: string;
-  duration?: number;   // media length in ms
-  viewOffset?: number; // resume position in ms (0 = unstarted)
+  duration?: number;     // media length in ms
+  viewOffset?: number;   // resume position in ms (0 = unstarted)
+  addedAt?: number;      // epoch seconds when added to library
+  lastViewedAt?: number; // epoch seconds of most recent view
   // Episode-specific — populated only when type === "episode"
   index?: number;              // episode number
   parentIndex?: number;        // season number

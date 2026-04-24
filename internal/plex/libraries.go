@@ -39,6 +39,8 @@ type metadataWire struct {
 	Art                  string `json:"art"`
 	Duration             int64  `json:"duration"`
 	ViewOffset           int64  `json:"viewOffset"`
+	AddedAt              int64  `json:"addedAt"`
+	LastViewedAt         int64  `json:"lastViewedAt"`
 	Index                int    `json:"index"`
 	ParentIndex          int    `json:"parentIndex"`
 	ParentTitle          string `json:"parentTitle"`
@@ -176,6 +178,8 @@ func metadataSliceToItems(mw []metadataWire) []Item {
 			Art:                  m.Art,
 			Duration:             m.Duration,
 			ViewOffset:           m.ViewOffset,
+			AddedAt:              m.AddedAt,
+			LastViewedAt:         m.LastViewedAt,
 			Index:                m.Index,
 			ParentIndex:          m.ParentIndex,
 			ParentTitle:          m.ParentTitle,

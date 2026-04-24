@@ -72,7 +72,18 @@ function ContinueWatching(props: { servers: Server[] }) {
       if (totalErrors === results.length && results.length > 0) {
         throw new Error(`onDeck failed for all ${results.length} servers`);
       }
-      return results.flatMap((r) => r.items.map((it) => ({ ...it, serverID: r.id } as CWItem)));
+      const merged = results.flatMap((r) =>
+        r.items.map((it) => ({ ...it, serverID: r.id } as CWItem))
+      );
+      // Spec §12.1: Continue Watching sorts by lastViewedAt desc (most recently
+      // played first — Plex's onDeck advances to next ep if current was finished),
+      // with addedAt desc as tiebreaker.
+      merged.sort((a, b) => {
+        const lvDiff = (b.lastViewedAt ?? 0) - (a.lastViewedAt ?? 0);
+        if (lvDiff !== 0) return lvDiff;
+        return (b.addedAt ?? 0) - (a.addedAt ?? 0);
+      });
+      return merged;
     }
   );
 
