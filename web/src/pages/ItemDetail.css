@@ -1,0 +1,113 @@
+.item-detail { max-width: 1200px; }
+
+.item-loading { padding: 20px; color: var(--text-muted); }
+
+.hero {
+  margin-bottom: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.hero-meta h1 {
+  font-size: 32px;
+  margin: 0 0 10px;
+  color: var(--text);
+}
+
+.meta-pills { display: flex; gap: 8px; }
+
+.pill {
+  background: var(--bg-elevated);
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 28px;
+  align-items: center;
+}
+
+/* Secondary buttons — dark navy pill, white content. Matches Plezy's circular
+   icon buttons next to the primary action. */
+.btn, .btn-subtitle {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  font-size: 13px;
+}
+
+.btn:hover:not(:disabled), .btn-subtitle:hover:not(:disabled) {
+  border-color: var(--stroke);
+}
+
+/* Primary action — inverse fill (white bg, black text) per Byron's design call. */
+.btn-primary {
+  background: var(--bg-inverse);
+  color: var(--text-inverse);
+  border: 1px solid var(--bg-inverse);
+  border-radius: var(--radius-pill);
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.btn-primary:hover { opacity: 0.92; }
+
+.btn:disabled, .btn-subtitle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.overview {
+  margin-bottom: 28px;
+}
+
+.overview h3, .availability h3 {
+  font-size: 14px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+
+.overview p {
+  line-height: 1.6;
+  color: var(--text);
+  max-width: 80ch;
+}
+
+.availability ul { list-style: none; padding: 0; margin: 0; }
+
+.availability-row {
+  display: grid;
+  grid-template-columns: 160px 1fr 160px 120px;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+
+.availability-row strong { color: var(--text); }
+.availability-lib, .availability-quality, .availability-size {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.availability-empty {
+  padding: 10px 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.availability-loading {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 6px 0;
+}
