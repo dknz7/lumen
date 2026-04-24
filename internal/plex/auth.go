@@ -72,6 +72,37 @@ func (c *Client) PollPIN(pin PIN, timeout time.Duration) (string, error) {
 	}
 }
 
+// AccountInfo holds a subset of plex.tv/api/v2/user response.
+type AccountInfo struct {
+	ID       int    `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Thumb    string `json:"thumb"`
+}
+
+// GetAccount fetches the current user's Plex account info for display.
+func (c *Client) GetAccount(accountToken string) (AccountInfo, error) {
+	u := c.plexTVBase + "/api/v2/user"
+	req, err := c.NewRequest("GET", u, nil)
+	if err != nil {
+		return AccountInfo{}, err
+	}
+	c.SetToken(req, accountToken)
+	resp, err := c.Do(req)
+	if err != nil {
+		return AccountInfo{}, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return AccountInfo{}, fmt.Errorf("get account: status %d", resp.StatusCode)
+	}
+	var info AccountInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return AccountInfo{}, err
+	}
+	return info, nil
+}
+
 // LinkURL returns the user-visible URL Byron opens in a browser.
 func LinkURL() string {
 	return "https://plex.tv/link"
