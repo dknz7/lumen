@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+
+	"golang.org/x/sys/windows/registry"
 )
 
 var (
@@ -42,7 +44,24 @@ func main() {
 }
 
 // Placeholder functions — populated task-by-task.
-func step2DetectPath()   { log.Fatal("not implemented") }
+func step2DetectPath() {
+	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\DAUM\PotPlayerMini64`, registry.QUERY_VALUE)
+	if err != nil {
+		log.Fatalf("open key: %v", err)
+	}
+	defer k.Close()
+
+	path, _, err := k.GetStringValue("ProgramPath")
+	if err != nil {
+		log.Fatalf("get ProgramPath: %v", err)
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		log.Fatalf("stat %q: %v", path, err)
+	}
+	log.Printf("Pot Player path: %s (size=%d)", path, info.Size())
+}
 func step3Launch()       { log.Fatal("not implemented") }
 func step4FindHWND()     { log.Fatal("not implemented") }
 func step5ReadPosition() { log.Fatal("not implemented") }
