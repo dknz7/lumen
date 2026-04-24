@@ -22,6 +22,8 @@ export interface Item {
   summary?: string;
   thumb?: string;
   art?: string;
+  duration?: number;   // media length in ms
+  viewOffset?: number; // resume position in ms (0 = unstarted)
   // Episode-specific — populated only when type === "episode"
   index?: number;              // episode number
   parentIndex?: number;        // season number

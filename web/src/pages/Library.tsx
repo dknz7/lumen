@@ -1,7 +1,7 @@
 import { useParams } from "@solidjs/router";
 import { createEffect, createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
-import type { Item } from "../api/types";
+import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
 import "./Library.css";
 
@@ -13,24 +13,53 @@ const SORT_OPTIONS = [
   { value: "lastViewedAt:desc", label: "Last Viewed" },
 ];
 
+// Plex library "type" query param: 2=show, 4=episode.
+// Empty string means "use library default" (shows for TV libraries, movies for Movies libraries).
+const VIEW_MODE_OPTIONS = [
+  { value: "",  label: "Shows" },
+  { value: "4", label: "Episodes" },
+];
+
 const PAGE_SIZE = 50;
 
 export default function Library() {
   const params = useParams();
   const [sort, setSort] = createSignal(SORT_OPTIONS[0].value);
+  const [viewMode, setViewMode] = createSignal(""); // "" = shows, "4" = episodes
   const [page, setPage] = createSignal(0);
 
-  // Reset page to 0 whenever the library or sort changes.
+  // Pull all libraries for the current server so we can identify the library type.
+  const [allLibs] = createResource(
+    () => params.serverID,
+    (serverID) => api.libraries(serverID)
+  );
+  const currentLibrary = () =>
+    ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
+  const isTVLibrary = () => currentLibrary()?.type === "show";
+
+  // Reset page/viewMode whenever the library or sort changes.
   createEffect(() => {
-    params.serverID; params.libraryID; sort();
+    params.serverID; params.libraryID;
+    setPage(0);
+    setViewMode("");
+  });
+
+  createEffect(() => {
+    sort(); viewMode();
     setPage(0);
   });
 
   const [items] = createResource(
-    () => ({ server: params.serverID, lib: params.libraryID, sort: sort(), page: page() }),
-    ({ server, lib, sort, page }) =>
-      // Fetch PAGE_SIZE + 1 so we can detect if a next page exists without a total count.
-      api.items(server, lib, { sort, start: page * PAGE_SIZE, size: PAGE_SIZE + 1 })
+    () => ({ server: params.serverID, lib: params.libraryID, sort: sort(), page: page(), type: viewMode() }),
+    ({ server, lib, sort, page, type }) => {
+      const opts: { sort: string; start: number; size: number; filters?: Record<string, string> } = {
+        sort,
+        start: page * PAGE_SIZE,
+        size: PAGE_SIZE + 1, // fetch one extra to detect next-page existence
+      };
+      if (type) opts.filters = { type };
+      return api.items(server, lib, opts);
+    }
   );
 
   const currentPageItems = () => {
@@ -42,6 +71,16 @@ export default function Library() {
   return (
     <div class="library-page">
       <header class="library-header">
+        <Show when={isTVLibrary()}>
+          <label>
+            View:
+            <select value={viewMode()} onChange={(e) => setViewMode(e.currentTarget.value)}>
+              <For each={VIEW_MODE_OPTIONS}>
+                {(o) => <option value={o.value}>{o.label}</option>}
+              </For>
+            </select>
+          </label>
+        </Show>
         <label>
           Sort:
           <select value={sort()} onChange={(e) => setSort(e.currentTarget.value)}>

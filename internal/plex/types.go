@@ -41,6 +41,8 @@ type Item struct {
 	Summary              string `json:"summary,omitempty"`
 	Thumb                string `json:"thumb,omitempty"` // server-relative path to portrait poster
 	Art                  string `json:"art,omitempty"`   // server-relative path to landscape art
+	Duration             int64  `json:"duration,omitempty"`   // media length in ms
+	ViewOffset           int64  `json:"viewOffset,omitempty"` // resume position in ms (0 = unstarted)
 	// Episode-specific fields — empty for non-episodes.
 	Index                int    `json:"index,omitempty"`                // episode number within season
 	ParentIndex          int    `json:"parentIndex,omitempty"`          // season number

@@ -36,6 +36,13 @@ function derive(item: Item) {
 
 export default function Card(props: CardProps) {
   const d = () => derive(props.item);
+  const progressPct = () => {
+    const dur = props.item.duration ?? 0;
+    const off = props.item.viewOffset ?? 0;
+    if (!dur || !off) return 0;
+    const p = (off / dur) * 100;
+    return Math.max(0, Math.min(100, p));
+  };
   return (
     <A class="card" href={`/item/${props.serverID}/${d().linkKey}`}>
       <div class="card-poster">
@@ -44,6 +51,11 @@ export default function Card(props: CardProps) {
         ) : (
           <div class="card-poster-placeholder">
             <span>{d().title.slice(0, 1)}</span>
+          </div>
+        )}
+        {progressPct() > 0 && (
+          <div class="card-progress-track">
+            <div class="card-progress-fill" style={{ width: `${progressPct()}%` }} />
           </div>
         )}
       </div>

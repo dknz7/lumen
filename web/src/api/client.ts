@@ -15,11 +15,17 @@ export const api = {
   libraries: (serverID: string) =>
     getJSON<Library[]>(`/api/servers/${encodeURIComponent(serverID)}/libraries`),
 
-  items: (serverID: string, libraryID: string, opts?: { sort?: string; start?: number; size?: number }) => {
+  items: (serverID: string, libraryID: string, opts?: { sort?: string; start?: number; size?: number; filters?: Record<string, string> }) => {
     const qs = new URLSearchParams();
     if (opts?.sort) qs.set("sort", opts.sort);
     if (opts?.start !== undefined) qs.set("start", String(opts.start));
     if (opts?.size !== undefined) qs.set("size", String(opts.size));
+    if (opts?.filters) {
+      // Server expects query params prefixed with "filter." — matches api_servers.go decoder.
+      for (const [k, v] of Object.entries(opts.filters)) {
+        qs.set(`filter.${k}`, v);
+      }
+    }
     const s = qs.toString();
     return getJSON<Item[]>(
       `/api/servers/${encodeURIComponent(serverID)}/libraries/${encodeURIComponent(libraryID)}/items${s ? "?" + s : ""}`

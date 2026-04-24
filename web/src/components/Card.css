@@ -40,6 +40,22 @@
   font-weight: 700;
 }
 
+/* Progress bar across the bottom of the poster — matches Plex's in-progress treatment. */
+.card-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.card-progress-fill {
+  height: 100%;
+  background: var(--text);
+  transition: width 0.3s ease;
+}
+
 .card-meta {
   padding: 6px 2px;
 }
