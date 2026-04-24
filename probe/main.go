@@ -155,7 +155,31 @@ func step5ReadPosition() {
 		time.Sleep(1 * time.Second)
 	}
 }
-func step6ReadDuration() { log.Fatal("not implemented") }
+func step6ReadDuration() {
+	if *videoFlag == "" {
+		log.Fatal("--video=<path> required")
+	}
+	cmd := exec.Command(potPlayerPath(), *videoFlag)
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("launch: %v", err)
+	}
+	hwnd := findPotPlayerHWND()
+
+	// Duration may not be available immediately — poll up to 10 s.
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		ret, _, _ := procSendMsgW.Call(hwnd, WM_USER, uintptr(PP_GET_DURATION), 0)
+		log.Printf("duration raw=%d", ret)
+		if ret > 0 {
+			log.Printf("DURATION OK (if seconds: %ds / if ms: %dms)", ret, ret)
+			return
+		}
+		if time.Now().After(deadline) {
+			log.Fatal("duration never became non-zero within 10 s — FAIL")
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+}
 func step7ReadState()    { log.Fatal("not implemented") }
 func step8SendCommand()  { log.Fatal("not implemented") }
 func step9DetectExit()   { log.Fatal("not implemented") }
