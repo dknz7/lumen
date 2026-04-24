@@ -59,6 +59,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/availability", s.handleAvailability)
 	s.mux.HandleFunc("/api/image-proxy", s.handleImageProxy)
 	s.mux.HandleFunc("/api/play", s.handlePlay)
+	s.mux.HandleFunc("/api/settings", s.handleSettings)
 	s.mux.HandleFunc("/", s.handleSPA)
 }
 
