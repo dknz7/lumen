@@ -1,0 +1,9 @@
+.home-page {
+  max-width: 1600px;
+}
+
+.shelf-stub, .group-missing, .shelf-loading {
+  padding: 10px 4px;
+  color: var(--text-muted);
+  font-style: italic;
+}
