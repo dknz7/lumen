@@ -65,6 +65,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/user", s.handleUser)
 	s.mux.HandleFunc("/api/servers/refresh", s.handleServersRefresh)
 	s.mux.HandleFunc("/api/settings/omdb", s.handleSettingsOMDB)
+	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
 	s.mux.HandleFunc("/", s.handleSPA)
 }
 
