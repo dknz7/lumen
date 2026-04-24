@@ -1508,9 +1508,10 @@ Create `web/src/theme.css`:
   --bg-menu:        #1a1a1a;   /* left menu only */
   --bg-elevated:    #0f1729;   /* dark navy — top bar pill, pills, coloured surfaces */
   --bg-inverse:     #ffffff;   /* inverse surfaces — primary action button, selected tab */
-  --text:           #ffffff;   /* primary white — titles, icons, section headers */
+  --text:           #ffffff;   /* primary white — titles, top-bar icons, section headers */
   --text-muted:     #9ca3af;   /* body text — descriptions, durations, dates, character names */
   --text-inverse:   #000000;   /* text/icon on inverse surfaces */
+  --menu-icon:      #d1d5db;   /* left menu — chevrons, idle nav links (light grey, distinct from body text) */
   --border:         #262626;   /* hard divider between sections */
   --border-soft:    rgba(255, 255, 255, 0.08); /* in-pill dividers, subtle separators */
   --stroke:         #ffffff;   /* white stroke — hover outlines, secondary button borders */
@@ -2315,7 +2316,7 @@ Create `web/src/components/LeftMenu.css`:
   display: block;
   padding: 6px 10px;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  color: var(--menu-icon);
 }
 
 .menu-top li a:hover,
@@ -2361,7 +2362,7 @@ Create `web/src/components/LeftMenu.css`:
 }
 
 .caret {
-  color: var(--text-muted);
+  color: var(--menu-icon);
   font-size: 10px;
 }
 
