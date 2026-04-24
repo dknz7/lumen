@@ -1,7 +1,10 @@
 package config
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -57,5 +60,53 @@ func TestLoadReusesExistingClientIdentifier(t *testing.T) {
 	c2, _ := Load()
 	if c1.ClientIdentifier != c2.ClientIdentifier {
 		t.Fatalf("ClientIdentifier changed across Load calls: %q != %q", c1.ClientIdentifier, c2.ClientIdentifier)
+	}
+}
+
+func TestSecretsAreEncryptedOnDisk(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("APPDATA", tmp)
+	c, _ := Load()
+	c.Plex.AccountToken = "super-secret-token"
+	c.Plex.Servers = []Server{{
+		Name:               "Stargaze",
+		MachineIdentifier:  "abc",
+		AccessToken:        "per-server-secret",
+		LastGoodConnection: "https://1-2-3-4.plex.direct:32400",
+	}}
+	if err := c.Save(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Read the on-disk JSON raw — plaintext secrets must NOT appear.
+	raw, err := os.ReadFile(ConfigFile())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, secret := range []string{"super-secret-token", "per-server-secret", "1-2-3-4.plex.direct"} {
+		if strings.Contains(string(raw), secret) {
+			t.Errorf("on-disk JSON leaks plaintext %q", secret)
+		}
+	}
+
+	// But a fresh Load must decrypt them back.
+	c2, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c2.Plex.AccountToken != "super-secret-token" {
+		t.Errorf("AccountToken: got %q", c2.Plex.AccountToken)
+	}
+	if c2.Plex.Servers[0].AccessToken != "per-server-secret" {
+		t.Errorf("Server AccessToken: got %q", c2.Plex.Servers[0].AccessToken)
+	}
+	if c2.Plex.Servers[0].LastGoodConnection != "https://1-2-3-4.plex.direct:32400" {
+		t.Errorf("Server LastGoodConnection: got %q", c2.Plex.Servers[0].LastGoodConnection)
+	}
+
+	// Ensure the JSON actually parses (doesn't contain raw binary).
+	var probe map[string]any
+	if err := json.Unmarshal(raw, &probe); err != nil {
+		t.Errorf("on-disk JSON malformed: %v", err)
 	}
 }
