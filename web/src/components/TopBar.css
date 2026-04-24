@@ -1,0 +1,97 @@
+.top-bar {
+  padding: var(--top-bar-margin) var(--top-bar-margin) 0 var(--top-bar-margin);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+}
+
+.top-bar-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: var(--top-bar-height);
+  padding: 0 14px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow);
+}
+
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.tb-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-soft);
+  margin: 6px 2px;
+}
+
+.tb-brand .logo {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.tb-brand .wordmark {
+  color: var(--text);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-left: 4px;
+}
+
+.tb-search {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+
+.tb-search input {
+  flex: 1 1 auto;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  outline: none;
+  font-size: 13px;
+}
+
+.tb-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.tb-search input:focus {
+  border-color: var(--stroke);
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--text);
+  background: transparent;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zoom-icon {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.zoom-slider {
+  width: 84px;
+  accent-color: var(--text); /* white thumb + fill on the track */
+}
