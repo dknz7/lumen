@@ -1,5 +1,38 @@
 .library-page {
-  max-width: 1600px;
+  /* fills the content area; no fixed cap */
+}
+
+.library-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 32px 0;
+}
+
+.library-pagination button {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 8px 18px;
+  font-size: 13px;
+}
+
+.library-pagination button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.library-pagination button:hover:not(:disabled) {
+  border-color: var(--stroke);
+}
+
+.library-pagination .page-indicator {
+  color: var(--text-muted);
+  font-size: 13px;
+  min-width: 100px;
+  text-align: center;
 }
 
 .library-header {

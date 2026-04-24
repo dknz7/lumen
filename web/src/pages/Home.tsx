@@ -52,35 +52,58 @@ export default function Home() {
 }
 
 function ContinueWatching(props: { servers: Server[] }) {
+  // Take a stable snapshot of machine IDs at mount. props.servers rarely changes
+  // within a single page view, but the reactive accessor was causing the resource
+  // to refetch or never settle.
+  const machineIDs = props.servers.map((s) => s.machineIdentifier);
+
   const [decks] = createResource(
-    () => props.servers.map((s) => s.machineIdentifier),
-    async (ids) => {
-      const results = await Promise.all(ids.map(async (id) => {
+    () => machineIDs.join(","), // stable primitive source — refetch only if IDs change
+    async () => {
+      const results = await Promise.all(machineIDs.map(async (id) => {
         try {
-          return { id, items: await api.onDeck(id) };
-        } catch {
-          return { id, items: [] };
+          const items = await api.onDeck(id);
+          return { id, items, error: null as string | null };
+        } catch (e) {
+          console.error(`onDeck failed for server ${id}:`, e);
+          return { id, items: [], error: (e as Error).message };
         }
       }));
-      // Flatten, tagging each item with its originating serverID.
+      const totalErrors = results.filter((r) => r.error !== null).length;
+      if (totalErrors === results.length && results.length > 0) {
+        throw new Error(`onDeck failed for all ${results.length} servers`);
+      }
       return results.flatMap((r) => r.items.map((it) => ({ ...it, serverID: r.id })));
     }
   );
   return (
     <Shelf id="continue-watching" title="Continue Watching">
-      <Show when={decks()}>
-        {(items) => (
-          <For each={items() as (Item & { serverID: string })[]}>
-            {(it) => (
-              <Card
-                title={it.title}
-                year={it.year}
-                ratingKey={it.ratingKey}
-                serverID={it.serverID}
-              />
-            )}
-          </For>
-        )}
+      <Show
+        when={!decks.loading}
+        fallback={<div class="shelf-loading">Loading Continue Watching…</div>}
+      >
+        <Show
+          when={decks.error}
+          fallback={
+            <Show
+              when={(decks() ?? []).length > 0}
+              fallback={<div class="shelf-stub">Nothing in progress across your servers.</div>}
+            >
+              <For each={(decks() ?? []) as (Item & { serverID: string })[]}>
+                {(it) => (
+                  <Card
+                    title={it.title}
+                    year={it.year}
+                    ratingKey={it.ratingKey}
+                    serverID={it.serverID}
+                  />
+                )}
+              </For>
+            </Show>
+          }
+        >
+          <div class="shelf-stub">Continue Watching failed: {(decks.error as Error)?.message}</div>
+        </Show>
       </Show>
     </Shelf>
   );

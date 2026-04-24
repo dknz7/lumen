@@ -1,4 +1,4 @@
-.item-detail { max-width: 1200px; }
+.item-detail { /* fills content area */ }
 
 .item-loading { padding: 20px; color: var(--text-muted); }
 

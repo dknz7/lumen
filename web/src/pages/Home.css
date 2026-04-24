@@ -1,5 +1,5 @@
 .home-page {
-  max-width: 1600px;
+  /* fills the content area; no fixed cap so shelves use full viewport width */
 }
 
 .shelf-stub, .group-missing, .shelf-loading {

@@ -42,8 +42,9 @@
 
 .libraries-section {
   margin-top: 20px;
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .libraries-label {
@@ -88,6 +89,5 @@
 }
 
 .menu-spacer {
-  flex: 1;
-  min-height: 20px;
+  flex: 0 0 12px;
 }
