@@ -126,7 +126,35 @@ func findPotPlayerHWND() uintptr {
 	}
 }
 
-func step5ReadPosition() { log.Fatal("not implemented") }
+const (
+	WM_USER = 0x0400
+
+	// Pot Player query codes (from rasvob/PotPlayerRemoteAPI).
+	// Session 0 job: confirm these against v260422.
+	PP_GET_POSITION = 0x5004 // expected: position in seconds (some sources say ms — probe both)
+	PP_GET_DURATION = 0x5002
+	PP_GET_STATE    = 0x5006 // expected: 0=stopped, 1=paused, 2=playing
+)
+
+func step5ReadPosition() {
+	if *videoFlag == "" {
+		log.Fatal("--video=<path> required")
+	}
+	cmd := exec.Command(potPlayerPath(), *videoFlag)
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("launch: %v", err)
+	}
+	hwnd := findPotPlayerHWND()
+	log.Printf("HWND=0x%x — polling position every 1 s for 30 s", hwnd)
+
+	start := time.Now()
+	for i := 0; i < 30; i++ {
+		ret, _, _ := procSendMsgW.Call(hwnd, WM_USER, uintptr(PP_GET_POSITION), 0)
+		log.Printf("t+%4.1fs  raw=%d  (if seconds: %ds / if ms: %dms)",
+			time.Since(start).Seconds(), ret, ret, ret)
+		time.Sleep(1 * time.Second)
+	}
+}
 func step6ReadDuration() { log.Fatal("not implemented") }
 func step7ReadState()    { log.Fatal("not implemented") }
 func step8SendCommand()  { log.Fatal("not implemented") }
