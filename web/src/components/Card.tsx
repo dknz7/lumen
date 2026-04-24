@@ -1,39 +1,56 @@
 import { A } from "@solidjs/router";
 import { api } from "../api/client";
+import type { Item } from "../api/types";
 import "./Card.css";
 
 export interface CardProps {
-  title: string;
-  year?: number;
-  thumb?: string;       // server-relative path, e.g. /library/metadata/123/thumb/1234
+  item: Item;
   serverID: string;
-  ratingKey: string;
-  subtitle?: string;    // optional: for episodes, "Show Name — E03"
+}
+
+// Derived display fields for a single card. Episodes surface the show's name
+// as the primary title and format S/E + episode title as the subtitle.
+function derive(item: Item) {
+  if (item.type === "episode") {
+    const season = item.parentIndex ?? 0;
+    const episode = item.index ?? 0;
+    const se = season && episode ? `S${season} · E${episode}` : "";
+    return {
+      title: item.grandparentTitle ?? item.title,
+      // "S1 · E3 · Episode Title" — drop the title if it's just "Episode 3" or similar
+      subtitle: se + (item.title && se ? ` · ${item.title}` : item.title ?? ""),
+      thumb: item.grandparentThumb ?? item.thumb,
+      // For episodes we don't show year — shown at the show level, not episode
+      year: undefined as number | undefined,
+      linkKey: item.ratingKey, // still deep-link to the episode
+    };
+  }
+  return {
+    title: item.title,
+    subtitle: undefined as string | undefined,
+    thumb: item.thumb,
+    year: item.year,
+    linkKey: item.ratingKey,
+  };
 }
 
 export default function Card(props: CardProps) {
+  const d = () => derive(props.item);
   return (
-    <A
-      class="card"
-      href={`/item/${props.serverID}/${props.ratingKey}`}
-    >
+    <A class="card" href={`/item/${props.serverID}/${d().linkKey}`}>
       <div class="card-poster">
-        {props.thumb ? (
-          <img
-            src={api.image(props.serverID, props.thumb)}
-            alt={props.title}
-            loading="lazy"
-          />
+        {d().thumb ? (
+          <img src={api.image(props.serverID, d().thumb!)} alt={d().title} loading="lazy" />
         ) : (
           <div class="card-poster-placeholder">
-            <span>{props.title.slice(0, 1)}</span>
+            <span>{d().title.slice(0, 1)}</span>
           </div>
         )}
       </div>
       <div class="card-meta">
-        <div class="card-title">{props.title}</div>
-        {props.subtitle && <div class="card-subtitle">{props.subtitle}</div>}
-        {props.year && <div class="card-year">{props.year}</div>}
+        <div class="card-title">{d().title}</div>
+        {d().subtitle && <div class="card-subtitle">{d().subtitle}</div>}
+        {d().year && <div class="card-year">{d().year}</div>}
       </div>
     </A>
   );

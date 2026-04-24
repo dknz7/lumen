@@ -56,10 +56,21 @@ export default function ItemDetail() {
 }
 
 function Hero(props: { item: Item; serverID: string }) {
+  const isEpisode = () => props.item.type === "episode";
+  const showTitle = () => (isEpisode() ? props.item.grandparentTitle : props.item.title);
+  const episodeLabel = () => {
+    if (!isEpisode()) return null;
+    const season = props.item.parentIndex ?? 0;
+    const ep = props.item.index ?? 0;
+    const se = season && ep ? `S${season} · E${ep}` : "";
+    const title = props.item.title;
+    return se + (title && se ? ` · ${title}` : title ?? "");
+  };
   return (
     <header class="hero">
       <div class="hero-meta">
-        <h1>{props.item.title}</h1>
+        <h1>{showTitle() ?? props.item.title}</h1>
+        {isEpisode() && <div class="hero-episode">{episodeLabel()}</div>}
         <div class="meta-pills">
           {props.item.year && <span class="pill">{props.item.year}</span>}
           {props.item.type && <span class="pill">{props.item.type}</span>}

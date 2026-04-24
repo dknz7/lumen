@@ -27,15 +27,24 @@ type metadataWire struct {
 	GUID      string `json:"guid"`
 	// GuidArray absorbs Plex's capital-"Guid" array of external IDs (imdb/tmdb/tvdb)
 	// so Go's case-insensitive json matching doesn't spill it into the GUID string
-	// field and fail to unmarshal. Not consumed by Session 2 — parsed in Session 5
-	// for OMDB lookup via imdb IDs.
+	// field and fail to unmarshal. Parsed in Session 5 for OMDB IMDB lookup.
 	GuidArray []struct {
 		ID string `json:"id"`
 	} `json:"Guid"`
-	Title   string `json:"title"`
-	Type    string `json:"type"`
-	Year    int    `json:"year"`
-	Summary string `json:"summary"`
+	Title                string `json:"title"`
+	Type                 string `json:"type"`
+	Year                 int    `json:"year"`
+	Summary              string `json:"summary"`
+	Thumb                string `json:"thumb"`
+	Art                  string `json:"art"`
+	Index                int    `json:"index"`
+	ParentIndex          int    `json:"parentIndex"`
+	ParentTitle          string `json:"parentTitle"`
+	ParentThumb          string `json:"parentThumb"`
+	GrandparentTitle     string `json:"grandparentTitle"`
+	GrandparentThumb     string `json:"grandparentThumb"`
+	GrandparentArt       string `json:"grandparentArt"`
+	GrandparentRatingKey string `json:"grandparentRatingKey"`
 }
 
 // GetLibraries returns all top-level library sections on the server.
@@ -138,12 +147,22 @@ func metadataSliceToItems(mw []metadataWire) []Item {
 	out := make([]Item, 0, len(mw))
 	for _, m := range mw {
 		out = append(out, Item{
-			RatingKey: m.RatingKey,
-			GUID:      m.GUID,
-			Title:     m.Title,
-			Type:      m.Type,
-			Year:      m.Year,
-			Summary:   m.Summary,
+			RatingKey:            m.RatingKey,
+			GUID:                 m.GUID,
+			Title:                m.Title,
+			Type:                 m.Type,
+			Year:                 m.Year,
+			Summary:              m.Summary,
+			Thumb:                m.Thumb,
+			Art:                  m.Art,
+			Index:                m.Index,
+			ParentIndex:          m.ParentIndex,
+			ParentTitle:          m.ParentTitle,
+			ParentThumb:          m.ParentThumb,
+			GrandparentTitle:     m.GrandparentTitle,
+			GrandparentThumb:     m.GrandparentThumb,
+			GrandparentArt:       m.GrandparentArt,
+			GrandparentRatingKey: m.GrandparentRatingKey,
 		})
 	}
 	return out

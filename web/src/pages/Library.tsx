@@ -59,14 +59,7 @@ export default function Library() {
       <div class="library-grid">
         <Show when={items()} fallback={<div class="library-loading">Loading…</div>}>
           <For each={currentPageItems()}>
-            {(it) => (
-              <Card
-                title={it.title}
-                year={it.year}
-                ratingKey={it.ratingKey}
-                serverID={params.serverID}
-              />
-            )}
+            {(it) => <Card item={it} serverID={params.serverID} />}
           </For>
         </Show>
       </div>

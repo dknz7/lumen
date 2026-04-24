@@ -90,14 +90,7 @@ function ContinueWatching(props: { servers: Server[] }) {
               fallback={<div class="shelf-stub">Nothing in progress across your servers.</div>}
             >
               <For each={(decks() ?? []) as (Item & { serverID: string })[]}>
-                {(it) => (
-                  <Card
-                    title={it.title}
-                    year={it.year}
-                    ratingKey={it.ratingKey}
-                    serverID={it.serverID}
-                  />
-                )}
+                {(it) => <Card item={it} serverID={it.serverID} />}
               </For>
             </Show>
           }
@@ -166,14 +159,7 @@ function LibraryCards(props: { server: Server; libraryKey: string }) {
     <Show when={items()} fallback={<div class="shelf-loading">Loading…</div>}>
       {(list) => (
         <For each={list() as Item[]}>
-          {(it) => (
-            <Card
-              title={it.title}
-              year={it.year}
-              ratingKey={it.ratingKey}
-              serverID={props.server.machineIdentifier}
-            />
-          )}
+          {(it) => <Card item={it} serverID={props.server.machineIdentifier} />}
         </For>
       )}
     </Show>

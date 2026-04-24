@@ -17,9 +17,20 @@ export interface Item {
   ratingKey: string;
   guid?: string;
   title: string;
-  type: string;
+  type: string; // "movie" | "show" | "season" | "episode"
   year?: number;
   summary?: string;
+  thumb?: string;
+  art?: string;
+  // Episode-specific — populated only when type === "episode"
+  index?: number;              // episode number
+  parentIndex?: number;        // season number
+  parentTitle?: string;
+  parentThumb?: string;
+  grandparentTitle?: string;   // show name
+  grandparentThumb?: string;   // show poster
+  grandparentArt?: string;     // show backdrop
+  grandparentRatingKey?: string;
 }
 
 export interface HubItem {
