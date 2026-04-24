@@ -25,7 +25,7 @@ type pinResponse struct {
 // CreatePIN asks plex.tv for a new PIN with a 4-char Code and numeric ID.
 // Byron will enter the Code at https://plex.tv/link.
 func (c *Client) CreatePIN() (PIN, error) {
-	u := c.plexTVBase + "/api/v2/pins?strong=true"
+	u := c.plexTVBase + "/api/v2/pins"
 	req, err := c.NewRequest("POST", u, nil)
 	if err != nil {
 		return PIN{}, err
