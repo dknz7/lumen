@@ -2,6 +2,7 @@ import { useParams } from "@solidjs/router";
 import { createResource, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
+import Skeleton from "../components/Skeleton";
 import "./ItemDetail.css";
 
 export default function ItemDetail() {
@@ -17,7 +18,7 @@ export default function ItemDetail() {
 
   return (
     <div class="item-detail">
-      <Show when={item()} fallback={<div class="item-loading">Loading…</div>}>
+      <Show when={item()} fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}>
         {(it) => (
           <>
             <Hero item={it() as Item} serverID={params.serverID} />

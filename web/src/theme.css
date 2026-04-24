@@ -88,6 +88,25 @@ button {
   padding: 0;
 }
 
+/* All Lucide icons share stroke-width 1.75 unless overridden. */
+.lucide {
+  stroke-width: 1.75;
+}
+
+/* Keyboard-visible focus rings. Mouse clicks don't trigger :focus-visible;
+   only keyboard nav + programmatic focus do. Matches system expectations. */
+:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove mouse-click focus outlines where intrinsic feedback exists. */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+
 .app-shell {
   display: flex;
   flex-direction: column;

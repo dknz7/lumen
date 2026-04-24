@@ -1,5 +1,6 @@
 import { createSignal, JSX, Show } from "solid-js";
 import { createSortable } from "@thisbeyond/solid-dnd";
+import { ChevronDown, ChevronRight, GripVertical } from "./icons";
 import "./Shelf.css";
 
 export interface ShelfProps {
@@ -29,11 +30,13 @@ export default function Shelf(props: ShelfProps) {
           aria-expanded={!collapsed()}
           onClick={() => setCollapsed(!collapsed())}
         >
-          <span class="caret">{collapsed() ? ">" : "v"}</span>
+          <span class="caret">
+            {collapsed() ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          </span>
           <h2 class="shelf-title">{props.title}</h2>
         </button>
         <span class="shelf-drag-handle" {...sortable.dragActivators} title="Drag to reorder" aria-label="Drag handle">
-          ::
+          <GripVertical size={16} />
         </span>
       </header>
       <Show when={!collapsed()}>

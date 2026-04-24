@@ -1,6 +1,7 @@
 import { A } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
+import { Trash2 } from "./icons";
 import "./Card.css";
 
 export interface CardProps {
@@ -66,7 +67,7 @@ export default function Card(props: CardProps) {
               props.onRemove!();
             }}
           >
-            🗑
+            <Trash2 size={14} />
           </button>
         )}
         {progressPct() > 0 && (

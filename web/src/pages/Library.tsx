@@ -3,6 +3,7 @@ import { createEffect, createResource, createSignal, For, Show } from "solid-js"
 import { api } from "../api/client";
 import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
+import Skeleton from "../components/Skeleton";
 import { store as settingsStore } from "../state/settings";
 import "./Library.css";
 
@@ -115,7 +116,7 @@ export default function Library() {
         </Show>
       </header>
       <div class="library-grid">
-        <Show when={items()} fallback={<div class="library-loading">Loading…</div>}>
+        <Show when={items()} fallback={<Skeleton kind="card" count={12} />}>
           <For each={currentPageItems()}>
             {(it) => <Card item={it} serverID={params.serverID} />}
           </For>

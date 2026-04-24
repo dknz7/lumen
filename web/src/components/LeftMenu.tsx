@@ -3,6 +3,7 @@ import { A } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Library, Server } from "../api/types";
 import { store as settingsStore } from "../state/settings";
+import { ChevronDown, ChevronRight, Eye, EyeOff, Settings } from "./icons";
 import "./LeftMenu.css";
 
 export default function LeftMenu(props: { onOpenSettings: () => void }) {
@@ -28,7 +29,9 @@ export default function LeftMenu(props: { onOpenSettings: () => void }) {
       <div class="menu-spacer" />
       <ul class="menu-bottom">
         <li>
-          <button class="menu-settings-btn" onClick={props.onOpenSettings}>Settings</button>
+          <button class="menu-settings-btn" onClick={props.onOpenSettings}>
+            <Settings size={14} /> Settings
+          </button>
         </li>
       </ul>
     </nav>
@@ -52,7 +55,7 @@ function ServerLibraries(props: { server: Server }) {
   return (
     <div class="server-group">
       <button class="server-group-header" onClick={() => setExpanded(!expanded())}>
-        <span class="caret">{expanded() ? "v" : ">"}</span>
+        <span class="caret">{expanded() ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
         <span>{props.server.displayName}</span>
         <span class="server-status" data-status={props.server.status} />
       </button>
@@ -74,7 +77,7 @@ function ServerLibraries(props: { server: Server }) {
                     title={isHidden(l.key) ? "Show library" : "Hide library"}
                     aria-label="Toggle library visibility"
                   >
-                    {isHidden(l.key) ? "H" : "V"}
+                    {isHidden(l.key) ? <EyeOff size={12} /> : <Eye size={12} />}
                   </button>
                 </li>
               )}

@@ -5,6 +5,7 @@ import type { Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
 import Shelf from "../components/Shelf";
 import Card from "../components/Card";
+import Skeleton from "../components/Skeleton";
 import { store as settingsStore } from "../state/settings";
 import "./Home.css";
 
@@ -143,7 +144,7 @@ function ContinueWatching(props: { servers: Server[] }) {
     <Shelf id="continue-watching" title="Continue Watching">
       <Show
         when={!decksData.loading}
-        fallback={<div class="shelf-loading">Loading Continue Watching…</div>}
+        fallback={<Skeleton kind="card" count={6} />}
       >
         <Show
           when={decksData.error}
@@ -263,7 +264,7 @@ function LibraryCards(props: { server: Server; libraryKey: string }) {
     api.recentlyAdded(props.server.machineIdentifier, props.libraryKey, 20)
   );
   return (
-    <Show when={items()} fallback={<div class="shelf-loading">Loading…</div>}>
+    <Show when={items()} fallback={<Skeleton kind="card" count={6} />}>
       {(list) => (
         <For each={list() as Item[]}>
           {(it) => <Card item={it} serverID={props.server.machineIdentifier} />}

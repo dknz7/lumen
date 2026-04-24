@@ -1,0 +1,29 @@
+@keyframes skeleton-shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--surface, #1a1a1a) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    var(--surface, #1a1a1a) 75%
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+.skeleton-line {
+  height: 1rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-card {
+  width: var(--card-width, 160px);
+  aspect-ratio: 2 / 3;
+  border-radius: 8px;
+  flex-shrink: 0;
+}

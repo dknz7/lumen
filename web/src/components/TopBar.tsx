@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import { ArrowLeft, Home, Maximize2, Search, Sparkles, X } from "./icons";
 import "./TopBar.css";
 
 export default function TopBar() {
@@ -15,7 +16,7 @@ export default function TopBar() {
 
   function applyZoom(v: number) {
     setZoom(v);
-    // CSS zoom on :root scales the whole viewport. Session 3 will persist this.
+    // CSS zoom on :root scales the whole viewport. Session 3 persists this.
     document.documentElement.style.setProperty("zoom", String(v / 100));
   }
 
@@ -23,13 +24,17 @@ export default function TopBar() {
     <header class="top-bar">
       <div class="top-bar-pill">
         <div class="tb-group tb-brand">
-          <span class="logo">✦</span>
+          <span class="logo"><Sparkles size={18} /></span>
           <span class="wordmark">Lumen</span>
         </div>
         <div class="tb-divider" />
         <div class="tb-group tb-nav">
-          <button class="icon-btn" title="Back" aria-label="Back" onClick={() => navigate(-1)}>←</button>
-          <button class="icon-btn" title="Home" aria-label="Home" onClick={() => navigate("/")}>⌂</button>
+          <button class="icon-btn" title="Back" aria-label="Back" onClick={() => navigate(-1)}>
+            <ArrowLeft size={16} />
+          </button>
+          <button class="icon-btn" title="Home" aria-label="Home" onClick={() => navigate("/")}>
+            <Home size={16} />
+          </button>
         </div>
         <div class="tb-divider" />
         <form class="tb-search" onSubmit={onSearch}>
@@ -43,8 +48,10 @@ export default function TopBar() {
         </form>
         <div class="tb-divider" />
         <div class="tb-group tb-zoom">
-          <button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">⛶</button>
-          <span class="zoom-icon" aria-hidden="true">🔍</span>
+          <button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">
+            <Maximize2 size={16} />
+          </button>
+          <span class="zoom-icon" aria-hidden="true"><Search size={12} /></span>
           <input
             type="range"
             min="80"
@@ -57,7 +64,9 @@ export default function TopBar() {
         </div>
         <div class="tb-divider" />
         <div class="tb-group tb-close">
-          <button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => window.close()}>✕</button>
+          <button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => window.close()}>
+            <X size={16} />
+          </button>
         </div>
       </div>
     </header>

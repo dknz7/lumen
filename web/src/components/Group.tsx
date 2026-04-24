@@ -1,5 +1,6 @@
 import { createSignal, JSX, Show } from "solid-js";
 import { createSortable } from "@thisbeyond/solid-dnd";
+import { ChevronDown, ChevronRight, GripVertical } from "./icons";
 import "./Group.css";
 
 export interface GroupProps {
@@ -26,10 +27,14 @@ export default function Group(props: GroupProps) {
           aria-expanded={!collapsed()}
           onClick={() => setCollapsed(!collapsed())}
         >
-          <span class="caret">{collapsed() ? ">" : "v"}</span>
+          <span class="caret">
+            {collapsed() ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+          </span>
           <h1 class="group-title">{props.title}</h1>
         </button>
-        <span class="group-drag-handle" {...sortable.dragActivators} title="Drag to reorder group">::</span>
+        <span class="group-drag-handle" {...sortable.dragActivators} title="Drag to reorder group">
+          <GripVertical size={16} />
+        </span>
       </header>
       <Show when={!collapsed()}>
         <div class="group-body">{props.children}</div>
