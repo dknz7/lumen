@@ -1,4 +1,5 @@
 import { createSignal, JSX, Show } from "solid-js";
+import { createSortable } from "@thisbeyond/solid-dnd";
 import "./Group.css";
 
 export interface GroupProps {
@@ -10,16 +11,26 @@ export interface GroupProps {
 
 export default function Group(props: GroupProps) {
   const [collapsed, setCollapsed] = createSignal(!!props.initialCollapsed);
+  const sortable = createSortable(props.id);
   return (
-    <section class="group" data-group-id={props.id}>
-      <button
-        class="group-header"
-        aria-expanded={!collapsed()}
-        onClick={() => setCollapsed(!collapsed())}
-      >
-        <span class="caret">{collapsed() ? "▸" : "▾"}</span>
-        <h1 class="group-title">{props.title}</h1>
-      </button>
+    <section
+      ref={sortable.ref}
+      class="group"
+      classList={{ "is-dragging": sortable.isActiveDraggable }}
+      style={sortable.transform ? { transform: `translate(${sortable.transform.x}px, ${sortable.transform.y}px)` } : {}}
+      data-group-id={props.id}
+    >
+      <header class="group-header-wrap">
+        <button
+          class="group-header"
+          aria-expanded={!collapsed()}
+          onClick={() => setCollapsed(!collapsed())}
+        >
+          <span class="caret">{collapsed() ? ">" : "v"}</span>
+          <h1 class="group-title">{props.title}</h1>
+        </button>
+        <span class="group-drag-handle" {...sortable.dragActivators} title="Drag to reorder group">::</span>
+      </header>
       <Show when={!collapsed()}>
         <div class="group-body">{props.children}</div>
       </Show>

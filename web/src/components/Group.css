@@ -2,18 +2,40 @@
   margin-bottom: 48px;
 }
 
+.group-header-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
 .group-header {
   display: flex;
   align-items: center;
   gap: 12px;
   color: var(--text);
-  margin-bottom: 24px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-  width: 100%;
+  flex: 1;
 }
 
 .group-header:hover { color: var(--text-muted); }
+
+.group-drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  padding: 8px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.group:hover .group-drag-handle {
+  opacity: 1;
+}
+
+.group.is-dragging {
+  opacity: 0.5;
+}
 
 .group-title {
   font-size: 24px;
