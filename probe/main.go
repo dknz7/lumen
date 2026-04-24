@@ -17,8 +17,9 @@ import (
 )
 
 var (
-	stepFlag  = flag.Int("step", 0, "which probe step to run (1..8)")
-	videoFlag = flag.String("video", "", "absolute path to test video file")
+	stepFlag      = flag.Int("step", 0, "which probe step to run (1..8)")
+	videoFlag     = flag.String("video", "", "absolute path to test video file")
+	potPlayerFlag = flag.String("potplayer", "", "absolute path to PotPlayerMini64.exe (overrides registry)")
 )
 
 func main() {
@@ -43,29 +44,18 @@ func main() {
 	case 9:
 		step9DetectExit()
 	default:
-		fmt.Fprintln(os.Stderr, "usage: probe.exe --step=<2..9> [--video=<path>]")
+		fmt.Fprintln(os.Stderr, "usage: probe.exe --step=<2..9> [--video=<path>] [--potplayer=<exe path>]")
 		os.Exit(2)
 	}
 }
 
-// Placeholder functions — populated task-by-task.
 func step2DetectPath() {
-	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\DAUM\PotPlayerMini64`, registry.QUERY_VALUE)
-	if err != nil {
-		log.Fatalf("open key: %v", err)
-	}
-	defer k.Close()
-
-	path, _, err := k.GetStringValue("ProgramPath")
-	if err != nil {
-		log.Fatalf("get ProgramPath: %v", err)
-	}
-
+	path, source := resolvePotPlayerPath()
 	info, err := os.Stat(path)
 	if err != nil {
 		log.Fatalf("stat %q: %v", path, err)
 	}
-	log.Printf("Pot Player path: %s (size=%d)", path, info.Size())
+	log.Printf("Pot Player path: %s (size=%d, source=%s)", path, info.Size(), source)
 }
 func step3Launch() {
 	if *videoFlag == "" {
@@ -81,16 +71,28 @@ func step3Launch() {
 
 // Shared helper — also used by later steps.
 func potPlayerPath() string {
+	p, _ := resolvePotPlayerPath()
+	return p
+}
+
+// resolvePotPlayerPath returns the exe path and a label for where it came from.
+// Preference: --potplayer flag → HKCU\Software\DAUM\PotPlayerMini64\ProgramPath.
+// Session 0 observation: not every install writes ProgramPath to the registry,
+// so the flag is the reliable path and the registry is best-effort.
+func resolvePotPlayerPath() (string, string) {
+	if *potPlayerFlag != "" {
+		return *potPlayerFlag, "flag"
+	}
 	k, err := registry.OpenKey(registry.CURRENT_USER, `Software\DAUM\PotPlayerMini64`, registry.QUERY_VALUE)
 	if err != nil {
-		log.Fatalf("open key: %v", err)
+		log.Fatalf("Pot Player path not found. Pass --potplayer=<full path to PotPlayerMini64.exe>. (registry open failed: %v)", err)
 	}
 	defer k.Close()
 	p, _, err := k.GetStringValue("ProgramPath")
 	if err != nil {
-		log.Fatalf("get ProgramPath: %v", err)
+		log.Fatalf("Pot Player path not found. Pass --potplayer=<full path to PotPlayerMini64.exe>. (ProgramPath value missing: %v)", err)
 	}
-	return p
+	return p, "registry"
 }
 func step4FindHWND() {
 	if *videoFlag == "" {
