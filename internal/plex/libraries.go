@@ -91,6 +91,23 @@ func (c *Client) GetItems(s *Server, libraryID string, q ItemQuery) ([]Item, err
 	return metadataSliceToItems(mc.MediaContainer.Metadata), nil
 }
 
+// GetRecentlyAdded lists items using Plex's native recently-added ordering,
+// which is what Plex Web's Home page uses. Distinct from GetItems sorted by
+// addedAt — /recentlyAdded is a curated feed that may filter out certain items
+// (collections, trailers, etc.) and respects Plex's own freshness heuristics.
+// Used by spec §12.1's "Recently Released" Home shelves.
+func (c *Client) GetRecentlyAdded(s *Server, libraryID string, size int) ([]Item, error) {
+	path := fmt.Sprintf("/library/sections/%s/recentlyAdded", libraryID)
+	if size > 0 {
+		path += fmt.Sprintf("?X-Plex-Container-Start=0&X-Plex-Container-Size=%d", size)
+	}
+	mc, err := c.serverGet(s, path, nil)
+	if err != nil {
+		return nil, err
+	}
+	return metadataSliceToItems(mc.MediaContainer.Metadata), nil
+}
+
 // GetItem fetches a single item by ratingKey.
 func (c *Client) GetItem(s *Server, ratingKey string) (Item, error) {
 	mc, err := c.serverGet(s, "/library/metadata/"+ratingKey, nil)

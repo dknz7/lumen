@@ -177,8 +177,10 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
 }
 
 function LibraryCards(props: { server: Server; libraryKey: string }) {
+  // Uses /library/sections/<id>/recentlyAdded — Plex's native freshly-added
+  // feed (spec §12.1). Produces the same ordering as Plex Web's Home page.
   const [items] = createResource(() =>
-    api.items(props.server.machineIdentifier, props.libraryKey, { sort: "addedAt:desc", size: 20 })
+    api.recentlyAdded(props.server.machineIdentifier, props.libraryKey, 20)
   );
   return (
     <Show when={items()} fallback={<div class="shelf-loading">Loading…</div>}>

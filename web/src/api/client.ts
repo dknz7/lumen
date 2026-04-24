@@ -44,6 +44,13 @@ export const api = {
   onDeck: (serverID: string) =>
     getJSON<Item[]>(`/api/servers/${encodeURIComponent(serverID)}/ondeck`),
 
+  // Plex's native recently-added feed for a library. Matches Plex Web's Home
+  // shelves — spec §12.1 "Recently Released" rows use this, not sort=addedAt.
+  recentlyAdded: (serverID: string, libraryID: string, size = 20) =>
+    getJSON<Item[]>(
+      `/api/servers/${encodeURIComponent(serverID)}/libraries/${encodeURIComponent(libraryID)}/recentlyAdded?size=${size}`
+    ),
+
   // Removes an item from the server's Continue Watching by scrobbling as watched.
   // Returns 200 on success. Throws via getJSON-like error on failure.
   removeFromOnDeck: async (serverID: string, ratingKey: string) => {

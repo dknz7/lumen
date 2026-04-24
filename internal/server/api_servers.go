@@ -69,6 +69,8 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		s.handleLibraries(w, r, srv)
 	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "items":
 		s.handleLibraryItems(w, r, srv, parts[2])
+	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "recentlyAdded":
+		s.handleLibraryRecentlyAdded(w, r, srv, parts[2])
 	case len(parts) == 2 && parts[1] == "ondeck":
 		s.handleOnDeck(w, r, srv)
 	case len(parts) == 3 && parts[1] == "ondeck" && parts[2] == "remove":
@@ -115,6 +117,25 @@ func (s *Server) handleLibraryItems(w http.ResponseWriter, r *http.Request, srv 
 	}
 	plexSrv := toPlexServer(srv)
 	items, err := s.plex.GetItems(plexSrv, libraryKey, iq)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, items)
+}
+
+// handleLibraryRecentlyAdded proxies /library/sections/<id>/recentlyAdded for
+// Home shelves. Accepts ?size=<n> to cap the result count.
+func (s *Server) handleLibraryRecentlyAdded(w http.ResponseWriter, r *http.Request, srv *config.Server, libraryKey string) {
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	size := 20
+	if v, err := strconv.Atoi(r.URL.Query().Get("size")); err == nil && v > 0 && v <= 200 {
+		size = v
+	}
+	items, err := s.plex.GetRecentlyAdded(toPlexServer(srv), libraryKey, size)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
