@@ -53,7 +53,30 @@ func runList(args []string) {
 			fmt.Printf("  connection: OFFLINE (%v)\n", errs[i])
 			continue
 		}
-		fmt.Printf("  connection: %s\n", s.BaseURL)
+		fmt.Printf("  connection (picked): %s\n", s.BaseURL)
+		fmt.Printf("  all candidates:\n")
+		for _, conn := range s.Connections {
+			flags := []string{}
+			if conn.Relay {
+				flags = append(flags, "relay")
+			}
+			if conn.IPv6 {
+				flags = append(flags, "IPv6")
+			}
+			flagStr := ""
+			if len(flags) > 0 {
+				flagStr = " [" + flags[0]
+				for _, f := range flags[1:] {
+					flagStr += "," + f
+				}
+				flagStr += "]"
+			}
+			marker := "  "
+			if conn.URI == s.BaseURL {
+				marker = "✓ "
+			}
+			fmt.Printf("    %s%s%s\n", marker, conn.URI, flagStr)
+		}
 		libs, err := c.GetLibraries(s)
 		if err != nil {
 			fmt.Printf("  libraries: ERROR — %v\n", err)
@@ -63,8 +86,17 @@ func runList(args []string) {
 		for _, l := range libs {
 			fmt.Printf("    [%s] %s (%s)\n", l.Key, l.Title, l.Type)
 		}
+		// Preserve any local DisplayName override across discovery.
+		displayName := ""
+		for _, prev := range cfg.Plex.Servers {
+			if prev.MachineIdentifier == s.MachineIdentifier {
+				displayName = prev.DisplayName
+				break
+			}
+		}
 		persisted = append(persisted, config.Server{
 			Name:               s.Name,
+			DisplayName:        displayName,
 			MachineIdentifier:  s.MachineIdentifier,
 			AccessToken:        s.AccessToken,
 			LastGoodConnection: s.BaseURL,

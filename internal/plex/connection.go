@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -40,11 +41,17 @@ func (c *Client) probe(baseURL string, timeout time.Duration) bool {
 	return resp.StatusCode < 400
 }
 
-// sortConnections returns a copy of the input sorted by preference:
-//  1. non-relay IPv4
-//  2. non-relay IPv6
-//  3. relay IPv4
-//  4. relay IPv6
+// sortConnections returns a copy of the input sorted by preference (lower score wins):
+//  1. plex.direct non-relay IPv4      (score 0)
+//  2. plex.direct non-relay IPv6      (score 1)
+//  3. custom-domain non-relay IPv4    (score 10)
+//  4. custom-domain non-relay IPv6    (score 11)
+//  5. relay (plex.direct or otherwise) (score 100+)
+//
+// plex.direct URLs are preferred because some custom-domain connections sit
+// behind CDNs that only whitelist a subset of Plex API paths — /identity works
+// but /library/metadata/*/thumb/* may 404 (Session 2 finding against DKNZPLEX's
+// Level 3 edge). plex.direct URLs bypass that by routing directly to the PMS.
 func sortConnections(in []Connection) []Connection {
 	out := make([]Connection, len(in))
 	copy(out, in)
@@ -57,10 +64,13 @@ func sortConnections(in []Connection) []Connection {
 func score(c Connection) int {
 	s := 0
 	if c.Relay {
-		s += 10
+		s += 100
 	}
 	if c.IPv6 {
 		s += 1
+	}
+	if !strings.Contains(c.URI, ".plex.direct") && !c.Relay {
+		s += 10
 	}
 	return s
 }
