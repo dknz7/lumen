@@ -28,9 +28,24 @@ func runProbeHubs(args []string) {
 	fmt.Println("\n=== Discover hub index: contentDirectoryID=watchlist ===")
 	dumpHubIndex(c, cfg.Plex.AccountToken, "watchlist")
 
-	// Phase B — per-server onDeck. spec §12.1 Continue Watching row is sourced
-	// from per-server /library/onDeck merged across servers. Pick Up Again on
-	// Recommended is likely the same data, filtered to watchlisted items.
+	// Phase B — confirm the 4 spec-pinned watchlist slugs actually return data
+	// (so we know our other Recommended shelves aren't also vapour).
+	fmt.Println("\n=== Spec-pinned watchlist slugs ===")
+	for _, slug := range []string{"new-episodes", "coming-soon", "new-trailers", "recently-added"} {
+		items, err := c.GetHub("watchlist", slug, cfg.Plex.AccountToken)
+		if err != nil {
+			fmt.Printf("  watchlist/%-20s  ERROR: %v\n", slug, err)
+			continue
+		}
+		sample := "<none>"
+		if len(items) > 0 {
+			sample = items[0].Title
+		}
+		fmt.Printf("  watchlist/%-20s  items=%d  first=%q\n", slug, len(items), sample)
+	}
+
+	// Phase C — per-server onDeck. spec §12.1 Continue Watching row is sourced
+	// from per-server /library/onDeck merged across servers.
 	fmt.Println("\n=== Per-server /library/onDeck ===")
 	for _, s := range cfg.Plex.Servers {
 		probeServerOnDeck(c, s)
