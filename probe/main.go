@@ -206,5 +206,33 @@ func step7ReadState() {
 		time.Sleep(1 * time.Second)
 	}
 }
-func step8SendCommand()  { log.Fatal("not implemented") }
+const (
+	WM_COMMAND = 0x0111
+
+	// Pot Player menu command IDs (from rasvob repo).
+	PP_CMD_PAUSE_TOGGLE = 0x4E5E // 20062
+	PP_CMD_STOP         = 0x4E67 // 20071
+)
+
+func step8SendCommand() {
+	if *videoFlag == "" {
+		log.Fatal("--video=<path> required")
+	}
+	cmd := exec.Command(potPlayerPath(), *videoFlag)
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("launch: %v", err)
+	}
+	hwnd := findPotPlayerHWND()
+	log.Printf("HWND=0x%x — will send pause toggle 4 times every 3 s.", hwnd)
+
+	time.Sleep(2 * time.Second) // let playback start
+	for i := 0; i < 4; i++ {
+		time.Sleep(3 * time.Second)
+		log.Printf("sending PAUSE_TOGGLE (%d/4)", i+1)
+		procSendMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_PAUSE_TOGGLE), 0)
+	}
+	log.Println("done — closing in 3 s via STOP command")
+	time.Sleep(3 * time.Second)
+	procSendMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_STOP), 0)
+}
 func step9DetectExit()   { log.Fatal("not implemented") }
