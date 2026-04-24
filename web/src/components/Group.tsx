@@ -14,9 +14,11 @@ export default function Group(props: GroupProps) {
   const [collapsed, setCollapsed] = createSignal(!!props.initialCollapsed);
 
   // Only register with solid-dnd when a DragDropProvider is actually present —
-  // otherwise useDragDropContext() returns null and createSortable null-derefs
+  // otherwise useDragDropContext() returns undefined and createSortable null-derefs
   // the destructure, crashing the whole subtree with a Symbol.iterator error.
-  const canSortable = useDragDropContext() !== null;
+  // Loose `!= null` catches both null AND undefined returns from the hook.
+  const ctx = useDragDropContext();
+  const canSortable = ctx != null;
   const sortable = canSortable ? createSortable(props.id) : null;
 
   return (

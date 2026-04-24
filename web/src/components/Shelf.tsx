@@ -26,7 +26,10 @@ export default function Shelf(props: ShelfProps) {
   // DragDropProvider is actually in the ancestor tree. The context check is
   // the defensive belt-and-braces — without it, an accidental use outside a
   // provider crashes the whole subtree with a cryptic Symbol.iterator error.
-  const canSortable = props.sortable !== false && useDragDropContext() !== null;
+  // Using loose `!= null` to catch both null AND undefined, since solid-dnd's
+  // useContext returns undefined (not null) when there's no Provider.
+  const ctx = useDragDropContext();
+  const canSortable = props.sortable !== false && ctx != null;
   const sortable = canSortable ? createSortable(props.id) : null;
 
   return (
