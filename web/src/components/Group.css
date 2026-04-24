@@ -1,0 +1,27 @@
+.group {
+  margin-bottom: 48px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text);
+  margin-bottom: 24px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  width: 100%;
+}
+
+.group-header:hover { color: var(--text-muted); }
+
+.group-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: 0.5px;
+}
+
+.group-body {
+  padding-left: 8px;
+}
