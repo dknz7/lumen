@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -88,7 +89,12 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		writeError(w, http.StatusBadGateway, "upstream status "+resp.Status)
+		// Capture upstream body (truncated) so we can diagnose what Plex rejected.
+		var snippet []byte
+		if b, _ := io.ReadAll(io.LimitReader(resp.Body, 512)); len(b) > 0 {
+			snippet = b
+		}
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("upstream %s for %s — body: %q", resp.Status, target, snippet))
 		return
 	}
 
