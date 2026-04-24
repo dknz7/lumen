@@ -8,7 +8,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"syscall"
+	"time"
+	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -88,7 +92,40 @@ func potPlayerPath() string {
 	}
 	return p
 }
-func step4FindHWND()     { log.Fatal("not implemented") }
+func step4FindHWND() {
+	if *videoFlag == "" {
+		log.Fatal("--video=<path> required")
+	}
+	cmd := exec.Command(potPlayerPath(), *videoFlag)
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("launch: %v", err)
+	}
+	hwnd := findPotPlayerHWND()
+	log.Printf("HWND=0x%x (pid=%d)", hwnd, cmd.Process.Pid)
+}
+var (
+	user32         = windows.NewLazySystemDLL("user32.dll")
+	procFindWindow = user32.NewProc("FindWindowW")
+	procIsWindow   = user32.NewProc("IsWindow")
+	procSendMsgW   = user32.NewProc("SendMessageW")
+)
+
+// findPotPlayerHWND polls for up to 3 s waiting for the window to appear.
+func findPotPlayerHWND() uintptr {
+	class, _ := syscall.UTF16PtrFromString("PotPlayer64")
+	deadline := time.Now().Add(3 * time.Second)
+	for {
+		hwnd, _, _ := procFindWindow.Call(uintptr(unsafe.Pointer(class)), 0)
+		if hwnd != 0 {
+			return hwnd
+		}
+		if time.Now().After(deadline) {
+			log.Fatal("timed out waiting for PotPlayer64 window")
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+}
+
 func step5ReadPosition() { log.Fatal("not implemented") }
 func step6ReadDuration() { log.Fatal("not implemented") }
 func step7ReadState()    { log.Fatal("not implemented") }
