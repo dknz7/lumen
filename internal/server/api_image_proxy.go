@@ -74,9 +74,18 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	// Strip the default HTTPS port so our URL matches Plex Web's format.
 	base := strings.TrimSuffix(srv.LastGoodConnection, ":443")
 
+	// Token selection: Plex Web uses the account-level token for transcode image
+	// requests (observed against DKNZPLEX's CDN — per-server token returns 404
+	// on /photo/:/transcode). Fall back to per-server token only if no account
+	// token is configured.
+	tokenRaw := s.cfg.Plex.AccountToken
+	if tokenRaw == "" {
+		tokenRaw = srv.AccessToken
+	}
+	token := url.QueryEscape(tokenRaw)
+
 	// Manual query-string build — preserves raw slashes in `url=` param and
 	// places X-Plex-Token both inside the inner url AND as an outer param.
-	token := url.QueryEscape(srv.AccessToken)
 	target := fmt.Sprintf(
 		"%s/photo/:/transcode?width=%d&height=%d&minSize=1&upscale=1&url=%s?X-Plex-Token=%s&X-Plex-Token=%s",
 		base,
