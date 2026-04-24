@@ -1,5 +1,12 @@
+/* Shelf styling — dark-navy surface with soft border, matches the floating
+   pill aesthetic of the top bar. Always-visible drag handle in the top-right. */
 .shelf {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  background: var(--bg-menu);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  position: relative;
 }
 
 .shelf-header {
@@ -11,19 +18,22 @@
 
 .shelf-drag-handle {
   cursor: grab;
-  color: var(--text-muted);
-  padding: 6px 8px;
+  color: var(--text);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
   user-select: none;
-  opacity: 0;
-  transition: opacity 0.15s ease;
+  opacity: 0.85;
+  transition: opacity 0.12s ease, background 0.12s ease;
 }
 
-.shelf:hover .shelf-drag-handle {
+.shelf-drag-handle:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .shelf.is-dragging {
-  opacity: 0.5;
+  opacity: 0.55;
+  background: var(--bg-elevated);
 }
 
 .shelf-collapse-btn {
@@ -31,6 +41,10 @@
   align-items: center;
   gap: 8px;
   color: var(--text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .shelf-collapse-btn:hover {
@@ -38,7 +52,7 @@
 }
 
 .shelf-collapse-btn .caret {
-  color: var(--text-muted);
+  color: var(--menu-icon);
 }
 
 .shelf-title {
@@ -47,16 +61,12 @@
   margin: 0;
 }
 
-/*
- * Cards wrap up to --rows-per-shelf rows without horizontal scroll (spec §11.1).
- * Default 3 rows (set via --rows-per-shelf on inline style).
- * After 3 rows, items are simply not rendered (pagination is a Session 5 concern).
- * For now we cap the container height instead so overflow just hides extras.
- */
+/* Cards wrap naturally across rows. We used to cap to N rows with max-height +
+   overflow:hidden, but that cut items mid-row when card heights varied (episode
+   posters vs movie posters). Now cards flow freely — the source data already
+   limits count (Home shelves fetch 20, CW shows all onDeck items). */
 .shelf-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-width, 160px), 1fr));
   gap: 20px 16px;
-  max-height: calc((240px + 60px) * var(--rows-per-shelf, 3));
-  overflow: hidden;
 }

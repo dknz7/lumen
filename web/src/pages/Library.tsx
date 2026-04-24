@@ -30,7 +30,7 @@ const VIEW_MODE_OPTIONS = [
 const viewModeToFilter = (mode: string) => (mode === "episodes" ? "4" : "");
 const filterToViewMode = (filter: string) => (filter === "4" ? "episodes" : "");
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 100;
 
 export default function Library() {
   const params = useParams();
@@ -110,9 +110,28 @@ export default function Library() {
           </select>
         </label>
         <Show when={items()}>
-          <span class="library-count">
-            Page {page() + 1} · showing {currentPageItems().length} items
-          </span>
+          <div class="library-header-right">
+            <span class="library-count">
+              Page {page() + 1} · showing {currentPageItems().length} items
+            </span>
+            <nav class="library-pagination" aria-label="Pagination">
+              <button
+                disabled={page() === 0}
+                onClick={() => setPage(page() - 1)}
+                aria-label="Previous page"
+              >
+                Prev
+              </button>
+              <span class="page-indicator">Page {page() + 1}</span>
+              <button
+                disabled={!hasNextPage()}
+                onClick={() => setPage(page() + 1)}
+                aria-label="Next page"
+              >
+                Next
+              </button>
+            </nav>
+          </div>
         </Show>
       </header>
       <div class="library-grid">
@@ -122,25 +141,6 @@ export default function Library() {
           </For>
         </Show>
       </div>
-      <Show when={items()}>
-        <nav class="library-pagination" aria-label="Pagination">
-          <button
-            disabled={page() === 0}
-            onClick={() => setPage(page() - 1)}
-            aria-label="Previous page"
-          >
-            Prev
-          </button>
-          <span class="page-indicator">Page {page() + 1}</span>
-          <button
-            disabled={!hasNextPage()}
-            onClick={() => setPage(page() + 1)}
-            aria-label="Next page"
-          >
-            Next
-          </button>
-        </nav>
-      </Show>
     </div>
   );
 }

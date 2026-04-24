@@ -1,13 +1,19 @@
+/* Group container — same light surface treatment as shelves, slightly deeper
+   padding so the group reads as the parent box. */
 .group {
-  margin-bottom: 48px;
+  margin-bottom: 32px;
+  padding: 20px 20px 4px 20px;
+  background: var(--bg-menu);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
 }
 
 .group-header-wrap {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 24px;
-  padding-bottom: 8px;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -17,33 +23,54 @@
   gap: 12px;
   color: var(--text);
   flex: 1;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
 }
 
 .group-header:hover { color: var(--text-muted); }
 
-.group-drag-handle {
-  cursor: grab;
-  color: var(--text-muted);
-  padding: 8px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
+.group-header .caret {
+  color: var(--menu-icon);
 }
 
-.group:hover .group-drag-handle {
+.group-drag-handle {
+  cursor: grab;
+  color: var(--text);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  opacity: 0.85;
+  transition: opacity 0.12s ease, background 0.12s ease;
+}
+
+.group-drag-handle:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .group.is-dragging {
-  opacity: 0.5;
+  opacity: 0.55;
+  background: var(--bg-elevated);
 }
 
 .group-title {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   margin: 0;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
+}
+
+/* Shelves-inside-group should not repeat the outer panel styling — flatten
+   them to inherit the group's surface so we don't get nested boxes. */
+.group .shelf {
+  background: transparent;
+  border: none;
+  padding: 8px 0 0 0;
+  margin-bottom: 8px;
 }
 
 .group-body {
-  padding-left: 8px;
+  /* no extra padding — shelves carry their own internal spacing */
 }

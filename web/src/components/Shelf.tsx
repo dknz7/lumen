@@ -60,7 +60,7 @@ export default function Shelf(props: ShelfProps) {
             title="Drag to reorder"
             aria-label="Drag handle"
           >
-            <GripVertical size={16} />
+            <GripVertical size={20} />
           </span>
         </Show>
       </header>

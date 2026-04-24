@@ -20,4 +20,5 @@ export {
   Sparkles,       // brand logo placeholder
   ExternalLink,   // "Get a free key" link in OMDB field
   RefreshCw,      // refresh connections button
+  ImageOff,       // placeholder when a thumb is missing or fails to load
 } from "lucide-solid";

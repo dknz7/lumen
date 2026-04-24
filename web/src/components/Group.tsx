@@ -50,7 +50,7 @@ export default function Group(props: GroupProps) {
             {...(sortable?.dragActivators ?? {})}
             title="Drag to reorder group"
           >
-            <GripVertical size={16} />
+            <GripVertical size={22} />
           </span>
         </Show>
       </header>

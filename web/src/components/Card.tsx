@@ -1,7 +1,8 @@
 import { A } from "@solidjs/router";
+import { createSignal } from "solid-js";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
-import { Trash2 } from "./icons";
+import { ImageOff, Trash2 } from "./icons";
 import "./Card.css";
 
 export interface CardProps {
@@ -11,8 +12,6 @@ export interface CardProps {
   onRemove?: () => void;
 }
 
-// Derived display fields for a single card. Episodes surface the show's name
-// as the primary title and format S/E + episode title as the subtitle.
 function derive(item: Item) {
   if (item.type === "episode") {
     const season = item.parentIndex ?? 0;
@@ -20,12 +19,10 @@ function derive(item: Item) {
     const se = season && episode ? `S${season} · E${episode}` : "";
     return {
       title: item.grandparentTitle ?? item.title,
-      // "S1 · E3 · Episode Title" — drop the title if it's just "Episode 3" or similar
       subtitle: se + (item.title && se ? ` · ${item.title}` : item.title ?? ""),
       thumb: item.grandparentThumb ?? item.thumb,
-      // For episodes we don't show year — shown at the show level, not episode
       year: undefined as number | undefined,
-      linkKey: item.ratingKey, // still deep-link to the episode
+      linkKey: item.ratingKey,
     };
   }
   return {
@@ -39,6 +36,11 @@ function derive(item: Item) {
 
 export default function Card(props: CardProps) {
   const d = () => derive(props.item);
+  // Placeholder-first: ImageOff always renders underneath; <img> overlays when
+  // it loads. If thumb is missing OR the load 404s, placeholder stays visible.
+  const [imgFailed, setImgFailed] = createSignal(false);
+  const hasImg = () => !!d().thumb && !imgFailed();
+
   const progressPct = () => {
     const dur = props.item.duration ?? 0;
     const off = props.item.viewOffset ?? 0;
@@ -49,12 +51,17 @@ export default function Card(props: CardProps) {
   return (
     <A class="card" href={`/item/${props.serverID}/${d().linkKey}`}>
       <div class="card-poster">
-        {d().thumb ? (
-          <img src={api.image(props.serverID, d().thumb!)} alt={d().title} loading="lazy" />
-        ) : (
-          <div class="card-poster-placeholder">
-            <span>{d().title.slice(0, 1)}</span>
-          </div>
+        <div class="card-poster-placeholder" aria-hidden="true">
+          <ImageOff size={32} strokeWidth={1.5} />
+        </div>
+        {hasImg() && (
+          <img
+            class="card-poster-img"
+            src={api.image(props.serverID, d().thumb!)}
+            alt={d().title}
+            loading="lazy"
+            onError={() => setImgFailed(true)}
+          />
         )}
         {props.onRemove && (
           <button

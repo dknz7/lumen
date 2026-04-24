@@ -5,9 +5,7 @@
 .library-pagination {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin: 32px 0;
+  gap: 8px;
 }
 
 .library-pagination button {
@@ -15,8 +13,9 @@
   color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-pill);
-  padding: 8px 18px;
+  padding: 5px 14px;
   font-size: 13px;
+  cursor: pointer;
 }
 
 .library-pagination button:disabled {
@@ -31,7 +30,7 @@
 .library-pagination .page-indicator {
   color: var(--text-muted);
   font-size: 13px;
-  min-width: 100px;
+  min-width: 60px;
   text-align: center;
 }
 
@@ -63,8 +62,14 @@
   padding: 6px 10px;
 }
 
-.library-count {
+.library-header-right {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.library-count {
   color: var(--text-muted);
   font-size: 13px;
 }
