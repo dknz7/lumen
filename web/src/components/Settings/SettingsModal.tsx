@@ -52,7 +52,7 @@ export default function SettingsModal(props: { open: boolean; onClose: () => voi
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            transition={{ duration: 0.22, easing: "spring(1, 100, 14, 0)" }}
+            transition={{ duration: 0.24, easing: [0.22, 1, 0.36, 1] }}
           >
             <aside class="settings-nav">
               <header class="settings-nav-header">
