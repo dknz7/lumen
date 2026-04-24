@@ -141,7 +141,7 @@ function ContinueWatching(props: { servers: Server[] }) {
   }
 
   return (
-    <Shelf id="continue-watching" title="Continue Watching">
+    <Shelf id="continue-watching" title="Continue Watching" sortable={false}>
       <Show
         when={!decksData.loading}
         fallback={<Skeleton kind="card" count={6} />}
