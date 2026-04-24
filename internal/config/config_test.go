@@ -63,6 +63,72 @@ func TestLoadReusesExistingClientIdentifier(t *testing.T) {
 	}
 }
 
+func TestUIDefaultsPopulatedOnFreshLoad(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.UI.Theme != "pure-oled" {
+		t.Errorf("default theme: got %q want pure-oled", c.UI.Theme)
+	}
+	if c.UI.Zoom != 100 {
+		t.Errorf("default zoom: got %d want 100", c.UI.Zoom)
+	}
+	if c.UI.RowsPerShelf != 3 {
+		t.Errorf("default rows: got %d want 3", c.UI.RowsPerShelf)
+	}
+	if c.UI.CardSize != "m" {
+		t.Errorf("default card size: got %q want m", c.UI.CardSize)
+	}
+	if c.UI.DefaultViewMode != "episodes" {
+		t.Errorf("default view mode: got %q want episodes", c.UI.DefaultViewMode)
+	}
+	if c.UI.ShelfState == nil {
+		t.Errorf("ShelfState should be initialised to empty map, not nil")
+	}
+	if c.UI.HiddenLibraries == nil {
+		t.Errorf("HiddenLibraries should be initialised to empty slice, not nil")
+	}
+}
+
+func TestUIRoundTripsThroughSave(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	c1, _ := Load()
+	c1.UI.Theme = "high-contrast"
+	c1.UI.Zoom = 120
+	c1.UI.RowsPerShelf = 4
+	c1.UI.CardSize = "l"
+	c1.UI.HiddenLibraries = []string{"abc:5", "def:7"}
+	c1.UI.ShelfState = map[string]PageShelfState{
+		"home": {
+			GroupOrder:     []string{"dknzplex", "stargaze"},
+			GroupCollapsed: map[string]bool{"stargaze": true},
+			ShelfOrder:     map[string][]string{"stargaze": {"s-movies", "s-tv"}},
+			ShelfPrefs:     map[string]ShelfPref{"s-movies": {Hidden: true, Collapsed: false}},
+		},
+	}
+	if err := c1.Save(); err != nil {
+		t.Fatal(err)
+	}
+	c2, _ := Load()
+	if c2.UI.Theme != "high-contrast" {
+		t.Errorf("theme round-trip: %q", c2.UI.Theme)
+	}
+	if c2.UI.Zoom != 120 {
+		t.Errorf("zoom round-trip: %d", c2.UI.Zoom)
+	}
+	if len(c2.UI.HiddenLibraries) != 2 {
+		t.Errorf("hidden libs: %+v", c2.UI.HiddenLibraries)
+	}
+	if c2.UI.ShelfState["home"].GroupOrder[0] != "dknzplex" {
+		t.Errorf("group order: %+v", c2.UI.ShelfState["home"].GroupOrder)
+	}
+	if !c2.UI.ShelfState["home"].ShelfPrefs["s-movies"].Hidden {
+		t.Errorf("shelf pref hidden lost: %+v", c2.UI.ShelfState["home"].ShelfPrefs)
+	}
+}
+
 func TestSecretsAreEncryptedOnDisk(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("APPDATA", tmp)
