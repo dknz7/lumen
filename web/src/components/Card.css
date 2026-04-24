@@ -1,6 +1,6 @@
 .card {
   display: block;
-  width: 160px;
+  width: var(--card-width);
   cursor: pointer;
   transition: transform 0.15s ease;
   color: inherit;
