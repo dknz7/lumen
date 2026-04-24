@@ -1,4 +1,5 @@
 import { createResource, createSignal, For, Show } from "solid-js";
+import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { api } from "../api/client";
 import type { Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
@@ -38,20 +39,34 @@ const GROUP_DEFS = [
   { id: "dknzplex", logicalName: "DKNZPLEX", shelves: DKNZPLEX_SHELVES },
 ];
 
-// Session 3 scope deviation: drag-reorder is temporarily removed from Home
-// pending deeper investigation into solid-dnd's interaction with Motion One
-// and Solid's async resource lifecycle. Persisted order is still honoured —
-// drag UI re-enables in a follow-up once the crash pattern is understood.
 export default function Home() {
   const [servers] = createResource(() => api.servers());
   const pageKey = "home";
 
-  const groupOrder = () => {
+  const persistedGroupOrder = () => {
     const persisted = settingsStore.settings()?.shelfState?.[pageKey]?.groupOrder;
     if (!persisted || persisted.length === 0) return GROUP_DEFS.map((g) => g.id);
     const missing = GROUP_DEFS.map((g) => g.id).filter((id) => !persisted.includes(id));
     return [...persisted.filter((id) => GROUP_DEFS.some((g) => g.id === id)), ...missing];
   };
+
+  function onGroupDragEnd(e: any) {
+    const { draggable, droppable } = e;
+    if (!draggable || !droppable) return;
+    const current = persistedGroupOrder();
+    const from = current.indexOf(draggable.id as string);
+    const to = current.indexOf(droppable.id as string);
+    if (from === -1 || to === -1 || from === to) return;
+    const next = [...current];
+    next.splice(from, 1);
+    next.splice(to, 0, draggable.id as string);
+
+    const state = settingsStore.settings()?.shelfState ?? {};
+    const pageState = state[pageKey] ?? {};
+    settingsStore.patch({
+      shelfState: { ...state, [pageKey]: { ...pageState, groupOrder: next } },
+    });
+  }
 
   return (
     <div class="home-page">
@@ -59,19 +74,17 @@ export default function Home() {
         {(srvs) => (
           <>
             <ContinueWatching servers={srvs() as Server[]} />
-            <For each={groupOrder()}>
-              {(id) => {
-                const def = GROUP_DEFS.find((g) => g.id === id)!;
-                return (
-                  <ServerGroup
-                    srvs={srvs() as Server[]}
-                    groupID={def.id}
-                    logicalName={def.logicalName}
-                    shelves={def.shelves}
-                  />
-                );
-              }}
-            </For>
+            <DragDropProvider onDragEnd={onGroupDragEnd} collisionDetector={closestCenter}>
+              <DragDropSensors />
+              <SortableProvider ids={persistedGroupOrder()}>
+                <For each={persistedGroupOrder()}>
+                  {(id) => {
+                    const def = GROUP_DEFS.find((g) => g.id === id)!;
+                    return <ServerGroup srvs={srvs() as Server[]} groupID={def.id} logicalName={def.logicalName} shelves={def.shelves} />;
+                  }}
+                </For>
+              </SortableProvider>
+            </DragDropProvider>
           </>
         )}
       </Show>
@@ -128,7 +141,7 @@ function ContinueWatching(props: { servers: Server[] }) {
   }
 
   return (
-    <Shelf id="continue-watching" title="Continue Watching" sortable={false}>
+    <Shelf id="continue-watching" title="Continue Watching">
       <Show
         when={!decksData.loading}
         fallback={<Skeleton kind="card" count={6} />}
@@ -165,13 +178,50 @@ function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: stri
       s.displayName.toLowerCase().includes(props.logicalName.toLowerCase())
     ) ?? props.srvs.find((s) => s.name.toLowerCase() === props.logicalName.toLowerCase());
 
+  const pageKey = "home";
+  const groupID = props.groupID;
+
+  const persistedOrder = () => {
+    const order = settingsStore.settings()?.shelfState?.[pageKey]?.shelfOrder?.[groupID];
+    if (!order || order.length === 0) return props.shelves.map((s) => s.id);
+    const missing = props.shelves.map((s) => s.id).filter((id) => !order.includes(id));
+    return [...order.filter((id) => props.shelves.some((s) => s.id === id)), ...missing];
+  };
+
+  function onShelfDragEnd(e: any) {
+    const { draggable, droppable } = e;
+    if (!draggable || !droppable) return;
+    const current = persistedOrder();
+    const from = current.indexOf(draggable.id as string);
+    const to = current.indexOf(droppable.id as string);
+    if (from === -1 || to === -1 || from === to) return;
+    const next = [...current];
+    next.splice(from, 1);
+    next.splice(to, 0, draggable.id as string);
+
+    const state = settingsStore.settings()?.shelfState ?? {};
+    const pageState = state[pageKey] ?? {};
+    const shelfOrder = { ...(pageState.shelfOrder ?? {}), [groupID]: next };
+    settingsStore.patch({
+      shelfState: { ...state, [pageKey]: { ...pageState, shelfOrder } },
+    });
+  }
+
   return (
-    <Group id={`group-${props.groupID}`} title={props.logicalName}>
+    <Group id={`group-${groupID}`} title={props.logicalName}>
       <Show when={matched()} fallback={<div class="group-missing">{props.logicalName} not found in servers — run `lumen list`</div>}>
         {(srv) => (
-          <For each={props.shelves}>
-            {(def) => <ShelfLoader server={srv() as Server} def={def} />}
-          </For>
+          <DragDropProvider onDragEnd={onShelfDragEnd} collisionDetector={closestCenter}>
+            <DragDropSensors />
+            <SortableProvider ids={persistedOrder()}>
+              <For each={persistedOrder()}>
+                {(id) => {
+                  const def = props.shelves.find((s) => s.id === id);
+                  return def ? <ShelfLoader server={srv() as Server} def={def} /> : null;
+                }}
+              </For>
+            </SortableProvider>
+          </DragDropProvider>
         )}
       </Show>
     </Group>
@@ -181,7 +231,7 @@ function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: stri
 function ShelfLoader(props: { server: Server; def: ShelfDef }) {
   if (props.def.kind === "stub") {
     return (
-      <Shelf id={props.def.id} title={props.def.title} initialCollapsed sortable={false}>
+      <Shelf id={props.def.id} title={props.def.title} initialCollapsed>
         <div class="shelf-stub">({props.def.reason})</div>
       </Shelf>
     );
@@ -189,16 +239,16 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
   if (props.def.kind === "ondeck-merged") {
     return null;
   }
-  const def = props.def;
+  // server-recent
   const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
   const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
   return (
-    <Shelf id={def.id} title={def.title} sortable={false}>
+    <Shelf id={props.def.id} title={props.def.title}>
       <Show when={libs()}>
         {(libList) => {
-          const lib = (libList() as Library[]).find((l) => l.title === def.libraryName);
+          const lib = (libList() as Library[]).find((l) => l.title === props.def.libraryName);
           if (!lib) {
-            return <div class="shelf-stub">(library "{def.libraryName}" not found on {props.server.displayName})</div>;
+            return <div class="shelf-stub">(library "{props.def.libraryName}" not found on {props.server.displayName})</div>;
           }
           const hidden = hiddenSet().has(`${props.server.machineIdentifier}:${lib.key}`);
           if (hidden) return <div class="shelf-stub">(library hidden — toggle in left menu)</div>;
