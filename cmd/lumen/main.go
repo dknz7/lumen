@@ -30,7 +30,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, `usage: lumen <subcommand> [args]
+	fmt.Fprint(os.Stderr, `usage: lumen <subcommand> [args]
 
 subcommands:
   auth         Run Plex PIN flow and store account token
