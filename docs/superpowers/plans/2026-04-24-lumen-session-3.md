@@ -8,7 +8,19 @@
 
 **Tech Stack additions:**
 - `@thisbeyond/solid-dnd` ^0.7.x — Solid-native drag/drop + sortable presets (~5 KB gzipped).
+- `lucide-solid` ^0.x — SVG icon library. Replaces every emoji in the codebase (Taste rule: anti-emoji policy is critical).
+- `@fontsource/geist-sans` + `@fontsource/geist-mono` — self-hosted Geist font family. Replaces the generic system-font stack (Taste rule: Inter is banned; Geist / Satoshi / Cabinet Grotesk preferred for dashboards).
+- `@motionone/solid` — Solid adapter for Motion One. Drives modal fade+scale and subtle layout transitions with spring physics.
 - Go stdlib only for new endpoints.
+
+**Taste rules carried forward** (applied in Task 21, enforced from Session 3 onwards):
+- **No emoji icons** anywhere — everything goes to Lucide SVGs with stable stroke-width 1.5.
+- **No Inter, no Arial, no system stack for the primary font** — Geist Sans is the daily driver.
+- **Skeleton loaders, not "Loading…" text** — card-shaped shimmers matching the target layout.
+- **Focus rings via `:focus-visible`** on every interactive element.
+- **Max 1 accent colour** (our dark navy `#0f1729` — desaturated, singular).
+- **Pure `#000000` is retained** — Byron's OLED burn-in mitigation overrides the skill's "no pure black" guidance. Documented exception.
+- **No perpetual micro-animations** on every card — Lumen is a functional media browser, not a Vercel landing demo. Motion is reserved for deliberate moments (modal open, drag, hover dim).
 
 **Carry-ins from Sessions 0–2:**
 - All `internal/config`, `internal/plex`, `internal/server`, `internal/potplayer` packages.
@@ -2921,7 +2933,338 @@ git commit -m "feat(web): inline library hide toggles in LeftMenu; Home shelves 
 
 ---
 
-## Task 21: End-to-end verification
+## Task 21: Taste polish pass — Lucide icons, Geist typography, Motion One, skeletons, focus rings
+
+**Files touched:** most SPA components (TopBar, Shelf, Group, Card, LeftMenu, Library, ItemDetail, Settings/*), `web/src/theme.css`, `web/src/main.tsx`, `web/package.json`.
+
+**Context:** Taste-skill pass against the Lumen codebase flagged several AI-slop patterns that need correcting before v1.0 ships. This task bundles the fixes: SVG icons (not emojis), Geist font family (not system stack), Motion One modal transitions, skeleton shimmer placeholders, proper focus rings, and inner-refraction border on the Settings modal. Done as a single task at end of Session 3 so it applies to the full surface area at once.
+
+- [ ] **Step 1: Install dependencies**
+
+```bash
+cd web && npm install lucide-solid @fontsource/geist-sans @fontsource/geist-mono @motionone/solid
+```
+
+- [ ] **Step 2: Switch the font stack to Geist**
+
+Modify `web/src/main.tsx` — add font imports at the top:
+```typescript
+import "@fontsource/geist-sans/400.css";
+import "@fontsource/geist-sans/500.css";
+import "@fontsource/geist-sans/600.css";
+import "@fontsource/geist-sans/700.css";
+import "@fontsource/geist-mono/400.css";
+import "@fontsource/geist-mono/500.css";
+```
+
+Modify `web/src/theme.css` — update the font token:
+```css
+  --font-base:      "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:      "Geist Mono", "JetBrains Mono", Consolas, Menlo, monospace;
+```
+
+- [ ] **Step 3: Create a shared Icon import file**
+
+Create `web/src/components/icons.ts`:
+```typescript
+// Lumen's icon set — every visible icon in the UI. Import from here so we
+// control stroke-width consistency and can swap libraries in one place later
+// if needed. Standardise on stroke-width 1.75 for mid-weight lines; explicitly
+// pass width/height via className (w-N h-N) at call site.
+export {
+  ArrowLeft,
+  Home,
+  Maximize2,      // kiosk / fullscreen toggle
+  Minus,          // zoom out
+  Plus,           // zoom in (paired with slider)
+  X,              // close buttons
+  Search,         // search input adornment
+  ChevronDown,    // expanded caret
+  ChevronRight,   // collapsed caret
+  GripVertical,   // drag handle on shelves + groups
+  Trash2,         // remove from Continue Watching
+  Eye,            // library visible
+  EyeOff,         // library hidden
+  Settings,       // left-menu settings entry
+  Play,           // primary playback action
+  Sparkles,       // brand logo placeholder
+  ExternalLink,   // "Get a free key" link in OMDB field
+  RefreshCw,      // refresh connections button
+} from "lucide-solid";
+```
+
+Set a default stroke width via CSS — append to `web/src/theme.css`:
+```css
+/* All Lucide icons share stroke-width 1.75 unless overridden. */
+.lucide {
+  stroke-width: 1.75;
+}
+```
+
+- [ ] **Step 4: Replace emoji in TopBar**
+
+Modify `web/src/components/TopBar.tsx` — replace the emoji usages:
+```tsx
+import { ArrowLeft, Home, Maximize2, Search, Sparkles, X } from "./icons";
+
+// inside the JSX:
+<span class="logo"><Sparkles size={18} /></span>
+// ...
+<button class="icon-btn" title="Back" aria-label="Back" onClick={() => navigate(-1)}>
+  <ArrowLeft size={16} />
+</button>
+<button class="icon-btn" title="Home" aria-label="Home" onClick={() => navigate("/")}>
+  <Home size={16} />
+</button>
+// ...
+<button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">
+  <Maximize2 size={16} />
+</button>
+<span class="zoom-icon" aria-hidden="true"><Search size={12} /></span>
+// ...
+<button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => window.close()}>
+  <X size={16} />
+</button>
+```
+
+- [ ] **Step 5: Replace emoji in Shelf + Group headers (caret + drag handle)**
+
+Modify `web/src/components/Shelf.tsx`:
+```tsx
+import { ChevronDown, ChevronRight, GripVertical } from "./icons";
+
+// inside the header JSX:
+<span class="caret">
+  {collapsed() ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+</span>
+// ...
+<span class="shelf-drag-handle" {...sortable.dragActivators} title="Drag to reorder" aria-label="Drag handle">
+  <GripVertical size={16} />
+</span>
+```
+
+Same pattern in `web/src/components/Group.tsx` — swap `▾ ▸` for `ChevronDown / ChevronRight` and `⋮⋮` for `GripVertical`.
+
+- [ ] **Step 6: Replace emoji in Card + LeftMenu + Library**
+
+- `web/src/components/Card.tsx` — bin icon `🗑` → `<Trash2 size={14} />`
+- `web/src/components/LeftMenu.tsx` — caret `▾ ▸` → ChevronDown/Right; settings `⚙` → `<Settings size={14} />`
+- Library visibility toggle `🙈 / 👁` → `<EyeOff size={12} /> / <Eye size={12} />`
+
+All call-site updates: import from `"../components/icons"` (adjust relative path per file).
+
+- [ ] **Step 7: Replace emoji in Settings modal close button**
+
+`web/src/components/Settings/SettingsModal.tsx`:
+```tsx
+import { X } from "../icons";
+// ...
+<button class="settings-close-btn" onClick={props.onClose} aria-label="Close settings">
+  <X size={14} />
+</button>
+```
+
+- [ ] **Step 8: Motion One fade+scale on Settings modal open/close**
+
+Modify `SettingsModal.tsx` to wrap the modal contents in a `motion.div`:
+```tsx
+import { Motion, Presence } from "@motionone/solid";
+
+// replace the <Show>-wrapped outer structure with:
+<Presence>
+  <Show when={props.open}>
+    <Motion.div
+      class="settings-backdrop"
+      onClick={props.onClose}
+      role="presentation"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.18, easing: [0.16, 1, 0.3, 1] }}
+    >
+      <Motion.div
+        class="settings-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog" aria-label="Settings"
+        initial={{ opacity: 0, scale: 0.96, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        transition={{ duration: 0.22, easing: "spring(1, 100, 14, 0)" }}
+      >
+        {/* existing nav + detail panes */}
+      </Motion.div>
+    </Motion.div>
+  </Show>
+</Presence>
+```
+
+- [ ] **Step 9: Inner-refraction border on Settings modal**
+
+Modify `SettingsModal.css`:
+```css
+.settings-modal {
+  /* ...existing rules... */
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    var(--shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+```
+
+(Remove the existing `border: 1px solid var(--border);` line — the refraction border replaces it.)
+
+- [ ] **Step 10: Global `:focus-visible` treatment**
+
+Append to `web/src/theme.css`:
+```css
+/* Keyboard-visible focus rings. Mouse clicks don't trigger :focus-visible;
+   only keyboard nav + programmatic focus do. Matches system expectations. */
+:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove mouse-click focus outlines where intrinsic feedback exists
+   (buttons have their own hover/active states). */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible) {
+  outline: none;
+}
+```
+
+- [ ] **Step 11: Skeleton component for loading states**
+
+Create `web/src/components/Skeleton.tsx`:
+```tsx
+import "./Skeleton.css";
+
+export interface SkeletonProps {
+  /** "card" renders a poster-aspect placeholder; "line" renders a short text line. */
+  kind?: "card" | "line";
+  count?: number;
+}
+
+export default function Skeleton(props: SkeletonProps) {
+  const n = () => props.count ?? 1;
+  const kind = () => props.kind ?? "line";
+  return (
+    <>
+      {Array.from({ length: n() }).map(() => (
+        <div class={`skeleton skeleton-${kind()}`} />
+      ))}
+    </>
+  );
+}
+```
+
+Create `web/src/components/Skeleton.css`:
+```css
+/* Shimmer animation — a light-coloured gradient sweeping across a muted base. */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 0%,
+    rgba(255, 255, 255, 0.05) 50%,
+    var(--bg-elevated) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-card {
+  aspect-ratio: 2 / 3;
+  width: var(--card-width, 160px);
+}
+
+.skeleton-line {
+  height: 1em;
+  width: 100%;
+  max-width: 240px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+```
+
+- [ ] **Step 12: Use Skeleton in loading fallbacks**
+
+Replace "Loading…" text instances with skeleton cards in:
+
+`web/src/pages/Home.tsx` — both `ContinueWatching` and `LibraryCards` components. Example for `LibraryCards`:
+```tsx
+import Skeleton from "../components/Skeleton";
+// ...
+<Show when={items()} fallback={<Skeleton kind="card" count={6} />}>
+```
+
+`web/src/pages/Library.tsx` — replace `<div class="library-loading">Loading…</div>` with `<Skeleton kind="card" count={12} />`.
+
+`web/src/pages/ItemDetail.tsx` — replace the `item-loading` div with a hero-shaped skeleton + a few line skeletons for the overview.
+
+- [ ] **Step 13: OMDB key inline validation**
+
+Modify `web/src/components/Settings/AccountsServers.tsx` — extend the OMDB field with validation:
+```tsx
+const [omdbError, setOmdbError] = createSignal("");
+function validateAndSaveOMDB() {
+  const k = omdbKey().trim();
+  if (k === "") {
+    setOmdbError("");
+    saveOMDB();
+    return;
+  }
+  // OMDB keys are exactly 8 hex chars.
+  if (!/^[a-f0-9]{8}$/i.test(k)) {
+    setOmdbError("Expected 8 hexadecimal characters (e.g. 1a2b3c4d).");
+    return;
+  }
+  setOmdbError("");
+  saveOMDB();
+}
+```
+
+In the OMDB field JSX:
+```tsx
+<input
+  id="omdbKey"
+  type="password"
+  placeholder="8-char hex key (Session 5 enables IMDB ratings)"
+  value={omdbKey()}
+  onInput={(e) => setOmdbKey(e.currentTarget.value)}
+  onBlur={validateAndSaveOMDB}
+  aria-invalid={omdbError() !== ""}
+  aria-describedby={omdbError() ? "omdbError" : undefined}
+/>
+{omdbError() && (
+  <div id="omdbError" role="alert" style={{ "margin-top": "4px", "color": "#f07878", "font-size": "12px" }}>
+    {omdbError()}
+  </div>
+)}
+```
+
+- [ ] **Step 14: Build + run tests + commit**
+
+```bash
+cd web && npm run build && cd ..
+go test ./...
+go build -o lumen.exe ./cmd/lumen
+git add web/ internal/
+git commit -m "feat(web): taste pass — Lucide icons, Geist fonts, Motion One modal, skeletons, focus rings"
+```
+
+---
+
+## Task 22: End-to-end verification
 
 **Files:** none.
 
@@ -2968,7 +3311,12 @@ Paste observations + any breakage for Session 3 findings.
 
 Before reporting Session 3 done:
 
-- [ ] Every Task 1–20 step checkbox ticked.
+- [ ] Every Task 1–21 step checkbox ticked.
+- [ ] No emojis remain in any SPA component — grep `rg "[\u2600-\u27BF]|🗑|👁|🙈" web/src` should return nothing.
+- [ ] Geist Sans visibly active (inspect any text in DevTools → computed font-family).
+- [ ] `:focus-visible` rings appear when tabbing through the app.
+- [ ] Settings modal fades + scales on open/close with spring feel.
+- [ ] Loading placeholders are shimmering skeleton cards, not "Loading…" text.
 - [ ] `go test ./...` passes (expect ~36+ tests).
 - [ ] `cd web && npm run build` succeeds.
 - [ ] `go build ./cmd/lumen` clean.
