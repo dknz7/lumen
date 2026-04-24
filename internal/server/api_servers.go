@@ -71,6 +71,8 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		s.handleLibraryItems(w, r, srv, parts[2])
 	case len(parts) == 2 && parts[1] == "ondeck":
 		s.handleOnDeck(w, r, srv)
+	case len(parts) == 3 && parts[1] == "ondeck" && parts[2] == "remove":
+		s.handleOnDeckRemove(w, r, srv)
 	default:
 		writeError(w, http.StatusNotFound, "unknown server sub-path")
 	}
@@ -131,6 +133,30 @@ func (s *Server) handleOnDeck(w http.ResponseWriter, r *http.Request, srv *confi
 		return
 	}
 	writeJSON(w, items)
+}
+
+// handleOnDeckRemove removes an item from the server's Continue Watching list
+// by marking it as watched via Plex's scrobble endpoint. Accepts POST with
+// ?ratingKey=<key>.
+func (s *Server) handleOnDeckRemove(w http.ResponseWriter, r *http.Request, srv *config.Server) {
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	ratingKey := r.URL.Query().Get("ratingKey")
+	if ratingKey == "" {
+		writeError(w, http.StatusBadRequest, "ratingKey query param required")
+		return
+	}
+	if err := s.plex.Scrobble(toPlexServer(srv), ratingKey); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "removed"})
 }
 
 // toPlexServer maps a config.Server to the plex.Server shape the client needs.

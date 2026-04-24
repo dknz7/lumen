@@ -1,4 +1,4 @@
-import { createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
@@ -51,14 +51,13 @@ export default function Home() {
   );
 }
 
+type CWItem = Item & { serverID: string };
+
 function ContinueWatching(props: { servers: Server[] }) {
-  // Take a stable snapshot of machine IDs at mount. props.servers rarely changes
-  // within a single page view, but the reactive accessor was causing the resource
-  // to refetch or never settle.
   const machineIDs = props.servers.map((s) => s.machineIdentifier);
 
-  const [decks] = createResource(
-    () => machineIDs.join(","), // stable primitive source — refetch only if IDs change
+  const [decksData] = createResource(
+    () => machineIDs.join(","),
     async () => {
       const results = await Promise.all(machineIDs.map(async (id) => {
         try {
@@ -73,29 +72,55 @@ function ContinueWatching(props: { servers: Server[] }) {
       if (totalErrors === results.length && results.length > 0) {
         throw new Error(`onDeck failed for all ${results.length} servers`);
       }
-      return results.flatMap((r) => r.items.map((it) => ({ ...it, serverID: r.id })));
+      return results.flatMap((r) => r.items.map((it) => ({ ...it, serverID: r.id } as CWItem)));
     }
   );
+
+  // Local override that lets us optimistically remove an item after a successful
+  // scrobble call without refetching. When undefined, we render the resource data.
+  const [localItems, setLocalItems] = createSignal<CWItem[] | null>(null);
+  const visibleItems = () => localItems() ?? (decksData() ?? []);
+
+  async function removeItem(item: CWItem) {
+    // Optimistically drop from local view first so the UI feels instant.
+    const current = visibleItems();
+    setLocalItems(current.filter((x) => !(x.ratingKey === item.ratingKey && x.serverID === item.serverID)));
+    try {
+      await api.removeFromOnDeck(item.serverID, item.ratingKey);
+    } catch (e) {
+      console.error("removeFromOnDeck failed:", e);
+      // Roll back the optimistic removal on error.
+      setLocalItems(current);
+      alert(`Failed to remove: ${(e as Error).message}`);
+    }
+  }
+
   return (
     <Shelf id="continue-watching" title="Continue Watching">
       <Show
-        when={!decks.loading}
+        when={!decksData.loading}
         fallback={<div class="shelf-loading">Loading Continue Watching…</div>}
       >
         <Show
-          when={decks.error}
+          when={decksData.error}
           fallback={
             <Show
-              when={(decks() ?? []).length > 0}
+              when={visibleItems().length > 0}
               fallback={<div class="shelf-stub">Nothing in progress across your servers.</div>}
             >
-              <For each={(decks() ?? []) as (Item & { serverID: string })[]}>
-                {(it) => <Card item={it} serverID={it.serverID} />}
+              <For each={visibleItems() as CWItem[]}>
+                {(it) => (
+                  <Card
+                    item={it}
+                    serverID={it.serverID}
+                    onRemove={() => removeItem(it)}
+                  />
+                )}
               </For>
             </Show>
           }
         >
-          <div class="shelf-stub">Continue Watching failed: {(decks.error as Error)?.message}</div>
+          <div class="shelf-stub">Continue Watching failed: {(decksData.error as Error)?.message}</div>
         </Show>
       </Show>
     </Shelf>

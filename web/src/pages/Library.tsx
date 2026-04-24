@@ -13,8 +13,10 @@ const SORT_OPTIONS = [
   { value: "lastViewedAt:desc", label: "Last Viewed" },
 ];
 
-// Plex library "type" query param: 2=show, 4=episode.
-// Empty string means "use library default" (shows for TV libraries, movies for Movies libraries).
+// Plex library "type" query param: 4=episode. Empty = library default (Shows
+// for TV libraries, Movies for Movies libraries). Default is "4" (Episodes)
+// for TV libraries per Byron's design call — he finds episodes more useful
+// at the browse level than the show roll-up view.
 const VIEW_MODE_OPTIONS = [
   { value: "",  label: "Shows" },
   { value: "4", label: "Episodes" },
@@ -22,13 +24,35 @@ const VIEW_MODE_OPTIONS = [
 
 const PAGE_SIZE = 50;
 
+// localStorage keys for sticky dropdown preferences. Survive refresh; cleared
+// only when browser data is cleared. Session 3 replaces this with config.json
+// persistence via the Settings panel.
+const LS_SORT = "lumen.library.sort";
+const LS_VIEW = "lumen.library.viewMode";
+
+function loadLS(key: string, fallback: string): string {
+  try {
+    return localStorage.getItem(key) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveLS(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Quota exceeded or storage unavailable — silently ignore.
+  }
+}
+
 export default function Library() {
   const params = useParams();
-  const [sort, setSort] = createSignal(SORT_OPTIONS[0].value);
-  const [viewMode, setViewMode] = createSignal(""); // "" = shows, "4" = episodes
+  const [sort, setSort] = createSignal(loadLS(LS_SORT, SORT_OPTIONS[0].value));
+  // Episodes is the default for TV libraries per Byron's preference.
+  const [viewMode, setViewMode] = createSignal(loadLS(LS_VIEW, "4"));
   const [page, setPage] = createSignal(0);
 
-  // Pull all libraries for the current server so we can identify the library type.
   const [allLibs] = createResource(
     () => params.serverID,
     (serverID) => api.libraries(serverID)
@@ -37,27 +61,35 @@ export default function Library() {
     ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
   const isTVLibrary = () => currentLibrary()?.type === "show";
 
-  // Reset page/viewMode whenever the library or sort changes.
+  // Reset page on library/server change. Sort and viewMode persist.
   createEffect(() => {
     params.serverID; params.libraryID;
     setPage(0);
-    setViewMode("");
   });
 
+  // Reset page whenever sort/mode changes, and persist the new preference.
   createEffect(() => {
-    sort(); viewMode();
+    const s = sort();
+    saveLS(LS_SORT, s);
+    setPage(0);
+  });
+  createEffect(() => {
+    const v = viewMode();
+    saveLS(LS_VIEW, v);
     setPage(0);
   });
 
   const [items] = createResource(
-    () => ({ server: params.serverID, lib: params.libraryID, sort: sort(), page: page(), type: viewMode() }),
-    ({ server, lib, sort, page, type }) => {
+    () => ({ server: params.serverID, lib: params.libraryID, sort: sort(), page: page(), type: viewMode(), isTV: isTVLibrary() }),
+    ({ server, lib, sort, page, type, isTV }) => {
       const opts: { sort: string; start: number; size: number; filters?: Record<string, string> } = {
         sort,
         start: page * PAGE_SIZE,
-        size: PAGE_SIZE + 1, // fetch one extra to detect next-page existence
+        size: PAGE_SIZE + 1,
       };
-      if (type) opts.filters = { type };
+      // Only apply the type filter when it's a TV library — it'd be a no-op on
+      // Movies libraries but pointless to send.
+      if (isTV && type) opts.filters = { type };
       return api.items(server, lib, opts);
     }
   );

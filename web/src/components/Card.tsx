@@ -6,6 +6,8 @@ import "./Card.css";
 export interface CardProps {
   item: Item;
   serverID: string;
+  /** If provided, a bin icon appears on hover; click fires the callback. */
+  onRemove?: () => void;
 }
 
 // Derived display fields for a single card. Episodes surface the show's name
@@ -52,6 +54,20 @@ export default function Card(props: CardProps) {
           <div class="card-poster-placeholder">
             <span>{d().title.slice(0, 1)}</span>
           </div>
+        )}
+        {props.onRemove && (
+          <button
+            class="card-remove-btn"
+            title="Remove from Continue Watching"
+            aria-label="Remove from Continue Watching"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              props.onRemove!();
+            }}
+          >
+            🗑
+          </button>
         )}
         {progressPct() > 0 && (
           <div class="card-progress-track">

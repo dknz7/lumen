@@ -44,6 +44,17 @@ export const api = {
   onDeck: (serverID: string) =>
     getJSON<Item[]>(`/api/servers/${encodeURIComponent(serverID)}/ondeck`),
 
+  // Removes an item from the server's Continue Watching by scrobbling as watched.
+  // Returns 200 on success. Throws via getJSON-like error on failure.
+  removeFromOnDeck: async (serverID: string, ratingKey: string) => {
+    const url = `/api/servers/${encodeURIComponent(serverID)}/ondeck/remove?ratingKey=${encodeURIComponent(ratingKey)}`;
+    const res = await fetch(url, { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`${res.status} ${url}: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
   // Session 2 just needs the path-building helper — actual images are <img src=...>.
   image: (serverID: string, path: string) =>
     `/api/image-proxy?server=${encodeURIComponent(serverID)}&path=${encodeURIComponent(path)}`,

@@ -4,11 +4,22 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
-// handleImageProxy takes ?server=<machineID>&path=<plex path> and streams the image.
-// The X-Plex-Token is appended server-side; the SPA never sees it.
+// Poster sizing defaults. Plex's /photo/:/transcode endpoint renders at these
+// dimensions, falling back gracefully when the exact source thumb is missing.
+// 2x the rendered card width so retina displays look crisp.
+const (
+	defaultImageWidth  = 320
+	defaultImageHeight = 480
+)
+
+// handleImageProxy takes ?server=<machineID>&path=<plex path>[&w=<px>&h=<px>]
+// and streams the image via Plex's photo transcoder, which handles missing-thumb
+// fallbacks and sizing server-side. The X-Plex-Token is appended server-side;
+// the SPA never sees it.
 func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	machineID := q.Get("server")
@@ -21,8 +32,6 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "path query param required")
 		return
 	}
-	// Reject anything that doesn't look like a bare server-relative path.
-	// Plex image paths always start with "/library/" or similar.
 	if !strings.HasPrefix(path, "/") {
 		writeError(w, http.StatusBadRequest, "path must start with /")
 		return
@@ -45,12 +54,26 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	target := srv.LastGoodConnection + path
-	if strings.Contains(path, "?") {
-		target += "&X-Plex-Token=" + url.QueryEscape(srv.AccessToken)
-	} else {
-		target += "?X-Plex-Token=" + url.QueryEscape(srv.AccessToken)
+	width := defaultImageWidth
+	if v, err := strconv.Atoi(q.Get("w")); err == nil && v > 0 && v <= 4096 {
+		width = v
 	}
+	height := defaultImageHeight
+	if v, err := strconv.Atoi(q.Get("h")); err == nil && v > 0 && v <= 4096 {
+		height = v
+	}
+
+	// Route through Plex's photo transcoder for reliable delivery + sizing.
+	// Path format: /photo/:/transcode?url=<server-relative path>&width=W&height=H&minSize=1&upscale=1&X-Plex-Token=...
+	tq := url.Values{
+		"url":             []string{path},
+		"width":           []string{strconv.Itoa(width)},
+		"height":          []string{strconv.Itoa(height)},
+		"minSize":         []string{"1"},
+		"upscale":         []string{"1"},
+		"X-Plex-Token":    []string{srv.AccessToken},
+	}
+	target := srv.LastGoodConnection + "/photo/:/transcode?" + tq.Encode()
 
 	req, err := http.NewRequestWithContext(r.Context(), "GET", target, nil)
 	if err != nil {
@@ -69,7 +92,6 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Forward Content-Type and set a long cache lifetime (posters are immutable).
 	if ct := resp.Header.Get("Content-Type"); ct != "" {
 		w.Header().Set("Content-Type", ct)
 	}
