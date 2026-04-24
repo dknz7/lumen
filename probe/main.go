@@ -235,4 +235,28 @@ func step8SendCommand() {
 	time.Sleep(3 * time.Second)
 	procSendMsgW.Call(hwnd, WM_COMMAND, uintptr(PP_CMD_STOP), 0)
 }
-func step9DetectExit()   { log.Fatal("not implemented") }
+func step9DetectExit() {
+	if *videoFlag == "" {
+		log.Fatal("--video=<path> required")
+	}
+	cmd := exec.Command(potPlayerPath(), *videoFlag)
+	if err := cmd.Start(); err != nil {
+		log.Fatalf("launch: %v", err)
+	}
+	hwnd := findPotPlayerHWND()
+	log.Printf("HWND=0x%x — polling IsWindow every 1 s. Close Pot Player manually (X button OR Task Manager kill).", hwnd)
+
+	start := time.Now()
+	for {
+		alive, _, _ := procIsWindow.Call(hwnd)
+		log.Printf("t+%4.1fs  IsWindow=%d", time.Since(start).Seconds(), alive)
+		if alive == 0 {
+			log.Println("EXIT DETECTED")
+			return
+		}
+		if time.Since(start) > 60*time.Second {
+			log.Fatal("still alive after 60 s — please close Pot Player manually")
+		}
+		time.Sleep(1 * time.Second)
+	}
+}
