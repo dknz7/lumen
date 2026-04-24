@@ -20,6 +20,8 @@ func main() {
 		runList(os.Args[2:])
 	case "probe-hubs":
 		runProbeHubs(os.Args[2:])
+	case "serve":
+		runServe(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Printf("lumen %s\n", version)
 	default:
@@ -36,6 +38,7 @@ subcommands:
   auth         Run Plex PIN flow and store account token
   list         List connected Plex servers and their libraries
   probe-hubs   Probe Plex Discover hub slugs (diagnostic)
+  serve        Start the Lumen web app (HTTP server on 127.0.0.1:7832)
   version      Print lumen version
 `)
 }
