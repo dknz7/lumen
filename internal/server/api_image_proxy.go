@@ -101,22 +101,17 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	// CDN-fronted Plex deployments (e.g. DKNZPLEX behind Level 3 edge) appear
-	// to whitelist requests that look like they came from a browser or official
-	// Plex client. Go's default "Go-http-client/1.1" User-Agent triggers 404s
-	// from those WAFs. Mimic Plex Web's request signature.
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+	// Match Plex Web's exact image-request header signature. Empirically the
+	// Level 3 CDN in front of DKNZPLEX rejects requests with an Origin header
+	// (CORS-style WAF check) and with X-Plex-* headers (may signal "API client
+	// not browser"). Keep only what a browser naturally sends for an <img>.
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0")
+	req.Header.Set("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
 	req.Header.Set("Referer", "https://app.plex.tv/")
-	req.Header.Set("Origin", "https://app.plex.tv")
-	// Standard Plex identity headers — some CDNs key on these.
-	req.Header.Set("X-Plex-Product", "Lumen")
-	req.Header.Set("X-Plex-Version", "0.1.0-dev")
-	req.Header.Set("X-Plex-Platform", "Windows")
-	req.Header.Set("X-Plex-Device", "PC")
-	if s.cfg != nil && s.cfg.ClientIdentifier != "" {
-		req.Header.Set("X-Plex-Client-Identifier", s.cfg.ClientIdentifier)
-	}
+	req.Header.Set("Sec-Fetch-Dest", "image")
+	req.Header.Set("Sec-Fetch-Mode", "no-cors")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
