@@ -1,14 +1,14 @@
 import { createResource, createSignal, For, Show } from "solid-js";
+import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { api } from "../api/client";
 import type { Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
 import Shelf from "../components/Shelf";
 import Card from "../components/Card";
+import { store as settingsStore } from "../state/settings";
 import "./Home.css";
 
 // Shelf definitions — one entry per shelf on the Home page (spec §12.1).
-// Session 2 stubs shelves that require Plex Collections (Trending Movies / Trending TV Shows).
-
 type ShelfDef =
   | { kind: "ondeck-merged"; id: string; title: string }
   | { kind: "server-recent"; id: string; title: string; serverName: string; libraryName: string }
@@ -33,17 +33,57 @@ const DKNZPLEX_SHELVES: ShelfDef[] = [
   { kind: "server-recent", id: "dknzplex-recent-anime-episodes", title: "Recently Released Anime Episodes", serverName: "DKNZPLEX", libraryName: "TV Shows - Anime" },
 ];
 
+const GROUP_DEFS = [
+  { id: "stargaze", logicalName: "Stargaze", shelves: STARGAZE_SHELVES },
+  { id: "dknzplex", logicalName: "DKNZPLEX", shelves: DKNZPLEX_SHELVES },
+];
+
 export default function Home() {
   const [servers] = createResource(() => api.servers());
+  const pageKey = "home";
+
+  const persistedGroupOrder = () => {
+    const persisted = settingsStore.settings()?.shelfState?.[pageKey]?.groupOrder;
+    if (!persisted || persisted.length === 0) return GROUP_DEFS.map((g) => g.id);
+    const missing = GROUP_DEFS.map((g) => g.id).filter((id) => !persisted.includes(id));
+    return [...persisted.filter((id) => GROUP_DEFS.some((g) => g.id === id)), ...missing];
+  };
+
+  function onGroupDragEnd(e: any) {
+    const { draggable, droppable } = e;
+    if (!draggable || !droppable) return;
+    const current = persistedGroupOrder();
+    const from = current.indexOf(draggable.id as string);
+    const to = current.indexOf(droppable.id as string);
+    if (from === -1 || to === -1 || from === to) return;
+    const next = [...current];
+    next.splice(from, 1);
+    next.splice(to, 0, draggable.id as string);
+
+    const state = settingsStore.settings()?.shelfState ?? {};
+    const pageState = state[pageKey] ?? {};
+    settingsStore.patch({
+      shelfState: { ...state, [pageKey]: { ...pageState, groupOrder: next } },
+    });
+  }
+
   return (
     <div class="home-page">
       <Show when={servers()}>
         {(srvs) => (
           <>
             <ContinueWatching servers={srvs() as Server[]} />
-            {/* Stargaze group — resolve displayName match, not hardcoded */}
-            <ServerGroup srvs={srvs() as Server[]} logicalName="Stargaze" shelves={STARGAZE_SHELVES} />
-            <ServerGroup srvs={srvs() as Server[]} logicalName="DKNZPLEX" shelves={DKNZPLEX_SHELVES} />
+            <DragDropProvider onDragEnd={onGroupDragEnd} collisionDetector={closestCenter}>
+              <DragDropSensors />
+              <SortableProvider ids={persistedGroupOrder()}>
+                <For each={persistedGroupOrder()}>
+                  {(id) => {
+                    const def = GROUP_DEFS.find((g) => g.id === id)!;
+                    return <ServerGroup srvs={srvs() as Server[]} groupID={def.id} logicalName={def.logicalName} shelves={def.shelves} />;
+                  }}
+                </For>
+              </SortableProvider>
+            </DragDropProvider>
           </>
         )}
       </Show>
@@ -75,9 +115,6 @@ function ContinueWatching(props: { servers: Server[] }) {
       const merged = results.flatMap((r) =>
         r.items.map((it) => ({ ...it, serverID: r.id } as CWItem))
       );
-      // Spec §12.1: Continue Watching sorts by lastViewedAt desc (most recently
-      // played first — Plex's onDeck advances to next ep if current was finished),
-      // with addedAt desc as tiebreaker.
       merged.sort((a, b) => {
         const lvDiff = (b.lastViewedAt ?? 0) - (a.lastViewedAt ?? 0);
         if (lvDiff !== 0) return lvDiff;
@@ -87,20 +124,16 @@ function ContinueWatching(props: { servers: Server[] }) {
     }
   );
 
-  // Local override that lets us optimistically remove an item after a successful
-  // scrobble call without refetching. When undefined, we render the resource data.
   const [localItems, setLocalItems] = createSignal<CWItem[] | null>(null);
   const visibleItems = () => localItems() ?? (decksData() ?? []);
 
   async function removeItem(item: CWItem) {
-    // Optimistically drop from local view first so the UI feels instant.
     const current = visibleItems();
     setLocalItems(current.filter((x) => !(x.ratingKey === item.ratingKey && x.serverID === item.serverID)));
     try {
       await api.removeFromOnDeck(item.serverID, item.ratingKey);
     } catch (e) {
       console.error("removeFromOnDeck failed:", e);
-      // Roll back the optimistic removal on error.
       setLocalItems(current);
       alert(`Failed to remove: ${(e as Error).message}`);
     }
@@ -138,21 +171,56 @@ function ContinueWatching(props: { servers: Server[] }) {
   );
 }
 
-function ServerGroup(props: { srvs: Server[]; logicalName: string; shelves: ShelfDef[] }) {
-  // Find the server whose displayName contains the logical name (case-insensitive).
-  // This gracefully handles Stargaze's empty-name fallback to machineIdentifier.
+function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: string; shelves: ShelfDef[] }) {
   const matched = () =>
     props.srvs.find((s) =>
       s.displayName.toLowerCase().includes(props.logicalName.toLowerCase())
     ) ?? props.srvs.find((s) => s.name.toLowerCase() === props.logicalName.toLowerCase());
 
+  const pageKey = "home";
+  const groupID = props.groupID;
+
+  const persistedOrder = () => {
+    const order = settingsStore.settings()?.shelfState?.[pageKey]?.shelfOrder?.[groupID];
+    if (!order || order.length === 0) return props.shelves.map((s) => s.id);
+    const missing = props.shelves.map((s) => s.id).filter((id) => !order.includes(id));
+    return [...order.filter((id) => props.shelves.some((s) => s.id === id)), ...missing];
+  };
+
+  function onShelfDragEnd(e: any) {
+    const { draggable, droppable } = e;
+    if (!draggable || !droppable) return;
+    const current = persistedOrder();
+    const from = current.indexOf(draggable.id as string);
+    const to = current.indexOf(droppable.id as string);
+    if (from === -1 || to === -1 || from === to) return;
+    const next = [...current];
+    next.splice(from, 1);
+    next.splice(to, 0, draggable.id as string);
+
+    const state = settingsStore.settings()?.shelfState ?? {};
+    const pageState = state[pageKey] ?? {};
+    const shelfOrder = { ...(pageState.shelfOrder ?? {}), [groupID]: next };
+    settingsStore.patch({
+      shelfState: { ...state, [pageKey]: { ...pageState, shelfOrder } },
+    });
+  }
+
   return (
-    <Group id={`group-${props.logicalName.toLowerCase()}`} title={props.logicalName}>
+    <Group id={`group-${groupID}`} title={props.logicalName}>
       <Show when={matched()} fallback={<div class="group-missing">{props.logicalName} not found in servers — run `lumen list`</div>}>
         {(srv) => (
-          <For each={props.shelves}>
-            {(def) => <ShelfLoader server={srv() as Server} def={def} />}
-          </For>
+          <DragDropProvider onDragEnd={onShelfDragEnd} collisionDetector={closestCenter}>
+            <DragDropSensors />
+            <SortableProvider ids={persistedOrder()}>
+              <For each={persistedOrder()}>
+                {(id) => {
+                  const def = props.shelves.find((s) => s.id === id);
+                  return def ? <ShelfLoader server={srv() as Server} def={def} /> : null;
+                }}
+              </For>
+            </SortableProvider>
+          </DragDropProvider>
         )}
       </Show>
     </Group>
@@ -168,9 +236,10 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
     );
   }
   if (props.def.kind === "ondeck-merged") {
-    return null; // handled by <ContinueWatching />
+    return null;
   }
   // server-recent
+  const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
   const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
   return (
     <Shelf id={props.def.id} title={props.def.title}>
@@ -180,6 +249,8 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
           if (!lib) {
             return <div class="shelf-stub">(library "{props.def.libraryName}" not found on {props.server.displayName})</div>;
           }
+          const hidden = hiddenSet().has(`${props.server.machineIdentifier}:${lib.key}`);
+          if (hidden) return <div class="shelf-stub">(library hidden — toggle in left menu)</div>;
           return <LibraryCards server={props.server} libraryKey={lib.key} />;
         }}
       </Show>
@@ -188,8 +259,6 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
 }
 
 function LibraryCards(props: { server: Server; libraryKey: string }) {
-  // Uses /library/sections/<id>/recentlyAdded — Plex's native freshly-added
-  // feed (spec §12.1). Produces the same ordering as Plex Web's Home page.
   const [items] = createResource(() =>
     api.recentlyAdded(props.server.machineIdentifier, props.libraryKey, 20)
   );

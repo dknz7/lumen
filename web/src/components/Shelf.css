@@ -3,7 +3,27 @@
 }
 
 .shelf-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 12px;
+}
+
+.shelf-drag-handle {
+  cursor: grab;
+  color: var(--text-muted);
+  padding: 6px 8px;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.shelf:hover .shelf-drag-handle {
+  opacity: 1;
+}
+
+.shelf.is-dragging {
+  opacity: 0.5;
 }
 
 .shelf-collapse-btn {
