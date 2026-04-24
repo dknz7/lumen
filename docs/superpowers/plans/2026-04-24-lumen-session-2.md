@@ -1500,15 +1500,23 @@ Create `web/index.html`:
 Create `web/src/theme.css`:
 ```css
 :root {
-  /* Pure OLED defaults — spec §14 */
-  --bg:             #000000;
-  --bg-elevated:    #0a0a0a;
-  --text:           #c9c9c9;
-  --text-muted:     #7a7a7a;
-  --text-strong:    #ececec;
-  --accent:         #e5a00d; /* Plex gold */
-  --border:         #1a1a1a;
-  --shadow:         0 2px 10px rgba(0, 0, 0, 0.6);
+  /* Pure OLED — spec §14 + Byron's design call (2026-04-24):
+     - Black canvas, dark grey left menu, dark navy for any "coloured" surface.
+     - Primary action uses INVERSE fill (white bg, black text) per Plezy reference.
+     - Body text (descriptions, durations, character names) is muted grey. */
+  --bg:             #000000;   /* primary canvas */
+  --bg-menu:        #1a1a1a;   /* left menu only */
+  --bg-elevated:    #0f1729;   /* dark navy — top bar pill, pills, coloured surfaces */
+  --bg-inverse:     #ffffff;   /* inverse surfaces — primary action button, selected tab */
+  --text:           #ffffff;   /* primary white — titles, icons, section headers */
+  --text-muted:     #9ca3af;   /* body text — descriptions, durations, dates, character names */
+  --text-inverse:   #000000;   /* text/icon on inverse surfaces */
+  --border:         #262626;   /* hard divider between sections */
+  --border-soft:    rgba(255, 255, 255, 0.08); /* in-pill dividers, subtle separators */
+  --stroke:         #ffffff;   /* white stroke — hover outlines, secondary button borders */
+  --status-online:  #4caf50;   /* connected server indicator */
+  --status-offline: #6b7280;   /* offline server indicator */
+  --shadow:         0 2px 14px rgba(0, 0, 0, 0.7);
 
   --font-base:      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-size:      14px;
@@ -1516,8 +1524,10 @@ Create `web/src/theme.css`:
   --radius-sm:      4px;
   --radius-md:      8px;
   --radius-lg:      12px;
+  --radius-pill:    24px;      /* top bar pill + circular icon buttons */
 
-  --top-bar-height: 56px;
+  --top-bar-height: 48px;
+  --top-bar-margin: 12px;      /* pill's gap from viewport edges */
   --left-menu-width: 220px;
 }
 
@@ -1545,7 +1555,7 @@ a {
 }
 
 a:hover {
-  color: var(--text-strong);
+  color: var(--text-muted);
 }
 
 button {
@@ -1994,23 +2004,30 @@ git commit -m "feat(web): typed API client wrapping Lumen's /api endpoints"
 
 ---
 
-## Task 14: Top bar component
+## Task 14: Top bar component — floating pill with back/home/search/zoom/close
 
 **Files:**
 - Create: `web/src/components/TopBar.tsx`
 - Create: `web/src/components/TopBar.css`
 
-**Context:** Spec §10.1. Left: logo + wordmark. Centre (60% width): search bar. Right: kiosk toggle, zoom slider (persisted — Session 3), close button. Session 2 ships the visual shell with non-functional kiosk/zoom placeholders.
+**Context:** Spec §10.1 + Byron's 2026-04-24 design call. The top bar is a **floating pill** — dark navy fill, rounded corners, small margin from viewport edges. Layout (left → right):
+
+`[logo + wordmark]` → `[Back ←]` `[Home 🏠]` → `[search — flex-fill]` → `[Kiosk ⛶]` `[Zoom 🔍 + slider]` → `[Close ✕]`
+
+Soft dividers separate functional groups inside the pill. Zoom slider is **usable in-session** (adjusts `document.documentElement.style.zoom`); Session 3 persists the value.
 
 - [ ] **Step 1: Implement TopBar.tsx**
 
 Create `web/src/components/TopBar.tsx`:
 ```tsx
 import { createSignal } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import "./TopBar.css";
 
 export default function TopBar() {
+  const navigate = useNavigate();
   const [query, setQuery] = createSignal("");
+  const [zoom, setZoom] = createSignal(100);
 
   function onSearch(e: SubmitEvent) {
     e.preventDefault();
@@ -2018,25 +2035,52 @@ export default function TopBar() {
     console.log("search:", query());
   }
 
+  function applyZoom(v: number) {
+    setZoom(v);
+    // CSS zoom on :root scales the whole viewport. Session 3 will persist this.
+    document.documentElement.style.setProperty("zoom", String(v / 100));
+  }
+
   return (
     <header class="top-bar">
-      <div class="top-bar-left">
-        <span class="logo">✦</span>
-        <span class="wordmark">Lumen</span>
-      </div>
-      <form class="top-bar-search" onSubmit={onSearch}>
-        <input
-          type="search"
-          placeholder="Search across servers and Discover..."
-          value={query()}
-          onInput={(e) => setQuery(e.currentTarget.value)}
-          aria-label="Search"
-        />
-      </form>
-      <div class="top-bar-right">
-        <button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">⛶</button>
-        <input type="range" min="80" max="150" value="100" class="zoom-slider" title="Viewport zoom (Session 3)" />
-        <button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => window.close()}>✕</button>
+      <div class="top-bar-pill">
+        <div class="tb-group tb-brand">
+          <span class="logo">✦</span>
+          <span class="wordmark">Lumen</span>
+        </div>
+        <div class="tb-divider" />
+        <div class="tb-group tb-nav">
+          <button class="icon-btn" title="Back" aria-label="Back" onClick={() => navigate(-1)}>←</button>
+          <button class="icon-btn" title="Home" aria-label="Home" onClick={() => navigate("/")}>⌂</button>
+        </div>
+        <div class="tb-divider" />
+        <form class="tb-search" onSubmit={onSearch}>
+          <input
+            type="search"
+            placeholder="Search across servers and Discover..."
+            value={query()}
+            onInput={(e) => setQuery(e.currentTarget.value)}
+            aria-label="Search"
+          />
+        </form>
+        <div class="tb-divider" />
+        <div class="tb-group tb-zoom">
+          <button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">⛶</button>
+          <span class="zoom-icon" aria-hidden="true">🔍</span>
+          <input
+            type="range"
+            min="80"
+            max="150"
+            value={zoom()}
+            class="zoom-slider"
+            title={`Viewport zoom: ${zoom()}%`}
+            onInput={(e) => applyZoom(Number(e.currentTarget.value))}
+          />
+        </div>
+        <div class="tb-divider" />
+        <div class="tb-group tb-close">
+          <button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => window.close()}>✕</button>
+        </div>
       </div>
     </header>
   );
@@ -2048,75 +2092,101 @@ export default function TopBar() {
 Create `web/src/components/TopBar.css`:
 ```css
 .top-bar {
-  display: grid;
-  grid-template-columns: 1fr 60% 1fr;
-  align-items: center;
-  height: var(--top-bar-height);
-  padding: 0 16px;
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border);
+  padding: var(--top-bar-margin) var(--top-bar-margin) 0 var(--top-bar-margin);
   position: sticky;
   top: 0;
   z-index: 10;
+  background: var(--bg);
 }
 
-.top-bar-left {
+.top-bar-pill {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  height: var(--top-bar-height);
+  padding: 0 14px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow);
 }
 
-.logo {
-  color: var(--accent);
-  font-size: 20px;
+.tb-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
 }
 
-.wordmark {
-  color: var(--text-strong);
+.tb-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-soft);
+  margin: 6px 2px;
+}
+
+.tb-brand .logo {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.tb-brand .wordmark {
+  color: var(--text);
   font-weight: 600;
   letter-spacing: 0.5px;
+  margin-left: 4px;
 }
 
-.top-bar-search {
+.tb-search {
   display: flex;
-  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 200px;
 }
 
-.top-bar-search input {
-  width: 100%;
-  max-width: 600px;
-  background: var(--bg);
+.tb-search input {
+  flex: 1 1 auto;
+  background: rgba(0, 0, 0, 0.25);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
   outline: none;
+  font-size: 13px;
 }
 
-.top-bar-search input:focus {
-  border-color: var(--accent);
+.tb-search input::placeholder {
+  color: var(--text-muted);
 }
 
-.top-bar-right {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
+.tb-search input:focus {
+  border-color: var(--stroke);
 }
 
 .icon-btn {
-  color: var(--text-muted);
-  padding: 6px 10px;
-  border-radius: var(--radius-sm);
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--text);
+  background: transparent;
+  border-radius: 50%;
+  font-size: 15px;
+  line-height: 1;
+  transition: background 0.15s ease;
 }
 
 .icon-btn:hover {
-  background: var(--bg);
-  color: var(--text-strong);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.zoom-icon {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-left: 4px;
 }
 
 .zoom-slider {
-  width: 80px;
+  width: 84px;
+  accent-color: var(--text); /* white thumb + fill on the track */
 }
 ```
 
@@ -2222,13 +2292,15 @@ Create `web/src/components/LeftMenu.css`:
 ```css
 .left-menu {
   width: var(--left-menu-width);
-  background: var(--bg-elevated);
+  background: var(--bg-menu);
   border-right: 1px solid var(--border);
   overflow-y: auto;
   padding: 12px 8px;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--top-bar-height));
+  /* The top bar pill has its own margin; left menu sits underneath it,
+     flush to the left viewport edge. */
+  height: calc(100vh - var(--top-bar-height) - var(--top-bar-margin));
 }
 
 .menu-top, .menu-bottom, .library-list {
@@ -2249,15 +2321,15 @@ Create `web/src/components/LeftMenu.css`:
 .menu-top li a:hover,
 .menu-bottom li a:hover,
 .library-list li a:hover {
-  background: var(--bg);
-  color: var(--text-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
 }
 
 .menu-top li a.active,
 .menu-bottom li a.active,
 .library-list li a.active {
-  background: var(--bg);
-  color: var(--accent);
+  background: var(--bg-elevated);
+  color: var(--text);
 }
 
 .libraries-section {
@@ -2279,13 +2351,13 @@ Create `web/src/components/LeftMenu.css`:
   align-items: center;
   gap: 6px;
   padding: 6px 10px;
-  color: var(--text-strong);
+  color: var(--text);
   font-weight: 600;
   border-radius: var(--radius-sm);
 }
 
 .server-group-header:hover {
-  background: var(--bg);
+  background: var(--bg-elevated);
 }
 
 .caret {
@@ -2299,8 +2371,8 @@ Create `web/src/components/LeftMenu.css`:
   height: 8px;
   border-radius: 50%;
 }
-.server-status[data-status="connected"] { background: #4caf50; }
-.server-status[data-status="offline"]   { background: #888; }
+.server-status[data-status="connected"] { background: var(--status-online); }
+.server-status[data-status="offline"]   { background: var(--status-offline); }
 
 .library-list li a {
   padding-left: 28px;
@@ -2342,6 +2414,7 @@ Add shell CSS — modify `web/src/theme.css` — append:
   display: flex;
   flex-direction: column;
   height: 100vh;
+  background: var(--bg);
 }
 
 .app-body {
@@ -2445,7 +2518,7 @@ Create `web/src/components/Card.css`:
 
 .card:hover .card-poster {
   box-shadow: var(--shadow);
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--stroke);
 }
 
 .card-poster {
@@ -2479,7 +2552,7 @@ Create `web/src/components/Card.css`:
 
 .card-title {
   font-size: 13px;
-  color: var(--text-strong);
+  color: var(--text);
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2579,11 +2652,11 @@ Create `web/src/components/Shelf.css`:
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--text-strong);
+  color: var(--text);
 }
 
 .shelf-collapse-btn:hover {
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
 .shelf-collapse-btn .caret {
@@ -2674,14 +2747,14 @@ Create `web/src/components/Group.css`:
   display: flex;
   align-items: center;
   gap: 12px;
-  color: var(--text-strong);
+  color: var(--text);
   margin-bottom: 24px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
   width: 100%;
 }
 
-.group-header:hover { color: var(--accent); }
+.group-header:hover { color: var(--text-muted); }
 
 .group-title {
   font-size: 24px;
@@ -3249,16 +3322,16 @@ Create `web/src/pages/ItemDetail.css`:
 .hero-meta h1 {
   font-size: 32px;
   margin: 0 0 10px;
-  color: var(--text-strong);
+  color: var(--text);
 }
 
 .meta-pills { display: flex; gap: 8px; }
 
 .pill {
   background: var(--bg-elevated);
-  color: var(--text-muted);
-  padding: 3px 8px;
-  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
   font-size: 12px;
 }
 
@@ -3267,21 +3340,32 @@ Create `web/src/pages/ItemDetail.css`:
   flex-wrap: wrap;
   gap: 8px;
   margin: 16px 0 28px;
+  align-items: center;
 }
 
-.btn, .btn-primary, .btn-subtitle {
+/* Secondary buttons — dark navy pill, white content. Matches Plezy's circular
+   icon buttons next to the primary action. */
+.btn, .btn-subtitle {
   background: var(--bg-elevated);
   color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
   padding: 8px 14px;
   font-size: 13px;
 }
 
+.btn:hover:not(:disabled), .btn-subtitle:hover:not(:disabled) {
+  border-color: var(--stroke);
+}
+
+/* Primary action — inverse fill (white bg, black text) per Byron's design call. */
 .btn-primary {
-  background: var(--accent);
-  color: #000;
-  border-color: var(--accent);
+  background: var(--bg-inverse);
+  color: var(--text-inverse);
+  border: 1px solid var(--bg-inverse);
+  border-radius: var(--radius-pill);
+  padding: 8px 18px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -3321,7 +3405,7 @@ Create `web/src/pages/ItemDetail.css`:
   align-items: center;
 }
 
-.availability-row strong { color: var(--text-strong); }
+.availability-row strong { color: var(--text); }
 .availability-lib, .availability-quality, .availability-size {
   color: var(--text-muted);
   font-size: 13px;
@@ -3369,7 +3453,7 @@ export default function Placeholder(props: { name: string; session: string }) {
   const loc = useLocation();
   return (
     <div style={{ "padding": "40px" }}>
-      <h1 style={{ "color": "var(--text-strong)" }}>{props.name}</h1>
+      <h1 style={{ "color": "var(--text)" }}>{props.name}</h1>
       <p style={{ "color": "var(--text-muted)", "max-width": "60ch" }}>
         This page lands in <strong>{props.session}</strong>. Current route: <code>{loc.pathname}</code>.
       </p>
@@ -3478,6 +3562,18 @@ Paste:
 - Ctrl+C shutdown clean?
 
 Archie writes up `docs/session-2-findings.md` from the observations.
+
+---
+
+## Design notes for later sessions
+
+Carried forward from Byron's 2026-04-24 design call — enforce when the referenced features land:
+
+- **Session 5 Cast/Crew grid (§12.6):** actor names are primary white (`--text`); **character names are body-text grey** (`--text-muted`). Plezy's reference shows both in white — Byron explicitly wants the character name dropped to body-text to differentiate.
+- **Session 5 Episode rows (§12.6 shows):** episode title white; **description, duration, air date are all body-text muted** (`--text-muted`). Matches the Plezy episode-list reference.
+- **Session 3 theme variants:** when Dim / High Contrast / Custom themes land, preserve the inverse-primary-action pattern (white fill, black content) as the pattern — only the exact color values swap per theme.
+- **Session 3 persistence:** zoom slider currently applies `document.documentElement.style.zoom` in-session only. Persist the last value to `config.json` under a new `ui.zoom` field, restore on `lumen serve` startup.
+- **Session 3 per-server display-name override (§13.4):** Session 1's finding — Stargaze returns an empty `name` field. When Settings lands, wire the override so Stargaze's left-menu label and Home group heading read "Stargaze" not `4db54e45876c`.
 
 ---
 
