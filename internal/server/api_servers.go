@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -65,6 +66,24 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case len(parts) == 2 && parts[1] == "rename":
+		if r.Method != "POST" {
+			writeError(w, http.StatusMethodNotAllowed, "POST required")
+			return
+		}
+		var body struct {
+			DisplayName string `json:"displayName"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			writeError(w, http.StatusBadRequest, "invalid JSON")
+			return
+		}
+		srv.DisplayName = body.DisplayName
+		if err := s.cfg.Save(); err != nil {
+			writeError(w, http.StatusInternalServerError, err.Error())
+			return
+		}
+		writeJSON(w, map[string]string{"status": "renamed", "displayName": body.DisplayName})
 	case len(parts) == 2 && parts[1] == "libraries":
 		s.handleLibraries(w, r, srv)
 	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "items":

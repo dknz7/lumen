@@ -63,6 +63,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/cache/size", s.handleCacheSize)
 	s.mux.HandleFunc("/api/cache/clear", s.handleCacheClear)
 	s.mux.HandleFunc("/api/user", s.handleUser)
+	s.mux.HandleFunc("/api/servers/refresh", s.handleServersRefresh)
+	s.mux.HandleFunc("/api/settings/omdb", s.handleSettingsOMDB)
 	s.mux.HandleFunc("/", s.handleSPA)
 }
 
