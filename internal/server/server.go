@@ -15,12 +15,13 @@ import (
 // Server bundles the http.Server, mux, Plex client, and loaded config into one
 // lifecycle-managed unit.
 type Server struct {
-	cfg  *config.Config
-	plex *plex.Client
-	mux  *http.ServeMux
-	http *http.Server
-	ln   net.Listener
-	hubs *hubCache
+	cfg    *config.Config
+	plex   *plex.Client
+	mux    *http.ServeMux
+	http   *http.Server
+	ln     net.Listener
+	hubs   *hubCache
+	images *imageCache
 }
 
 // New constructs the Server but does not bind yet. addr is in "host:port" form
@@ -38,7 +39,8 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 			WriteTimeout: 30 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
-		hubs: newHubCache(),
+		hubs:   newHubCache(),
+		images: newImageCache(),
 	}
 	s.registerRoutes()
 	return s

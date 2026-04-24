@@ -71,6 +71,18 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		height = v
 	}
 
+	// Disk cache lookup before hitting Plex. Key includes size so different
+	// resolutions of the same thumb cache separately.
+	cacheKey := s.images.key(machineID, path, width, height)
+	if ct, bytes, ok := s.images.get(cacheKey); ok {
+		w.Header().Set("Content-Type", ct)
+		w.Header().Set("Cache-Control", "public, max-age=2592000, immutable")
+		w.Header().Set("X-Lumen-Cache", "hit")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(bytes)
+		return
+	}
+
 	// Strip the default HTTPS port so our URL matches Plex Web's format.
 	base := strings.TrimSuffix(srv.LastGoodConnection, ":443")
 
@@ -128,10 +140,27 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ct := resp.Header.Get("Content-Type"); ct != "" {
-		w.Header().Set("Content-Type", ct)
+	// Buffer the body so we can both serve it and write it to the disk cache.
+	// Thumbs are small (tens of KB typically); the RAM cost is negligible
+	// compared to the round-trip savings on subsequent requests.
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "read body: "+err.Error())
+		return
 	}
+	ct := resp.Header.Get("Content-Type")
+	if ct == "" {
+		ct = "image/jpeg"
+	}
+
+	// Best-effort cache write; if it fails (disk full, permissions) we still
+	// serve the response. Logged silently — a cache miss on next request just
+	// means we re-fetch.
+	_ = s.images.put(cacheKey, ct, body)
+
+	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Cache-Control", "public, max-age=2592000, immutable")
+	w.Header().Set("X-Lumen-Cache", "miss")
 	w.WriteHeader(http.StatusOK)
-	_, _ = io.Copy(w, resp.Body)
+	_, _ = w.Write(body)
 }
