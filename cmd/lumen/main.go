@@ -22,6 +22,8 @@ func main() {
 		runProbeHubs(os.Args[2:])
 	case "serve":
 		runServe(os.Args[2:])
+	case "rename":
+		runRename(os.Args[2:])
 	case "version", "--version", "-v":
 		fmt.Printf("lumen %s\n", version)
 	default:
@@ -39,6 +41,7 @@ subcommands:
   list         List connected Plex servers and their libraries
   probe-hubs   Probe Plex Discover hub slugs (diagnostic)
   serve        Start the Lumen web app (HTTP server on 127.0.0.1:7832)
+  rename       Set a local display name for a server (e.g. rename <machineID> "Stargaze")
   version      Print lumen version
 `)
 }

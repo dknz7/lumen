@@ -26,6 +26,7 @@ type PlexConfig struct {
 
 type Server struct {
 	Name               string `json:"name"`
+	DisplayName        string `json:"displayName,omitempty"` // local override — wins over Name in UI
 	MachineIdentifier  string `json:"machineIdentifier"`
 	AccessToken        string `json:"accessToken,omitempty"` // plaintext in memory, DPAPI on disk
 	LastGoodConnection string `json:"lastGoodConnection,omitempty"`
@@ -45,6 +46,7 @@ type wirePlexConfig struct {
 
 type wireServer struct {
 	Name               string `json:"name"`
+	DisplayName        string `json:"displayName,omitempty"`
 	MachineIdentifier  string `json:"machineIdentifier"`
 	AccessToken        string `json:"accessToken,omitempty"`
 	LastGoodConnection string `json:"lastGoodConnection,omitempty"`
@@ -94,6 +96,7 @@ func Load() (*Config, error) {
 		}
 		c.Plex.Servers = append(c.Plex.Servers, Server{
 			Name:               ws.Name,
+			DisplayName:        ws.DisplayName,
 			MachineIdentifier:  ws.MachineIdentifier,
 			AccessToken:        at,
 			LastGoodConnection: lgc,
@@ -128,6 +131,7 @@ func (c *Config) Save() error {
 		}
 		w.Plex.Servers = append(w.Plex.Servers, wireServer{
 			Name:               s.Name,
+			DisplayName:        s.DisplayName,
 			MachineIdentifier:  s.MachineIdentifier,
 			AccessToken:        eat,
 			LastGoodConnection: elgc,

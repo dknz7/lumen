@@ -27,7 +27,14 @@ func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
 			status = "connected"
 		}
 		name := srv.Name
-		display := name
+		// Resolution order for the SPA-facing label:
+		//   1. local override (config.Server.DisplayName)
+		//   2. Plex-returned name
+		//   3. machineIdentifier fallback
+		display := srv.DisplayName
+		if display == "" {
+			display = name
+		}
 		if display == "" {
 			display = srv.MachineIdentifier
 		}
