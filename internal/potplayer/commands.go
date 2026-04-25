@@ -1,5 +1,7 @@
 package potplayer
 
+import "time"
+
 // Win32 message constants and Pot Player command IDs confirmed against Pot
 // Player Mini v260422 (1.7.22859) during the Session 0 spike — see
 // docs/session-0-findings.md.
@@ -21,13 +23,17 @@ const (
 	appCmdMediaPlayPause uintptr = 14 // toggle (kept for completeness; v1 UI doesn't use it)
 )
 
+// Sentinel returned by ppGetState while media is still loading. Pot Player
+// returns -1; Go's SendMessage wrapper sees this as ^uintptr(0).
+const stateNotReady = ^uintptr(0)
+
 // Window class for Pot Player's main window. Used by FindWindowW.
 const potPlayerWindowClass = "PotPlayer64"
 
 // Cold-start: position/duration/state can return 0 or -1 for ~2 s after
-// launch while media loads. Wrap reads with retries up to coldStartRetry.
+// launch while media loads. Wrap reads with retries up to coldStartRetry,
+// sleeping coldStartGap between attempts.
 const (
-	coldStartRetry  = 6           // number of read attempts during cold-start
-	coldStartGap_ms = 500         // ms between attempts
-	stateNotReady   = ^uintptr(0) // -1 cast to uintptr; Go sees uint64 max
+	coldStartRetry = 6
+	coldStartGap   = 500 * time.Millisecond
 )
