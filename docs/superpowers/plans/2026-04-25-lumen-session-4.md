@@ -1021,11 +1021,10 @@ func (c *Client) ReportTimeline(s *Server, r TimelineReport) error {
 		return fmt.Errorf("ReportTimeline: invalid state %q", r.State)
 	}
 	q := url.Values{
-		"ratingKey":    []string{r.RatingKey},
-		"state":        []string{r.State},
-		"time":         []string{fmt.Sprintf("%d", r.Position.Milliseconds())},
-		"duration":     []string{fmt.Sprintf("%d", r.Duration.Milliseconds())},
-		"X-Plex-Token": []string{s.AccessToken},
+		"ratingKey": []string{r.RatingKey},
+		"state":     []string{r.State},
+		"time":      []string{fmt.Sprintf("%d", r.Position.Milliseconds())},
+		"duration":  []string{fmt.Sprintf("%d", r.Duration.Milliseconds())},
 	}
 	u := s.BaseURL + "/:/timeline?" + q.Encode()
 	req, err := c.NewRequest("POST", u, nil)
