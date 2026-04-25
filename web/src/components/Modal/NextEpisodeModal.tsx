@@ -13,21 +13,23 @@ export default function NextEpisodeModal() {
   let timer: number | undefined;
 
   function close() {
-    if (timer) window.clearInterval(timer);
+    window.clearInterval(timer);
     playbackStore.dismissNextEpisode();
   }
 
   async function playNow() {
     const i = info();
     if (!i) return;
-    close();
+    window.clearInterval(timer);
+    // Leave modal visible during the API calls so Cancel still wins.
     try {
-      // Stop any lingering session first.
       await api.playStop();
       await api.play(i.serverID, i.ratingKey);
     } catch (e) {
       console.error("auto-play next failed:", e);
       alert(`Failed to play next episode: ${(e as Error).message}`);
+    } finally {
+      playbackStore.dismissNextEpisode();
     }
   }
 
@@ -72,7 +74,7 @@ export default function NextEpisodeModal() {
       </div>
       <div class="nem-actions">
         <button class="nem-cancel" onClick={close}>Cancel</button>
-        <button class="nem-now" onClick={playNow}>Play Now</button>
+        <button class="nem-now" onClick={playNow} autofocus>Play Now</button>
       </div>
     </ModalShell>
   );
