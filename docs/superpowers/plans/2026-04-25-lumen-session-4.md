@@ -436,6 +436,16 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Lazily-resolved Win32 procs used across the package. Each call to
+// LazyProc.Call resolves the proc address on first use and caches it; we
+// hold these at package level so the cache is shared across goroutines and
+// helpers don't re-allocate the wrappers per invocation.
+var (
+	user32          = windows.NewLazySystemDLL("user32.dll")
+	procFindWindowW = user32.NewProc("FindWindowW")
+	procIsWindow    = user32.NewProc("IsWindow")
+)
+
 // PlayState mirrors Pot Player's GetState return values plus a sentinel.
 type PlayState int
 
@@ -496,8 +506,11 @@ func Launch(exePath, streamURL string) (*Client, error) {
 		}
 		time.Sleep(300 * time.Millisecond)
 	}
-	// Window never appeared — kill the subprocess to avoid orphaning.
+	// Window never appeared — kill the subprocess to avoid orphaning. Reap in
+	// the background so the OS process handle is released without slowing the
+	// error return.
 	_ = cmd.Process.Kill()
+	go func() { _ = cmd.Wait() }()
 	return nil, errors.New("potplayer.Launch: window did not appear within 3s")
 }
 
@@ -516,10 +529,8 @@ func (c *Client) IsAlive() bool {
 // findPotPlayerWindow looks up the top-level window with class PotPlayer64.
 // Returns the HWND and true if found.
 func findPotPlayerWindow() (windows.Handle, bool) {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	findWindowW := user32.NewProc("FindWindowW")
 	className, _ := syscall.UTF16PtrFromString(potPlayerWindowClass)
-	r1, _, _ := findWindowW.Call(
+	r1, _, _ := procFindWindowW.Call(
 		uintptr(unsafe.Pointer(className)),
 		0,
 	)
@@ -531,9 +542,7 @@ func findPotPlayerWindow() (windows.Handle, bool) {
 
 // isWindow wraps user32.IsWindow.
 func isWindow(hwnd windows.Handle) bool {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	isWin := user32.NewProc("IsWindow")
-	r1, _, _ := isWin.Call(uintptr(hwnd))
+	r1, _, _ := procIsWindow.Call(uintptr(hwnd))
 	return r1 != 0
 }
 ```
@@ -582,6 +591,19 @@ git commit -m "feat(potplayer): Client.Launch + IsAlive via FindWindowW polling"
 **Context:** Three read methods, all share the cold-start retry envelope: if the first call returns `0` (position/duration) or `-1` sentinel (state), wait `coldStartGap` and retry up to `coldStartRetry` times. Returns the first non-zero / non-sentinel value.
 
 - [ ] **Step 1: Append to `client.go`**
+
+Extend the package-level Win32 proc block (added in Task 4) with `SendMessageW`:
+
+```go
+var (
+	user32          = windows.NewLazySystemDLL("user32.dll")
+	procFindWindowW = user32.NewProc("FindWindowW")
+	procIsWindow    = user32.NewProc("IsWindow")
+	procSendMessageW = user32.NewProc("SendMessageW") // <-- new in Task 5
+)
+```
+
+Then append the read methods + `sendUserQuery` helper:
 
 ```go
 // GetPosition returns the current playback position. May block up to
@@ -666,9 +688,7 @@ func (c *Client) sendUserQuery(wParam uintptr) (uintptr, error) {
 		c.hwnd = hwnd
 	}
 
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	sendMessage := user32.NewProc("SendMessageW")
-	r1, _, _ := sendMessage.Call(
+	r1, _, _ := procSendMessageW.Call(
 		uintptr(c.hwnd),
 		wmUser,
 		wParam,
@@ -701,6 +721,20 @@ git commit -m "feat(potplayer): GetPosition/GetDuration/GetState with cold-start
 
 - [ ] **Step 1: Append to `client.go`**
 
+Extend the package-level Win32 proc block with `PostMessageW`:
+
+```go
+var (
+	user32          = windows.NewLazySystemDLL("user32.dll")
+	procFindWindowW = user32.NewProc("FindWindowW")
+	procIsWindow    = user32.NewProc("IsWindow")
+	procSendMessageW = user32.NewProc("SendMessageW")
+	procPostMessageW = user32.NewProc("PostMessageW") // <-- new in Task 6
+)
+```
+
+Then append `Stop` + `sendAppCommand`:
+
 ```go
 // Stop halts playback and closes the Pot Player window. Returns when the
 // window is gone (or after a 2 s force-kill fallback).
@@ -718,9 +752,7 @@ func (c *Client) Stop() error {
 	_ = sendAppCommand(hwnd, appCmdMediaStop)
 
 	// Ask the window to close.
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	postMessage := user32.NewProc("PostMessageW")
-	_, _, _ = postMessage.Call(uintptr(hwnd), wmClose, 0, 0)
+	_, _, _ = procPostMessageW.Call(uintptr(hwnd), wmClose, 0, 0)
 
 	// Wait up to 2 s for IsWindow to flip false.
 	deadline := time.Now().Add(2 * time.Second)
@@ -741,9 +773,7 @@ func (c *Client) Stop() error {
 // sendAppCommand fires WM_APPCOMMAND with the given command in the high
 // word of lParam. Per Session 0 findings: SendMessage(hwnd, 0x0319, 0, cmd<<16).
 func sendAppCommand(hwnd windows.Handle, cmd uintptr) error {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	sendMessage := user32.NewProc("SendMessageW")
-	_, _, _ = sendMessage.Call(
+	_, _, _ = procSendMessageW.Call(
 		uintptr(hwnd),
 		wmAppCommand,
 		0,
