@@ -6,6 +6,8 @@ import "./Group.css";
 export interface GroupProps {
   id: string;
   title: string;
+  /** Optional icon rendered between the collapse caret and the title. */
+  icon?: JSX.Element;
   initialCollapsed?: boolean;
   children?: JSX.Element;
 }
@@ -42,6 +44,9 @@ export default function Group(props: GroupProps) {
           <span class="caret">
             {collapsed() ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </span>
+          <Show when={props.icon}>
+            <span class="group-icon">{props.icon}</span>
+          </Show>
           <h1 class="group-title">{props.title}</h1>
         </button>
         <Show when={sortable}>

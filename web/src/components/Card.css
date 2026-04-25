@@ -2,7 +2,10 @@
   display: block;
   width: var(--card-width);
   cursor: pointer;
-  transition: transform 0.15s ease;
+  /* width transition softens the visual snap when the zoom slider changes
+     --card-width on the Library page (grid column count still reflows in
+     discrete steps, but card growth animates between values). */
+  transition: transform 0.15s ease, width 0.18s ease-out;
   color: inherit;
 }
 
@@ -16,7 +19,7 @@
 
 .card-poster {
   aspect-ratio: 2 / 3;
-  background: var(--bg-elevated);
+  background: var(--bg-card-empty);
   border-radius: var(--radius-sm);
   overflow: hidden;
   position: relative;
@@ -47,7 +50,7 @@
   display: grid;
   place-items: center;
   color: var(--text-muted);
-  background: var(--bg-elevated);
+  background: var(--bg-card-empty);
 }
 
 .card-poster-img {
@@ -59,11 +62,12 @@
   display: block;
 }
 
-/* Bin icon overlay — only appears on hover when onRemove is supplied (Continue Watching).
-   z-index:2 keeps it above the dim overlay. */
+/* Continue Watching action buttons — overlay only appears on card hover.
+   Tick (mark watched) sits at top-right; bin (remove) sits below it when
+   both are present. z-index:2 keeps them above the card's dim overlay. */
+.card-mark-watched-btn,
 .card-remove-btn {
   position: absolute;
-  top: 6px;
   right: 6px;
   width: 28px;
   height: 28px;
@@ -80,8 +84,28 @@
   z-index: 2;
 }
 
+.card-mark-watched-btn {
+  top: 6px;
+}
+
+.card-remove-btn {
+  top: 6px;
+}
+
+/* When both buttons are rendered (Continue Watching), the bin shifts down so
+   the tick takes the primary top-right slot. 28px button + 6px gap = 40 from
+   the tick's top edge. */
+.card-mark-watched-btn ~ .card-remove-btn {
+  top: 40px;
+}
+
+.card:hover .card-mark-watched-btn,
 .card:hover .card-remove-btn {
   opacity: 1;
+}
+
+.card-mark-watched-btn:hover {
+  background: rgba(40, 180, 90, 0.85);
 }
 
 .card-remove-btn:hover {

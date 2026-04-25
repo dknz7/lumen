@@ -1,4 +1,4 @@
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, JSX, Show } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { api } from "../api/client";
 import type { Item, Library, Server } from "../api/types";
@@ -6,8 +6,24 @@ import Group from "../components/Group";
 import Shelf from "../components/Shelf";
 import Card from "../components/Card";
 import Skeleton from "../components/Skeleton";
+import { Cat, Film, Flame, Play, Server as ServerIcon, Star, Tv } from "../components/icons";
 import { store as settingsStore } from "../state/settings";
 import "./Home.css";
+
+// Icon dispatch for Home shelves + groups. Keyed off shelf id / group name so
+// new shelves added later can be tagged via the same naming pattern.
+function iconForShelf(id: string): JSX.Element {
+  if (id.includes("trending")) return <Flame size={18} />;
+  if (id.includes("anime")) return <Cat size={18} />;
+  if (id.includes("episodes")) return <Tv size={18} />;
+  if (id.includes("movies")) return <Film size={18} />;
+  return <Film size={18} />;
+}
+
+function iconForGroup(logicalName: string): JSX.Element {
+  if (logicalName.toLowerCase() === "stargaze") return <Star size={20} />;
+  return <ServerIcon size={20} />;
+}
 
 // Shelf definitions — one entry per shelf on the Home page (spec §12.1).
 type ShelfDef =
@@ -128,44 +144,62 @@ function ContinueWatching(props: { servers: Server[] }) {
   const [localItems, setLocalItems] = createSignal<CWItem[] | null>(null);
   const visibleItems = () => localItems() ?? (decksData() ?? []);
 
-  async function removeItem(item: CWItem) {
+  // Tick (mark watched) and bin (remove from CW) share the same optimistic-
+  // remove + rollback-on-error flow; they only differ in which Plex endpoint
+  // they hit (scrobble vs unscrobble).
+  async function applyCWAction(
+    item: CWItem,
+    apiCall: (serverID: string, ratingKey: string) => Promise<unknown>,
+    label: string,
+  ) {
     const current = visibleItems();
     setLocalItems(current.filter((x) => !(x.ratingKey === item.ratingKey && x.serverID === item.serverID)));
     try {
-      await api.removeFromOnDeck(item.serverID, item.ratingKey);
+      await apiCall(item.serverID, item.ratingKey);
     } catch (e) {
-      console.error("removeFromOnDeck failed:", e);
+      console.error(`${label} failed:`, e);
       setLocalItems(current);
-      alert(`Failed to remove: ${(e as Error).message}`);
+      alert(`Failed to ${label}: ${(e as Error).message}`);
     }
   }
 
+  const markWatched = (item: CWItem) => applyCWAction(item, api.scrobble, "mark as watched");
+  const removeItem = (item: CWItem) => applyCWAction(item, api.unscrobble, "remove from Continue Watching");
+
+  // Items are passed to Shelf only when loaded successfully and non-empty;
+  // otherwise children render the skeleton / error / empty stub instead.
+  const cwItems = () => {
+    if (decksData.loading || decksData.error) return undefined;
+    const items = visibleItems();
+    return items.length > 0 ? (items as CWItem[]) : undefined;
+  };
+
   return (
-    <Shelf id="continue-watching" title="Continue Watching" sortable={false}>
+    <Shelf
+      id="continue-watching"
+      title="Continue Watching"
+      sortable={false}
+      rowsPerPage={3}
+      icon={<Play size={18} />}
+      items={cwItems()}
+      renderItem={(it: CWItem) => (
+        <Card
+          item={it}
+          serverID={it.serverID}
+          onMarkWatched={() => markWatched(it)}
+          onRemove={() => removeItem(it)}
+        />
+      )}
+    >
       <Show
         when={!decksData.loading}
         fallback={<Skeleton kind="card" count={6} />}
       >
-        <Show
-          when={decksData.error}
-          fallback={
-            <Show
-              when={visibleItems().length > 0}
-              fallback={<div class="shelf-stub">Nothing in progress across your servers.</div>}
-            >
-              <For each={visibleItems() as CWItem[]}>
-                {(it) => (
-                  <Card
-                    item={it}
-                    serverID={it.serverID}
-                    onRemove={() => removeItem(it)}
-                  />
-                )}
-              </For>
-            </Show>
-          }
-        >
+        <Show when={decksData.error}>
           <div class="shelf-stub">Continue Watching failed: {(decksData.error as Error)?.message}</div>
+        </Show>
+        <Show when={!decksData.error && visibleItems().length === 0}>
+          <div class="shelf-stub">Nothing in progress across your servers.</div>
         </Show>
       </Show>
     </Shelf>
@@ -208,7 +242,7 @@ function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: stri
   }
 
   return (
-    <Group id={`group-${groupID}`} title={props.logicalName}>
+    <Group id={`group-${groupID}`} title={props.logicalName} icon={iconForGroup(props.logicalName)}>
       <Show when={matched()} fallback={<div class="group-missing">{props.logicalName} not found in servers — run `lumen list`</div>}>
         {(srv) => (
           <DragDropProvider onDragEnd={onShelfDragEnd} collisionDetector={closestCenter}>
@@ -231,7 +265,13 @@ function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: stri
 function ShelfLoader(props: { server: Server; def: ShelfDef }) {
   if (props.def.kind === "stub") {
     return (
-      <Shelf id={props.def.id} title={props.def.title} initialCollapsed>
+      <Shelf
+        id={props.def.id}
+        title={props.def.title}
+        initialCollapsed
+        rowsPerPage={2}
+        icon={iconForShelf(props.def.id)}
+      >
         <div class="shelf-stub">({props.def.reason})</div>
       </Shelf>
     );
@@ -239,37 +279,67 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
   if (props.def.kind === "ondeck-merged") {
     return null;
   }
-  // server-recent
+  // server-recent. Capture the narrowed def into a const so TypeScript's
+  // discriminant narrowing persists across the inner closures below.
+  const def = props.def;
   const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
   const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
+
+  // Resolve the named library on this server. Null if the library list hasn't
+  // loaded yet OR the named library doesn't exist on this server.
+  const lib = createMemo(() => {
+    const list = libs();
+    if (!list) return null;
+    return (list as Library[]).find((l) => l.title === def.libraryName) ?? null;
+  });
+
+  const isHidden = createMemo(() => {
+    const l = lib();
+    if (!l) return false;
+    return hiddenSet().has(`${props.server.machineIdentifier}:${l.key}`);
+  });
+
+  // Fetch recentlyAdded only when we have a non-hidden library. Resource
+  // re-runs whenever lib() changes (different libKey) or hidden state flips.
+  const [items] = createResource(
+    () => {
+      const l = lib();
+      if (!l || isHidden()) return null;
+      return l.key;
+    },
+    (libKey) => api.recentlyAdded(props.server.machineIdentifier, libKey, 20)
+  );
+
+  // Items array is only passed to Shelf when fully loaded; otherwise the
+  // children handle stub/skeleton states.
+  const itemList = () => {
+    const list = items();
+    return list ? (list as Item[]) : undefined;
+  };
+
   return (
-    <Shelf id={props.def.id} title={props.def.title}>
-      <Show when={libs()}>
-        {(libList) => {
-          const lib = (libList() as Library[]).find((l) => l.title === props.def.libraryName);
-          if (!lib) {
-            return <div class="shelf-stub">(library "{props.def.libraryName}" not found on {props.server.displayName})</div>;
-          }
-          const hidden = hiddenSet().has(`${props.server.machineIdentifier}:${lib.key}`);
-          if (hidden) return <div class="shelf-stub">(library hidden — toggle in left menu)</div>;
-          return <LibraryCards server={props.server} libraryKey={lib.key} />;
-        }}
+    <Shelf
+      id={def.id}
+      title={def.title}
+      rowsPerPage={2}
+      icon={iconForShelf(def.id)}
+      items={itemList()}
+      renderItem={(it: Item) => (
+        <Card item={it} serverID={props.server.machineIdentifier} />
+      )}
+    >
+      <Show when={!libs()}>
+        <Skeleton kind="card" count={6} />
+      </Show>
+      <Show when={libs() && !lib()}>
+        <div class="shelf-stub">(library "{def.libraryName}" not found on {props.server.displayName})</div>
+      </Show>
+      <Show when={lib() && isHidden()}>
+        <div class="shelf-stub">(library hidden — toggle in left menu)</div>
+      </Show>
+      <Show when={lib() && !isHidden() && !items()}>
+        <Skeleton kind="card" count={6} />
       </Show>
     </Shelf>
-  );
-}
-
-function LibraryCards(props: { server: Server; libraryKey: string }) {
-  const [items] = createResource(() =>
-    api.recentlyAdded(props.server.machineIdentifier, props.libraryKey, 20)
-  );
-  return (
-    <Show when={items()} fallback={<Skeleton kind="card" count={6} />}>
-      {(list) => (
-        <For each={list() as Item[]}>
-          {(it) => <Card item={it} serverID={props.server.machineIdentifier} />}
-        </For>
-      )}
-    </Show>
   );
 }

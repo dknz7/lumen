@@ -1,34 +1,136 @@
-import { createSignal, JSX, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, JSX, onCleanup, Show } from "solid-js";
 import { createSortable, useDragDropContext } from "@thisbeyond/solid-dnd";
-import { ChevronDown, ChevronRight, GripVertical } from "./icons";
+import { ChevronDown, ChevronLeft, ChevronRight, GripVertical } from "./icons";
+import { store as settingsStore } from "../state/settings";
 import "./Shelf.css";
+
+// Card-size base widths must mirror theme.css's --card-width-{s,m,l,xl}.
+// Used to derive cardsPerRow for JS pagination.
+const CARD_WIDTH_BASE_PX: Record<"s" | "m" | "l" | "xl", number> = {
+  s: 120, m: 160, l: 200, xl: 240,
+};
+
+// Approximate horizontal grid gap — must match Shelf.css's `.shelf-page` gap.
+const GRID_COL_GAP_PX = 16;
 
 export interface ShelfProps {
   id: string;
   title: string;
-  rowsPerShelf?: number; // default 3
+  /**
+   * When set together with items + renderItem, lays out cards in viewport-wide
+   * pages of (cardsPerRow × rowsPerPage) cells, ROW-MAJOR fill within each
+   * page (row 1 fills viewport-width left-to-right, then row 2). Floating
+   * arrows scroll between pages. CW uses 3, other Home shelves use 2.
+   */
+  rowsPerPage?: number;
+  /** Card source array. Required for paginated mode. */
+  items?: any[];
+  /** Render fn for each item. Required when items is provided. */
+  renderItem?: (item: any, index: number) => JSX.Element;
+  /** Fallback content rendered when items isn't supplied (loading, empty,
+   *  error stubs). Lays out in a single non-paginated grid. */
   children?: JSX.Element;
+  /** Optional icon rendered between the collapse caret and the title. */
+  icon?: JSX.Element;
   initialCollapsed?: boolean;
   /**
    * Set false when this shelf renders OUTSIDE a DragDropProvider/SortableProvider
    * (e.g. Continue Watching, which is pinned and never reorderable). Without
-   * this escape hatch, createSortable null-derefs the missing context and
-   * crashes the subtree with `Symbol.iterator on null`.
+   * this escape hatch, createSortable null-derefs the missing context.
    */
   sortable?: boolean;
 }
 
 export default function Shelf(props: ShelfProps) {
   const [collapsed, setCollapsed] = createSignal(!!props.initialCollapsed);
-  const rowsPerShelf = () => props.rowsPerShelf ?? 3;
 
-  // Register with solid-dnd only when BOTH the prop allows it AND a
-  // DragDropProvider is actually in the ancestor tree. Using loose `!= null`
-  // catches both null and undefined since useContext returns undefined when
-  // no Provider exists.
   const ctx = useDragDropContext();
   const canSortable = props.sortable !== false && ctx != null;
   const sortable = canSortable ? createSortable(props.id) : null;
+
+  // Pagination state
+  const [scrollerEl, setScrollerEl] = createSignal<HTMLDivElement | undefined>();
+  const [scrollLeft, setScrollLeft] = createSignal(0);
+  const [scrollMetrics, setScrollMetrics] = createSignal({ clientWidth: 0, scrollWidth: 0 });
+
+  // Card width is derived from cardSize + zoom (both global settings). Computed
+  // here directly rather than via getComputedStyle so it's reactive to settings
+  // changes BEFORE applyRootDerived has touched the DOM.
+  const cardWidthPx = createMemo(() => {
+    const s = settingsStore.settings();
+    if (!s) return CARD_WIDTH_BASE_PX.m;
+    const base = CARD_WIDTH_BASE_PX[s.cardSize] ?? CARD_WIDTH_BASE_PX.m;
+    return Math.round(base * (s.zoom / 100));
+  });
+
+  // Cards per row from current scroller width and card width.
+  const cardsPerRow = createMemo(() => {
+    const m = scrollMetrics();
+    const cw = cardWidthPx();
+    if (!m.clientWidth || !cw) return 1;
+    return Math.max(1, Math.floor((m.clientWidth + GRID_COL_GAP_PX) / (cw + GRID_COL_GAP_PX)));
+  });
+
+  // Pages: chunks of (cardsPerRow × rowsPerPage). Each page = one viewport-width
+  // row-major grid. Row 1 fills first, then row 2, then NEXT page on the right.
+  const pages = createMemo(() => {
+    const items = props.items;
+    const rpp = props.rowsPerPage;
+    if (!items || !rpp) return [] as any[][];
+    const perPage = cardsPerRow() * rpp;
+    if (perPage <= 0) return [items];
+    const result: any[][] = [];
+    for (let i = 0; i < items.length; i += perPage) {
+      result.push(items.slice(i, i + perPage));
+    }
+    return result;
+  });
+
+  const isPaginated = () =>
+    !!props.rowsPerPage &&
+    !!props.items &&
+    !!props.renderItem &&
+    props.items.length > 0;
+
+  const showLeft = () => isPaginated() && scrollLeft() > 4;
+  const showRight = () => {
+    if (!isPaginated()) return false;
+    const m = scrollMetrics();
+    return scrollLeft() + m.clientWidth < m.scrollWidth - 4;
+  };
+
+  function updateMetrics() {
+    const el = scrollerEl();
+    if (!el) return;
+    setScrollLeft(el.scrollLeft);
+    setScrollMetrics({
+      clientWidth: el.clientWidth,
+      scrollWidth: el.scrollWidth,
+    });
+  }
+
+  function scrollByPage(direction: 1 | -1) {
+    const el = scrollerEl();
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth, behavior: "smooth" });
+  }
+
+  // Re-observe whenever the scroll container mounts. ResizeObserver covers
+  // viewport resizes; MutationObserver covers async card mounts as Plex data
+  // arrives (so right-arrow visibility settles once cards are in the DOM).
+  createEffect(() => {
+    const el = scrollerEl();
+    if (!el || !isPaginated()) return;
+    updateMetrics();
+    const ro = new ResizeObserver(updateMetrics);
+    ro.observe(el);
+    const mo = new MutationObserver(updateMetrics);
+    mo.observe(el, { childList: true, subtree: true });
+    onCleanup(() => {
+      ro.disconnect();
+      mo.disconnect();
+    });
+  });
 
   return (
     <section
@@ -51,6 +153,9 @@ export default function Shelf(props: ShelfProps) {
           <span class="caret">
             {collapsed() ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           </span>
+          <Show when={props.icon}>
+            <span class="shelf-icon">{props.icon}</span>
+          </Show>
           <h2 class="shelf-title">{props.title}</h2>
         </button>
         <Show when={sortable}>
@@ -65,9 +170,52 @@ export default function Shelf(props: ShelfProps) {
         </Show>
       </header>
       <Show when={!collapsed()}>
-        <div class="shelf-cards" style={{ "--rows-per-shelf": rowsPerShelf() }}>
-          {props.children}
-        </div>
+        <Show
+          when={isPaginated()}
+          fallback={<div class="shelf-cards">{props.children}</div>}
+        >
+          <div class="shelf-scroller">
+            <div
+              ref={setScrollerEl}
+              class="shelf-cards paginated"
+              onScroll={updateMetrics}
+            >
+              <For each={pages()}>
+                {(pageItems) => (
+                  <div
+                    class="shelf-page"
+                    style={{
+                      "grid-template-columns": `repeat(${cardsPerRow()}, ${cardWidthPx()}px)`,
+                      "grid-template-rows": `repeat(${props.rowsPerPage}, auto)`,
+                    }}
+                  >
+                    <For each={pageItems}>
+                      {(item, idx) => props.renderItem!(item, idx())}
+                    </For>
+                  </div>
+                )}
+              </For>
+            </div>
+            <Show when={showLeft()}>
+              <button
+                class="shelf-arrow left"
+                aria-label="Scroll left"
+                onClick={() => scrollByPage(-1)}
+              >
+                <ChevronLeft size={20} />
+              </button>
+            </Show>
+            <Show when={showRight()}>
+              <button
+                class="shelf-arrow right"
+                aria-label="Scroll right"
+                onClick={() => scrollByPage(1)}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </Show>
+          </div>
+        </Show>
       </Show>
     </section>
   );

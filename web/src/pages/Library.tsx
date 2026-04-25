@@ -35,6 +35,10 @@ const PAGE_SIZE = 100;
 export default function Library() {
   const params = useParams();
 
+  // Note: the zoom slider's effect on card sizes is handled globally in
+  // state/settings.ts, which sets --card-width on :root. Library no longer
+  // needs its own scoped override — the global value drives the grid.
+
   // Initialise from settings store; fall back to defaults if store not yet loaded.
   const [sort, setSort] = createSignal(settingsStore.settings()?.defaultSort ?? SORT_OPTIONS[0].value);
   const [viewMode, setViewMode] = createSignal(

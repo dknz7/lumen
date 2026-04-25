@@ -1,12 +1,31 @@
-import { createSignal } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { createSignal, Show } from "solid-js";
+import { useLocation, useNavigate } from "@solidjs/router";
 import { ArrowLeft, Home, Maximize2, Search, Sparkles, X } from "./icons";
+import { store as settingsStore } from "../state/settings";
+import { api } from "../api/client";
+import CloseConfirmModal from "./CloseConfirmModal";
 import "./TopBar.css";
 
 export default function TopBar() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = createSignal("");
-  const [zoom, setZoom] = createSignal(100);
+  const [closeOpen, setCloseOpen] = createSignal(false);
+
+  // Zoom is global (state/settings.ts sets --card-width on :root), so cards
+  // across all pages respond to the slider. Top bar / left menu don't use
+  // --card-width and stay at fixed sizes regardless. The slider is hidden on
+  // routes without card grids (Item Detail) — show it on Home, Watchlist,
+  // Recommended, Discover, and Library.
+  const zoom = () => settingsStore.settings()?.zoom ?? 100;
+  const showZoom = () => {
+    const p = location.pathname;
+    return p === "/"
+      || p === "/watchlist"
+      || p === "/recommended"
+      || p === "/discover"
+      || p.startsWith("/library/");
+  };
 
   function onSearch(e: SubmitEvent) {
     e.preventDefault();
@@ -15,9 +34,16 @@ export default function TopBar() {
   }
 
   function applyZoom(v: number) {
-    setZoom(v);
-    // CSS zoom on :root scales the whole viewport. Session 3 persists this.
-    document.documentElement.style.setProperty("zoom", String(v / 100));
+    settingsStore.patch({ zoom: v });
+  }
+
+  function confirmClose() {
+    // Don't await — server tears down right after responding so the fetch
+    // promise may not resolve cleanly. Fire-and-forget is the right shape.
+    api.quit().catch(() => {});
+    setCloseOpen(false);
+    // Brief delay lets the modal exit animation play before the tab vanishes.
+    setTimeout(() => window.close(), 200);
   }
 
   return (
@@ -47,28 +73,38 @@ export default function TopBar() {
           />
         </form>
         <div class="tb-divider" />
-        <div class="tb-group tb-zoom">
+        <div class="tb-group tb-kiosk">
           <button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">
             <Maximize2 size={16} />
           </button>
-          <span class="zoom-icon" aria-hidden="true"><Search size={12} /></span>
-          <input
-            type="range"
-            min="80"
-            max="150"
-            value={zoom()}
-            class="zoom-slider"
-            title={`Viewport zoom: ${zoom()}%`}
-            onInput={(e) => applyZoom(Number(e.currentTarget.value))}
-          />
         </div>
+        <Show when={showZoom()}>
+          <div class="tb-divider" />
+          <div class="tb-group tb-zoom">
+            <span class="zoom-icon" aria-hidden="true"><Search size={12} /></span>
+            <input
+              type="range"
+              min="80"
+              max="150"
+              value={zoom()}
+              class="zoom-slider"
+              title={`Card zoom: ${zoom()}%`}
+              onInput={(e) => applyZoom(Number(e.currentTarget.value))}
+            />
+          </div>
+        </Show>
         <div class="tb-divider" />
         <div class="tb-group tb-close">
-          <button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => window.close()}>
+          <button class="icon-btn" title="Close Lumen" aria-label="Close" onClick={() => setCloseOpen(true)}>
             <X size={16} />
           </button>
         </div>
       </div>
+      <CloseConfirmModal
+        open={closeOpen()}
+        onCancel={() => setCloseOpen(false)}
+        onConfirm={confirmClose}
+      />
     </header>
   );
 }

@@ -1,5 +1,5 @@
 .top-bar {
-  padding: var(--top-bar-margin) var(--top-bar-margin) 0 var(--top-bar-margin);
+  padding: var(--top-bar-margin) var(--top-bar-margin) var(--top-bar-gap) var(--top-bar-margin);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -38,8 +38,9 @@
 
 .tb-brand .wordmark {
   color: var(--text);
+  font-family: var(--font-headline);
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
   margin-left: 4px;
 }
 
@@ -92,6 +93,6 @@
 }
 
 .zoom-slider {
-  width: 84px;
+  width: 220px;
   accent-color: var(--text); /* white thumb + fill on the track */
 }

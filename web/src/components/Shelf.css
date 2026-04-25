@@ -1,9 +1,10 @@
-/* Shelf styling — dark-navy surface with soft border, matches the floating
-   pill aesthetic of the top bar. Always-visible drag handle in the top-right. */
+/* Shelf styling — very faint surface so the OLED black canvas reads through.
+   Always-visible drag handle in the top-right. Subshelves inside a Group get
+   a denser navy treatment (.group .shelf rule in Group.css). */
 .shelf {
   margin-bottom: 20px;
   padding: 16px 18px;
-  background: var(--bg-menu);
+  background: var(--bg-shelf-outer);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   position: relative;
@@ -56,17 +57,96 @@
 }
 
 .shelf-title {
-  font-size: 18px;
+  font-family: var(--font-headline);
+  font-size: 19px;
   font-weight: 600;
+  letter-spacing: 0.3px;
   margin: 0;
 }
 
-/* Cards wrap naturally across rows. We used to cap to N rows with max-height +
-   overflow:hidden, but that cut items mid-row when card heights varied (episode
-   posters vs movie posters). Now cards flow freely — the source data already
-   limits count (Home shelves fetch 20, CW shows all onDeck items). */
+/* Shelf icon sits between the collapse caret and the title. Inherits
+   currentColor so it matches the title's hover/idle state. */
+.shelf-icon {
+  display: inline-flex;
+  align-items: center;
+  color: var(--menu-icon);
+  flex-shrink: 0;
+}
+
+/* Default (non-paginated) layout — cards wrap freely across rows. Used when
+   no rowsPerPage prop is supplied. Currently every Home shelf passes
+   rowsPerPage so this fallback is reserved for future surfaces. */
 .shelf-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-width, 160px), 1fr));
   gap: 20px 16px;
+}
+
+/* Paginated layout — flex row of viewport-wide pages, each page is its own
+   row-major grid. JS pagination (Shelf.tsx) slices items into chunks of
+   (cardsPerRow × rowsPerPage); each chunk fills its grid row 1 first, then
+   row 2 (and row 3 for CW). Floating arrows scroll between pages. */
+.shelf-scroller {
+  position: relative;
+}
+
+.shelf-cards.paginated {
+  display: flex;
+  /* Override the auto-fill grid columns from the default .shelf-cards rule —
+     paginated mode is flex, not grid. */
+  grid-template-columns: none;
+  grid-template-rows: none;
+  overflow-x: auto;
+  overflow-y: clip;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;        /* Firefox */
+  /* Vertical padding absorbs the card hover translateY(-2px) lift so it
+     doesn't get clipped by overflow-y:clip. */
+  padding: 4px 0;
+  gap: 0;
+}
+
+.shelf-cards.paginated::-webkit-scrollbar {
+  display: none;
+}
+
+/* Each page is exactly one scroller-clientWidth wide and snaps to start. The
+   inner grid is row-major with explicit columns/rows set inline by Shelf.tsx
+   (computed from viewport width and zoomed card-width). */
+.shelf-page {
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  display: grid;
+  grid-auto-flow: row;
+  gap: 20px 16px;
+}
+
+/* Floating left/right arrows. Only rendered when there's room to scroll in
+   that direction; positioned absolute over the scroller edge. */
+.shelf-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 41, 0.85);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 5;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  padding: 0;
+}
+
+.shelf-arrow.left  { left: 4px; }
+.shelf-arrow.right { right: 4px; }
+
+.shelf-arrow:hover {
+  background: rgba(15, 23, 41, 1);
+  border-color: var(--stroke);
 }

@@ -1,24 +1,39 @@
 .left-menu {
   width: var(--left-menu-width);
   background: var(--bg-menu);
-  border-right: 1px solid var(--border);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
   overflow-y: auto;
   padding: 12px 8px;
   display: flex;
   flex-direction: column;
-  /* The top bar pill has its own margin; left menu sits underneath it,
-     flush to the left viewport edge. */
-  height: calc(100vh - var(--top-bar-height) - var(--top-bar-margin));
+  /* Floating panel: 12px inset from viewport left + bottom (matches the top
+     bar pill's edge inset), 16px top margin so the menu's top edge aligns with
+     the first shelf (Continue Watching) top — .content has padding-top:16px. */
+  margin: 16px 0 var(--top-bar-margin) var(--top-bar-margin);
+  height: calc(100vh
+    - var(--top-bar-height)
+    - var(--top-bar-margin)        /* top bar top inset */
+    - var(--top-bar-gap)           /* gap between top bar and content area */
+    - 16px                         /* margin-top */
+    - var(--top-bar-margin));      /* margin-bottom */
 }
 
-.menu-top, .menu-bottom, .library-list {
+.menu-top, .library-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
 
-.menu-top li a,
-.menu-bottom li a,
+.menu-top li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--menu-icon);
+}
+
 .library-list li a {
   display: block;
   padding: 6px 10px;
@@ -27,17 +42,21 @@
 }
 
 .menu-top li a:hover,
-.menu-bottom li a:hover,
 .library-list li a:hover {
   background: var(--bg-elevated);
   color: var(--text);
 }
 
 .menu-top li a.active,
-.menu-bottom li a.active,
 .library-list li a.active {
   background: var(--bg-elevated);
   color: var(--text);
+}
+
+/* Lucide icons next to menu items inherit text color via currentColor; we only
+   need to lock them against shrinking when the label gets long. */
+.menu-link-icon {
+  flex-shrink: 0;
 }
 
 .libraries-section {
@@ -48,6 +67,9 @@
 }
 
 .libraries-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 10px;
   letter-spacing: 1.5px;
   color: var(--text-muted);
@@ -92,22 +114,44 @@
   flex: 0 0 12px;
 }
 
-.menu-settings-btn {
-  display: block;
-  width: 100%;
-  text-align: left;
-  padding: 6px 10px;
-  background: transparent;
-  color: var(--menu-icon);
-  border: none;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 13px;
+/* Floating navy pill anchored at the bottom of the left menu. The teal LED is
+   purely decorative — always-on indicator that the app is alive. */
+.settings-pill-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 8px 8px 12px;
 }
 
-.menu-settings-btn:hover {
+.settings-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
   background: var(--bg-elevated);
   color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.settings-pill:hover {
+  border-color: var(--stroke);
+}
+
+.settings-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--led-teal);
+  box-shadow: 0 0 6px var(--led-teal), 0 0 2px rgba(45, 212, 191, 0.6);
+  flex-shrink: 0;
+}
+
+.settings-pill-label {
+  letter-spacing: 0.2px;
 }
 
 .library-row {
@@ -119,8 +163,19 @@
 .library-row > a {
   flex: 1;
   min-width: 0;
+  /* Ellipsis on long library titles so they can't push the eye button past
+     the menu's right edge — earlier versions hid the button entirely on
+     servers with long-named libraries. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* Eye button is always visible (muted at rest, full on hover/focus) so the
+   user can hide a library while currently viewing it — earlier
+   opacity:0-by-default-on-row-hover trick made it unreachable on some
+   active-row layouts. flex-shrink:0 prevents long titles from squeezing
+   the button out of the row. */
 .library-eye {
   padding: 2px 6px;
   background: transparent;
@@ -128,11 +183,13 @@
   color: var(--text-muted);
   cursor: pointer;
   font-size: 12px;
-  opacity: 0;
+  opacity: 0.55;
+  flex-shrink: 0;
   transition: opacity 0.15s ease;
 }
 
-.library-row:hover .library-eye {
+.library-row:hover .library-eye,
+.library-eye:focus-visible {
   opacity: 1;
 }
 
@@ -166,19 +223,19 @@
 
 .hidden-row .hidden-label {
   flex: 1;
+  min-width: 0;
   padding: 4px 10px 4px 28px;
   font-size: 12px;
-  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.hidden-row .hidden-server {
-  color: var(--menu-icon);
+.hidden-row .hidden-title {
+  color: var(--text);
 }
 
-.hidden-row .hidden-sep {
+.hidden-row .hidden-server {
   color: var(--text-muted);
 }
 

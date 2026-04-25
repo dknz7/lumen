@@ -36,10 +36,11 @@
 }
 
 .settings-nav-title {
+  font-family: var(--font-headline);
   font-weight: 600;
   color: var(--text);
-  font-size: 15px;
-  letter-spacing: 0.3px;
+  font-size: 17px;
+  letter-spacing: 0.5px;
 }
 
 .settings-close-btn {

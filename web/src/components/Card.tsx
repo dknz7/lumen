@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
-import { ImageOff, Trash2 } from "./icons";
+import { CircleCheck, ImageOff, Trash2 } from "./icons";
 import "./Card.css";
 
 export interface CardProps {
@@ -10,6 +10,9 @@ export interface CardProps {
   serverID: string;
   /** If provided, a bin icon appears on hover; click fires the callback. */
   onRemove?: () => void;
+  /** If provided, a tick icon appears above the bin; click fires the callback.
+   *  Used by Continue Watching cards for "Mark as Watched". */
+  onMarkWatched?: () => void;
 }
 
 function derive(item: Item) {
@@ -58,10 +61,24 @@ export default function Card(props: CardProps) {
           <img
             class="card-poster-img"
             src={api.image(props.serverID, d().thumb!)}
-            alt={d().title}
+            alt=""
             loading="lazy"
             onError={() => setImgFailed(true)}
           />
+        )}
+        {props.onMarkWatched && (
+          <button
+            class="card-mark-watched-btn"
+            title="Mark as watched"
+            aria-label="Mark as watched"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              props.onMarkWatched!();
+            }}
+          >
+            <CircleCheck size={14} />
+          </button>
         )}
         {props.onRemove && (
           <button

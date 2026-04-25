@@ -3,21 +3,65 @@ import { A } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Library, Server } from "../api/types";
 import { store as settingsStore } from "../state/settings";
-import { ChevronDown, ChevronRight, Eye, EyeOff, Settings } from "./icons";
+import {
+  Bookmark,
+  ChevronDown,
+  ChevronRight,
+  Compass,
+  Eye,
+  EyeOff,
+  Home,
+  Library as LibraryIcon,
+  Server as ServerIcon,
+  Settings,
+  Sparkles,
+  Star,
+} from "./icons";
+import type { JSX } from "solid-js";
 import "./LeftMenu.css";
+
+// Server icon dispatch — Stargaze gets a star (the name calls for it), every
+// other server falls back to the generic server icon. Mirrors Home.tsx.
+function iconForServer(displayName: string): JSX.Element {
+  if (displayName.toLowerCase().includes("stargaze")) return <Star size={12} class="menu-link-icon" />;
+  return <ServerIcon size={12} class="menu-link-icon" />;
+}
 
 export default function LeftMenu(props: { onOpenSettings: () => void }) {
   const [servers] = createResource(() => api.servers());
   return (
     <nav class="left-menu">
       <ul class="menu-top">
-        <li><A href="/" activeClass="active" end>Home</A></li>
-        <li><A href="/watchlist" activeClass="active">Watchlist</A></li>
-        <li><A href="/recommended" activeClass="active">Recommended</A></li>
-        <li><A href="/discover" activeClass="active">Discover</A></li>
+        <li>
+          <A href="/" activeClass="active" end>
+            <Home size={14} class="menu-link-icon" />
+            <span>Home</span>
+          </A>
+        </li>
+        <li>
+          <A href="/watchlist" activeClass="active">
+            <Bookmark size={14} class="menu-link-icon" />
+            <span>Watchlist</span>
+          </A>
+        </li>
+        <li>
+          <A href="/recommended" activeClass="active">
+            <Sparkles size={14} class="menu-link-icon" />
+            <span>Recommended</span>
+          </A>
+        </li>
+        <li>
+          <A href="/discover" activeClass="active">
+            <Compass size={14} class="menu-link-icon" />
+            <span>Discover</span>
+          </A>
+        </li>
       </ul>
       <div class="libraries-section">
-        <div class="libraries-label">LIBRARIES</div>
+        <div class="libraries-label">
+          <LibraryIcon size={12} class="menu-link-icon" />
+          <span>LIBRARIES</span>
+        </div>
         <Show when={servers()}>
           {(srvs) => (
             <>
@@ -30,13 +74,17 @@ export default function LeftMenu(props: { onOpenSettings: () => void }) {
         </Show>
       </div>
       <div class="menu-spacer" />
-      <ul class="menu-bottom">
-        <li>
-          <button class="menu-settings-btn" onClick={props.onOpenSettings}>
-            <Settings size={14} /> Settings
-          </button>
-        </li>
-      </ul>
+      <div class="settings-pill-wrap">
+        <button
+          class="settings-pill"
+          onClick={props.onOpenSettings}
+          aria-label="Open Settings"
+        >
+          <span class="settings-led" aria-hidden="true" />
+          <Settings size={14} />
+          <span class="settings-pill-label">Settings</span>
+        </button>
+      </div>
     </nav>
   );
 }
@@ -66,6 +114,7 @@ function ServerLibraries(props: { server: Server }) {
     <div class="server-group">
       <button class="server-group-header" onClick={() => setExpanded(!expanded())}>
         <span class="caret">{expanded() ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
+        {iconForServer(props.server.displayName)}
         <span>{props.server.displayName}</span>
         <span class="server-status" data-status={props.server.status} />
       </button>
@@ -100,17 +149,49 @@ function ServerLibraries(props: { server: Server }) {
 /**
  * Hidden Libraries restore section — only rendered when at least one library
  * has been hidden. Starts collapsed so it doesn't visually crowd the menu.
+ *
+ * Fetches libraries from every server so we can resolve each hidden key's
+ * actual title (e.g. "Movies - Kids") instead of showing the opaque numeric
+ * libKey. The fetch is keyed on the server-id list so it re-runs only when
+ * servers change; browser/server image-of-libs caching dedupes against the
+ * per-server fetches in ServerLibraries.
  */
 function HiddenLibraries(props: { servers: Server[] }) {
   const [expanded, setExpanded] = createSignal(false);
-  const hiddenKeys = () => settingsStore.settings()?.hiddenLibraries ?? [];
 
-  // Resolve each "serverID:libKey" to { server, lib.title } by querying libs
-  // from every server. For v1.0 we just display the key string; a future
-  // enhancement could cache all libs cross-server for real title lookup.
-  // For now, display "<DisplayName> · <libKey>" — good enough for restore UX.
-  const entries = () => {
+  // Every reactive derivation routes through these memos so the dependency
+  // chain settings signal → hiddenKeys → hiddenCount + entries is single-rooted.
+  // Earlier the count + Show subscribed via the entries memo, which sometimes
+  // missed live updates on rapid successive hides; deriving count from
+  // hiddenKeys directly removes that path.
+  const hiddenKeys = createMemo<string[]>(() =>
+    settingsStore.settings()?.hiddenLibraries ?? []
+  );
+  const hiddenCount = createMemo(() => hiddenKeys().length);
+
+  const [titleMap] = createResource(
+    () => props.servers.map((s) => s.machineIdentifier).join("|"),
+    async () => {
+      const map = new Map<string, string>();
+      await Promise.all(
+        props.servers.map(async (s) => {
+          try {
+            const libs = await api.libraries(s.machineIdentifier);
+            for (const l of libs) {
+              map.set(`${s.machineIdentifier}:${l.key}`, l.title);
+            }
+          } catch (e) {
+            console.error(`HiddenLibraries: libraries fetch failed for ${s.displayName}`, e);
+          }
+        })
+      );
+      return map;
+    }
+  );
+
+  const entries = createMemo(() => {
     const srvByID = new Map(props.servers.map((s) => [s.machineIdentifier, s]));
+    const titles = titleMap();
     return hiddenKeys().map((k) => {
       const [serverID, libKey] = k.split(":");
       const srv = srvByID.get(serverID);
@@ -118,10 +199,11 @@ function HiddenLibraries(props: { servers: Server[] }) {
         fullKey: k,
         serverID,
         libKey,
+        libTitle: titles?.get(k) ?? libKey,
         serverName: srv?.displayName ?? serverID,
       };
     });
-  };
+  });
 
   function restore(fullKey: string) {
     const next = hiddenKeys().filter((k) => k !== fullKey);
@@ -129,11 +211,11 @@ function HiddenLibraries(props: { servers: Server[] }) {
   }
 
   return (
-    <Show when={entries().length > 0}>
+    <Show when={hiddenCount() > 0}>
       <div class="hidden-libraries">
         <button class="hidden-libraries-header" onClick={() => setExpanded(!expanded())}>
           <span class="caret">{expanded() ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
-          <span>Hidden ({entries().length})</span>
+          <span>Hidden ({hiddenCount()})</span>
         </button>
         <Show when={expanded()}>
           <ul class="library-list">
@@ -141,14 +223,13 @@ function HiddenLibraries(props: { servers: Server[] }) {
               {(e) => (
                 <li class="library-row hidden-row">
                   <span class="hidden-label">
-                    <span class="hidden-server">{e.serverName}</span>
-                    <span class="hidden-sep"> · </span>
-                    <span>{e.libKey}</span>
+                    <span class="hidden-title">{e.libTitle}</span>
+                    <span class="hidden-server"> ({e.serverName})</span>
                   </span>
                   <button
                     class="library-eye"
                     onClick={() => restore(e.fullKey)}
-                    title="Show library"
+                    title="Restore library"
                     aria-label="Restore library"
                   >
                     <EyeOff size={12} />

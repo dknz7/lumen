@@ -51,10 +51,23 @@ export const api = {
       `/api/servers/${encodeURIComponent(serverID)}/libraries/${encodeURIComponent(libraryID)}/recentlyAdded?size=${size}`
     ),
 
-  // Removes an item from the server's Continue Watching by scrobbling as watched.
-  // Returns 200 on success. Throws via getJSON-like error on failure.
-  removeFromOnDeck: async (serverID: string, ratingKey: string) => {
-    const url = `/api/servers/${encodeURIComponent(serverID)}/ondeck/remove?ratingKey=${encodeURIComponent(ratingKey)}`;
+  // Marks an item as fully watched on its Plex server (viewCount=1, advances
+  // watched state, enters watch history). Used by the "Mark as Watched" tick
+  // on Continue Watching cards.
+  scrobble: async (serverID: string, ratingKey: string) => {
+    const url = `/api/servers/${encodeURIComponent(serverID)}/scrobble?ratingKey=${encodeURIComponent(ratingKey)}`;
+    const res = await fetch(url, { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`${res.status} ${url}: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
+  // Removes an item from Continue Watching by resetting its playback state
+  // (viewCount=0, viewOffset=0) — does NOT mark as watched. Used by the
+  // "Remove from Continue Watching" bin button.
+  unscrobble: async (serverID: string, ratingKey: string) => {
+    const url = `/api/servers/${encodeURIComponent(serverID)}/unscrobble?ratingKey=${encodeURIComponent(ratingKey)}`;
     const res = await fetch(url, { method: "POST" });
     if (!res.ok) {
       throw new Error(`${res.status} ${url}: ${await res.text()}`);
@@ -65,4 +78,16 @@ export const api = {
   // Session 2 just needs the path-building helper — actual images are <img src=...>.
   image: (serverID: string, path: string) =>
     `/api/image-proxy?server=${encodeURIComponent(serverID)}&path=${encodeURIComponent(path)}`,
+
+  // Asks the lumen.exe process to gracefully shut down. Used by the "Close
+  // Lumen" confirmation in the top bar. The server flushes a 200 then exits
+  // ~150 ms later, so the returned promise may reject on the network tear-down
+  // — callers should `.catch(() => {})` rather than awaiting strictly.
+  quit: async () => {
+    const res = await fetch("/api/quit", { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`${res.status} POST /api/quit: ${await res.text()}`);
+    }
+    return res.json();
+  },
 };

@@ -2,6 +2,12 @@ import { createRoot, createSignal } from "solid-js";
 import { settingsAPI, UISettings } from "../api/settings";
 import { applyTheme, themeByID } from "../themes";
 
+// Card-size base widths must mirror theme.css's --card-width-{s,m,l,xl}.
+// Used to compute the zoom-scaled global --card-width override.
+const CARD_WIDTH_BASE_PX: Record<"s" | "m" | "l" | "xl", number> = {
+  s: 120, m: 160, l: 200, xl: 240,
+};
+
 // Debounce helper for PUT coalescing.
 function debounce<T extends (...args: any[]) => any>(fn: T, ms: number): T {
   let t: number | undefined;
@@ -17,9 +23,15 @@ function createSettingsStore() {
 
   function applyRootDerived(s: UISettings) {
     const root = document.documentElement;
-    root.style.setProperty("zoom", String(s.zoom / 100));
     root.setAttribute("data-card-size", s.cardSize);
     root.style.setProperty("--font-size", `${s.fontSize}px`);
+    // --card-width is set INLINE on :root as cardSize-base × zoom%. This wins
+    // over the [data-card-size] CSS rules (same specificity but inline beats
+    // selector). All cards across pages scale together. Top bar / left menu
+    // don't reference --card-width, so they stay at fixed sizes regardless.
+    const base = CARD_WIDTH_BASE_PX[s.cardSize] ?? CARD_WIDTH_BASE_PX.m;
+    const scaled = Math.round(base * (s.zoom / 100));
+    root.style.setProperty("--card-width", `${scaled}px`);
   }
 
   // Initial fetch. Called once at app boot from main.tsx.

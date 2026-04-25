@@ -1,9 +1,12 @@
-import "@fontsource/geist-sans/400.css";
-import "@fontsource/geist-sans/500.css";
-import "@fontsource/geist-sans/600.css";
-import "@fontsource/geist-sans/700.css";
-import "@fontsource/geist-mono/400.css";
-import "@fontsource/geist-mono/500.css";
+// Body font — Saira (geometric, multi-weight, multi-purpose)
+import "@fontsource/saira/400.css";
+import "@fontsource/saira/500.css";
+import "@fontsource/saira/600.css";
+import "@fontsource/saira/700.css";
+// Headline font — Rajdhani (Agency-FB-flavoured, used for titles + wordmark)
+import "@fontsource/rajdhani/500.css";
+import "@fontsource/rajdhani/600.css";
+import "@fontsource/rajdhani/700.css";
 import { render } from "solid-js/web";
 import { Router, Route } from "@solidjs/router";
 import App from "./App";
