@@ -189,3 +189,12 @@ func newTranscodeSession() string {
 	_, _ = rand.Read(b[:])
 	return "lumen-" + hex.EncodeToString(b[:])
 }
+
+func (s *Server) handlePlayStop(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	s.playback.Stop()
+	writeJSON(w, map[string]string{"status": "stopped"})
+}
