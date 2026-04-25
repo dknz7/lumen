@@ -240,7 +240,3 @@ var ErrAlreadyActive = errors.New("playback session already active")
 // ErrPotPlayerPathUnresolved is returned by Start when the Pot Player path
 // resolver returns an empty string — typically a Settings configuration gap.
 var ErrPotPlayerPathUnresolved = errors.New("pot player path not resolved")
-
-// --- goroutine stubs — replaced by Tasks 11-13 ---
-
-func (m *Manager) runTranscodeKeepAlive(ctx context.Context) {}
