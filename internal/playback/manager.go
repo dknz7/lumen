@@ -1,0 +1,229 @@
+package playback
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"time"
+
+	"lumen/internal/plex"
+	"lumen/internal/potplayer"
+)
+
+// Manager owns the lifecycle of the single active playback Context. Methods
+// are safe to call concurrently.
+type Manager struct {
+	plex    *plex.Client
+	potPath func() string // closure so the path picks up Settings updates
+
+	mu     sync.Mutex
+	active *Context
+	live   liveState
+	cancel context.CancelFunc
+	subs   map[chan Event]struct{}
+}
+
+// NewManager wires a Manager to a Plex client and a Pot Player path resolver.
+// The resolver is a closure so updates to Settings → Playback → Pot Player
+// path are visible without restarting the manager.
+func NewManager(c *plex.Client, potPath func() string) *Manager {
+	return &Manager{
+		plex:    c,
+		potPath: potPath,
+		subs:    make(map[chan Event]struct{}),
+	}
+}
+
+// StartArgs is the input to Start.
+type StartArgs struct {
+	Server           *plex.Server
+	RatingKey        string
+	ShowRatingKey    string // empty for movies
+	IsEpisode        bool
+	PartID           string
+	Container        string
+	StreamURL        string // built by caller (DirectPlayURL or TranscodeURL)
+	Transcoding      bool
+	TranscodeSession string
+	Duration         time.Duration // initial duration from Plex metadata; refined after launch
+	Title            string
+	ShowTitle        string
+	ThumbPath        string
+	Quality          string // e.g. "1080p H.264"
+}
+
+// Start launches Pot Player, builds the Context, kicks the three goroutines.
+// Returns ErrAlreadyActive if another session is live.
+func (m *Manager) Start(args StartArgs) error {
+	m.mu.Lock()
+	if m.active != nil {
+		m.mu.Unlock()
+		return ErrAlreadyActive
+	}
+
+	exe := m.potPath()
+	if exe == "" {
+		m.mu.Unlock()
+		return errors.New("pot player path not resolved")
+	}
+
+	pp, err := potplayer.Launch(exe, args.StreamURL)
+	if err != nil {
+		m.mu.Unlock()
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	c := &Context{
+		RatingKey:        args.RatingKey,
+		Server:           args.Server,
+		ShowRatingKey:    args.ShowRatingKey,
+		IsEpisode:        args.IsEpisode,
+		PartID:           args.PartID,
+		Container:        args.Container,
+		StartedAt:        time.Now(),
+		Duration:         args.Duration,
+		Transcoding:      args.Transcoding,
+		TranscodeSession: args.TranscodeSession,
+		PotPlayer:        pp,
+	}
+	m.active = c
+	m.cancel = cancel
+	m.live.position = 0
+	m.live.state = potplayer.PlayStateUnknown
+	m.mu.Unlock()
+
+	// Initial state broadcast.
+	m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot(args.Title, args.ShowTitle, args.ThumbPath, args.Quality)})
+
+	// Kick goroutines (each is defined in its own file).
+	go m.runPoller(ctx, args)
+	go m.runReporter(ctx)
+	if args.Transcoding {
+		go m.runTranscodeKeepAlive(ctx)
+	}
+
+	return nil
+}
+
+// Stop tears down the active session. Idempotent.
+func (m *Manager) Stop() {
+	m.mu.Lock()
+	c := m.active
+	cancel := m.cancel
+	m.mu.Unlock()
+	if c == nil {
+		return
+	}
+	if cancel != nil {
+		cancel()
+	}
+	if c.PotPlayer != nil {
+		_ = c.PotPlayer.Stop()
+	}
+	// Final timeline report — best-effort, swallow error.
+	pos := m.currentPosition()
+	_ = m.plex.ReportTimeline(c.Server, plex.TimelineReport{
+		RatingKey: c.RatingKey,
+		State:     "stopped",
+		Position:  pos,
+		Duration:  c.Duration,
+	})
+
+	m.mu.Lock()
+	m.active = nil
+	m.cancel = nil
+	m.mu.Unlock()
+	m.broadcast(Event{Type: EventStopped})
+}
+
+// Subscribe returns a channel of events. Caller MUST drain the channel and
+// call the returned cleanup func when done.
+func (m *Manager) Subscribe() (<-chan Event, func()) {
+	ch := make(chan Event, 16)
+	m.mu.Lock()
+	m.subs[ch] = struct{}{}
+	m.mu.Unlock()
+	cleanup := func() {
+		m.mu.Lock()
+		delete(m.subs, ch)
+		m.mu.Unlock()
+		close(ch)
+	}
+	return ch, cleanup
+}
+
+// SnapshotState returns the current playback State (whether or not a session
+// is active).
+func (m *Manager) SnapshotState() State {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.active == nil {
+		return State{Active: false}
+	}
+	return m.snapshotLocked("", "", "", "")
+}
+
+// broadcast fans an event out to all subscribers. Drops events on full
+// channels rather than blocking.
+func (m *Manager) broadcast(e Event) {
+	m.mu.Lock()
+	subs := make([]chan Event, 0, len(m.subs))
+	for ch := range m.subs {
+		subs = append(subs, ch)
+	}
+	m.mu.Unlock()
+	for _, ch := range subs {
+		select {
+		case ch <- e:
+		default:
+		}
+	}
+}
+
+// currentPosition reads the latest position the poller cached.
+func (m *Manager) currentPosition() time.Duration {
+	m.live.mu.Lock()
+	defer m.live.mu.Unlock()
+	return m.live.position
+}
+
+// snapshot builds a fresh State; call without holding m.mu (it locks itself).
+func (m *Manager) snapshot(title, showTitle, thumbPath, quality string) *State {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	st := m.snapshotLocked(title, showTitle, thumbPath, quality)
+	return &st
+}
+
+func (m *Manager) snapshotLocked(title, showTitle, thumbPath, quality string) State {
+	if m.active == nil {
+		return State{Active: false}
+	}
+	m.live.mu.Lock()
+	pos := m.live.position
+	stateStr := m.live.state.String()
+	m.live.mu.Unlock()
+	return State{
+		Active:      true,
+		RatingKey:   m.active.RatingKey,
+		ServerID:    m.active.Server.MachineIdentifier,
+		Title:       title,
+		ShowTitle:   showTitle,
+		Position:    pos,
+		Duration:    m.active.Duration,
+		State:       stateStr,
+		Transcoding: m.active.Transcoding,
+		ThumbPath:   thumbPath,
+		Quality:     quality,
+	}
+}
+
+// ErrAlreadyActive is returned by Start when a session is already running.
+var ErrAlreadyActive = errors.New("playback session already active")
+
+// --- goroutine stubs — replaced by Tasks 11-13 ---
+
+func (m *Manager) runPoller(ctx context.Context, args StartArgs) {}
+func (m *Manager) runReporter(ctx context.Context)               {}
+func (m *Manager) runTranscodeKeepAlive(ctx context.Context)     {}
