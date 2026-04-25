@@ -90,6 +90,10 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		s.handleLibraryItems(w, r, srv, parts[2])
 	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "recentlyAdded":
 		s.handleLibraryRecentlyAdded(w, r, srv, parts[2])
+	case len(parts) == 3 && parts[1] == "seasons":
+		s.handleSeasons(w, r, srv, parts[2])
+	case len(parts) == 4 && parts[1] == "seasons" && parts[3] == "episodes":
+		s.handleSeasonEpisodes(w, r, srv, parts[2])
 	case len(parts) == 2 && parts[1] == "ondeck":
 		s.handleOnDeck(w, r, srv)
 	case len(parts) == 2 && parts[1] == "scrobble":
@@ -225,6 +229,37 @@ func (s *Server) handleUnscrobble(w http.ResponseWriter, r *http.Request, srv *c
 		return
 	}
 	writeJSON(w, map[string]string{"status": "unscrobbled"})
+}
+
+// handleSeasons proxies /library/metadata/<showKey>/children for the season
+// tabs on the ItemDetail page. Returns the raw season list (synthetic season-0
+// "All Episodes" included — SPA filters it out for the tab strip).
+func (s *Server) handleSeasons(w http.ResponseWriter, r *http.Request, srv *config.Server, showRatingKey string) {
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex not initialised")
+		return
+	}
+	seasons, err := s.plex.GetSeasons(toPlexServer(srv), showRatingKey)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, seasons)
+}
+
+// handleSeasonEpisodes proxies /library/metadata/<seasonKey>/children for the
+// per-season episode list under the season tabs on ItemDetail.
+func (s *Server) handleSeasonEpisodes(w http.ResponseWriter, r *http.Request, srv *config.Server, seasonRatingKey string) {
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex not initialised")
+		return
+	}
+	eps, err := s.plex.GetSeasonEpisodes(toPlexServer(srv), seasonRatingKey)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, eps)
 }
 
 // toPlexServer maps a config.Server to the plex.Server shape the client needs.

@@ -3,6 +3,7 @@ import { createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
+import Episodes from "../components/Episodes";
 import ResumeRestartModal from "../components/Modal/ResumeRestartModal";
 import "./ItemDetail.css";
 
@@ -98,6 +99,13 @@ export default function ItemDetail() {
               <h3>Overview</h3>
               <p>{(it() as Item).summary ?? "No synopsis available."}</p>
             </section>
+            <Show when={(it() as Item).type === "episode" || (it() as Item).type === "show"}>
+              <Episodes
+                serverID={params.serverID!}
+                showRatingKey={(it() as Item).grandparentRatingKey ?? (it() as Item).ratingKey}
+                initialSeasonIndex={(it() as Item).parentIndex}
+              />
+            </Show>
             <section class="availability">
               <h3>More Ways to Watch</h3>
               <Show when={availability()} fallback={<div class="availability-loading">Checking other servers…</div>}>

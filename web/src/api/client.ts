@@ -44,6 +44,16 @@ export const api = {
   onDeck: (serverID: string) =>
     getJSON<Item[]>(`/api/servers/${encodeURIComponent(serverID)}/ondeck`),
 
+  seasons: (serverID: string, showRatingKey: string) =>
+    getJSON<import("./types").Season[]>(
+      `/api/servers/${encodeURIComponent(serverID)}/seasons/${encodeURIComponent(showRatingKey)}`
+    ),
+
+  seasonEpisodes: (serverID: string, seasonRatingKey: string) =>
+    getJSON<Item[]>(
+      `/api/servers/${encodeURIComponent(serverID)}/seasons/${encodeURIComponent(seasonRatingKey)}/episodes`
+    ),
+
   // Plex's native recently-added feed for a library. Matches Plex Web's Home
   // shelves — spec §12.1 "Recently Released" rows use this, not sort=addedAt.
   recentlyAdded: (serverID: string, libraryID: string, size = 20) =>

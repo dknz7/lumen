@@ -35,6 +35,17 @@ export interface Item {
   grandparentThumb?: string;   // show poster
   grandparentArt?: string;     // show backdrop
   grandparentRatingKey?: string;
+  viewCount?: number;          // 0 / undefined = unwatched, ≥1 = watched
+  originallyAvailableAt?: string; // air date "YYYY-MM-DD"
+}
+
+export interface Season {
+  ratingKey: string;
+  index: number;
+  title: string;
+  leafCount: number;
+  viewedLeafCount: number;
+  thumb?: string;
 }
 
 export interface HubItem {
