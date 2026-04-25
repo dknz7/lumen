@@ -3,6 +3,7 @@ import { createSignal } from "solid-js";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
 import { CircleCheck, ImageOff, Trash2 } from "./icons";
+import { formatAddedTimestamp } from "../util/date";
 import "./Card.css";
 
 export interface CardProps {
@@ -104,6 +105,7 @@ export default function Card(props: CardProps) {
         <div class="card-title">{d().title}</div>
         {d().subtitle && <div class="card-subtitle">{d().subtitle}</div>}
         {d().year && <div class="card-year">{d().year}</div>}
+        {props.item.addedAt && <div class="card-added">{formatAddedTimestamp(props.item.addedAt)}</div>}
       </div>
     </A>
   );

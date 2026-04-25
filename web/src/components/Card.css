@@ -155,3 +155,10 @@
   font-size: 11px;
   color: var(--text-muted);
 }
+
+.card-added {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
