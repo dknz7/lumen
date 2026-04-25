@@ -335,6 +335,11 @@ import (
 	"golang.org/x/sys/windows/registry"
 )
 
+// ErrExeNotFound is returned (wrapped) by ResolveExePath when every fallback
+// stage fails. Callers can use errors.Is to discriminate this from network /
+// permission failures inside the registry helper.
+var ErrExeNotFound = errors.New("pot player executable not found")
+
 // ResolveExePath returns the absolute path to PotPlayerMini64.exe, in order:
 //
 //  1. override (Settings → Playback → Pot Player path) if non-empty AND the
@@ -343,8 +348,9 @@ import (
 //  3. Default install locations: C:\Program Files\DAUM\PotPlayer\,
 //     C:\Program Files\DAUM\PotPlayerMini64\.
 //
-// Returns an error only if every stage fails. Stage-1 misses (override given
-// but file absent) fall through silently — they're not user-facing errors.
+// Returns an error wrapping ErrExeNotFound only if every stage fails. Stage-1
+// misses (override given but file absent) fall through silently — they're not
+// user-facing errors.
 func ResolveExePath(override string) (string, error) {
 	if override != "" {
 		if _, err := os.Stat(override); err == nil {
@@ -370,7 +376,7 @@ func ResolveExePath(override string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("Pot Player executable not found — set Settings → Playback → Pot Player path")
+	return "", fmt.Errorf("set Settings → Playback → Pot Player path: %w", ErrExeNotFound)
 }
 
 func readRegistryProgramPath() (string, bool) {
@@ -389,9 +395,6 @@ func readRegistryProgramPath() (string, bool) {
 	}
 	return v, true
 }
-
-// errExeNotFound is exported for callers that want to discriminate.
-var ErrExeNotFound = errors.New("pot player executable not found")
 ```
 
 - [ ] **Step 4: Run tests**
