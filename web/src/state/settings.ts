@@ -1,4 +1,4 @@
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, untrack } from "solid-js";
 import { settingsAPI, UISettings } from "../api/settings";
 import { applyTheme, themeByID } from "../themes";
 
@@ -54,7 +54,16 @@ function createSettingsStore() {
 
   // Patch mutates the store locally (optimistic) AND schedules a server write.
   function patch(update: Partial<UISettings>) {
-    const current = settings();
+    // The reactive read of settings() inside patch() would otherwise subscribe
+    // any caller in a reactive scope (createEffect, createMemo, createResource
+    // source) to the settings signal, causing the surrounding scope to re-fire
+    // on every patch — including the patch the caller just invoked, plus the
+    // ~300ms debounced PUT response. Library.tsx's pagination snap-back regression
+    // was traced to exactly this trap (see commit fb29b5d). Wrapping the read
+    // in untrack() closes the bug class for all future callers. There's no
+    // legitimate use case for "subscribe to settings while patching them" —
+    // callers that want reactivity should call settings() directly.
+    const current = untrack(() => settings());
     if (!current) return;
     const next = { ...current, ...update };
     setSettings(next);
