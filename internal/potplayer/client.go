@@ -20,9 +20,10 @@ import (
 // hold these at package level so the cache is shared across goroutines and
 // helpers don't re-allocate the wrappers per invocation.
 var (
-	user32          = windows.NewLazySystemDLL("user32.dll")
-	procFindWindowW = user32.NewProc("FindWindowW")
-	procIsWindow    = user32.NewProc("IsWindow")
+	user32           = windows.NewLazySystemDLL("user32.dll")
+	procFindWindowW  = user32.NewProc("FindWindowW")
+	procIsWindow     = user32.NewProc("IsWindow")
+	procSendMessageW = user32.NewProc("SendMessageW")
 )
 
 // PlayState mirrors Pot Player's GetState return values plus a sentinel.
@@ -123,4 +124,95 @@ func findPotPlayerWindow() (windows.Handle, bool) {
 func isWindow(hwnd windows.Handle) bool {
 	r1, _, _ := procIsWindow.Call(uintptr(hwnd))
 	return r1 != 0
+}
+
+// GetPosition returns the current playback position. May block up to
+// coldStartRetry × coldStartGap (~3 s) immediately after launch while
+// Pot Player loads the media.
+func (c *Client) GetPosition() (time.Duration, error) {
+	for i := 0; i < coldStartRetry; i++ {
+		ms, err := c.sendUserQuery(ppGetPosition)
+		if err != nil {
+			return 0, err
+		}
+		if ms > 0 {
+			return time.Duration(ms) * time.Millisecond, nil
+		}
+		time.Sleep(coldStartGap)
+	}
+	// Final attempt — return whatever we got, even zero.
+	ms, err := c.sendUserQuery(ppGetPosition)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(ms) * time.Millisecond, nil
+}
+
+// GetDuration returns the media's total duration. Same cold-start envelope.
+func (c *Client) GetDuration() (time.Duration, error) {
+	for i := 0; i < coldStartRetry; i++ {
+		ms, err := c.sendUserQuery(ppGetDuration)
+		if err != nil {
+			return 0, err
+		}
+		if ms > 0 {
+			return time.Duration(ms) * time.Millisecond, nil
+		}
+		time.Sleep(coldStartGap)
+	}
+	ms, err := c.sendUserQuery(ppGetDuration)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(ms) * time.Millisecond, nil
+}
+
+// GetState returns the current play state. Maps Pot Player's -1 sentinel to
+// PlayStateUnknown so callers can distinguish "still loading" from "stopped".
+func (c *Client) GetState() (PlayState, error) {
+	for i := 0; i < coldStartRetry; i++ {
+		raw, err := c.sendUserQuery(ppGetState)
+		if err != nil {
+			return PlayStateUnknown, err
+		}
+		if raw == stateNotReady {
+			time.Sleep(coldStartGap)
+			continue
+		}
+		switch raw {
+		case 1:
+			return PlayStatePaused, nil
+		case 2:
+			return PlayStatePlaying, nil
+		default:
+			// Unrecognized — surface as Unknown rather than guessing.
+			return PlayStateUnknown, nil
+		}
+	}
+	return PlayStateUnknown, nil
+}
+
+// sendUserQuery wraps SendMessageW with the WM_USER + wParam pattern Pot
+// Player uses for read-only queries. Refreshes the HWND if the cached one
+// has gone stale (Pot Player crash + auto-restart, etc.).
+func (c *Client) sendUserQuery(wParam uintptr) (uintptr, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Re-find HWND if the cached one died.
+	if c.hwnd == 0 || !isWindow(c.hwnd) {
+		hwnd, ok := findPotPlayerWindow()
+		if !ok {
+			return 0, errors.New("pot player window not found")
+		}
+		c.hwnd = hwnd
+	}
+
+	r1, _, _ := procSendMessageW.Call(
+		uintptr(c.hwnd),
+		wmUser,
+		wParam,
+		0,
+	)
+	return r1, nil
 }
