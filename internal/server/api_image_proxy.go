@@ -28,6 +28,15 @@ const (
 //
 // This specific format is load-bearing for CDN-fronted Plex deployments.
 // Don't simplify it with url.Values without re-verifying against Byron's setup.
+//
+// TODO(session-4.5+): Stargaze movie thumbnails 404 through this proxy
+// while episodes from the same server load correctly. DKNZPLEX is fine for
+// both. Hypothesis: Stargaze returns `thumb` paths in a different format
+// for movies (type=1) vs episodes (type=4), OR this handler's URL-rewrite
+// special-cases episode grandparentThumb fallback in a way that doesn't
+// fire for movie thumb. Investigation steps documented in
+// docs/session-4-findings.md → "Known Issues (Stargaze movie thumbnails —
+// deferred)". Capture failing + working URLs from DevTools and compare.
 func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	machineID := q.Get("server")

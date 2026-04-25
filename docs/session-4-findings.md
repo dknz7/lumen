@@ -213,3 +213,49 @@ Reaffirming Session 3's notes plus Session 4 additions:
 - `ModalShell` pattern shared by Phase G modals; CloseConfirmModal stayed standalone (different ARIA surface).
 - Singleton-from-store SPA pattern (TranscodePromptModal, NextEpisodeModal — read from `playbackStore` directly, no props).
 - Parametric SPA pattern (ResumeRestartModal — controlled by ItemDetail local state, props-driven).
+
+## Manual smoke test results (Task 29b)
+
+**Date:** 2026-04-26
+**Tester:** Byron
+
+Direct play, Plex Activity sync, Now Playing strip, Pot Player tear-down, scrobble at 95%, Mark Watched/Unwatched roundtrip, season tabs, episode navigation, Resume modal, SSE auto-reconnect — all confirmed working. No Go-side panics, no browser console errors (one Firefox extension warning unrelated to Lumen).
+
+**Bugs / gaps surfaced (driving the Session 4.5 polish PR):**
+
+1. **Pagination regression (Library page).** Page 2 click flashes "100-200 Page 2" briefly then snaps back to Page 1. Library navigation effectively stuck at Page 1.
+2. **No watched indicator on cards.** Plex flagged a movie as watched but Lumen UI gave no visual cue.
+3. **No watched indicator on Mark Watched button.** Already-watched items show the same button label as unwatched.
+4. **No "added" date under cards.** Crucial freshness info missing.
+5. **Stargaze movie thumbnails 404.** Episodes load fine, but movie poster requests fail. DKNZPLEX no longer affected (upstream Plex bug appears resolved). **DEFERRED — see Known Issues #X.**
+6. **No current/remaining duration on Item Detail page** when item is resumable. Resume button label correct but no context on how far in.
+7. **Hero banner too small.** Cuts off most of the backdrop art on a 4K display.
+8. **No Show-title navigation from episode/season hero.** Should jump to overall show view.
+9. **90% threshold + 5s countdown for next-episode prompt is aggressive.** Cuts into shorter shows. Bumping to 95% + 10s.
+10. **Now Playing strip metadata is sparse.** Show/episode title, S+E numbers, release date, added date, codec, duration all need to be visible.
+
+Tests 27-30 (Transcode prompt) deferred — Byron has no backend file access to corrupt media for forced-direct-play-failure testing. Will verify if/when it surfaces in normal use.
+
+## Known Issues (Stargaze movie thumbnails — deferred)
+
+**Symptom:** Stargaze server's movie poster thumbnails return 404 through Lumen's image proxy. Episode posters from the same server load correctly. DKNZPLEX is unaffected (its previously intermittent 404s — Session 2/3 finding — appear resolved upstream).
+
+**Hypothesis:** Stargaze's Plex API returns `thumb` paths in a different format for movies (`type=1`) vs episodes (`type=4`), OR the image-proxy handler's URL-rewrite path special-cases episode `grandparentThumb` fallback in a way that doesn't fire for movie `thumb`.
+
+**Investigation plan (deferred to Session 4.5+ when Byron has time):**
+1. Open DevTools Network tab on the Library page for a Stargaze movie library.
+2. Capture the full URL of a failing thumb request (the `/api/image-proxy?server=...&path=...` URL).
+3. Compare against a working DKNZPLEX movie thumb URL.
+4. Compare against a working Stargaze episode thumb URL.
+5. Determine whether the failure is Lumen's URL construction, Plex's response format, or the upstream CDN.
+
+A `// TODO` marker is in `internal/server/api_image_proxy.go` flagging this for the next pass.
+
+## Session 4.5 polish PR scope
+
+Driven by the smoke test results above. Phased execution:
+
+- **Phase 4 (urgent bug fix):** Pagination regression — Library page navigation broken.
+- **Phase 1 (quick wins):** Episode-list watched check verify, Card "Added" timestamp, ItemDetail duration subtitle, clickable show title in hero, 95% threshold + 10s countdown.
+- **Phase 2 (visual polish):** Card top-right corner ribbon "WATCHED" rotated 45°, Mark Watched button label `✓ Watched` when watched, Hero `min-height: 65vh`.
+- **Phase 3 (cross-stack):** Now Playing State expansion (`EpisodeIndex`, `SeasonIndex`, `AddedAt`, `OriginallyAvailableAt` as optional fields on `playback.State`, populated by both `/api/play` and `/api/play/transcode`); SPA renders horizontal pill row above timeline with quality/codec moved into the row.
