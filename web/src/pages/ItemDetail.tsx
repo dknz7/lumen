@@ -106,7 +106,9 @@ export default function ItemDetail() {
                 <option>Off</option>
               </select>
               <button class="btn" disabled title="Session 5">Play Trailer</button>
-              <button class="btn" onClick={handleMarkWatched}>Mark as Watched</button>
+              <button class="btn" onClick={handleMarkWatched}>
+                {((it() as Item).viewCount ?? 0) > 0 ? "✓ Watched" : "Mark as Watched"}
+              </button>
               <button class="btn" onClick={handleMarkUnwatched}>Mark as Unwatched</button>
               <button class="btn" disabled title="Session 5">Add to Watchlist</button>
             </nav>

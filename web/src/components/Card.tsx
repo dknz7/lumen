@@ -100,6 +100,9 @@ export default function Card(props: CardProps) {
             <div class="card-progress-fill" style={{ width: `${progressPct()}%` }} />
           </div>
         )}
+        {(props.item.viewCount ?? 0) > 0 && (
+          <div class="card-watched-ribbon" aria-label="Watched">WATCHED</div>
+        )}
       </div>
       <div class="card-meta">
         <div class="card-title">{d().title}</div>

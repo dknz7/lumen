@@ -130,6 +130,30 @@
   transition: width 0.3s ease;
 }
 
+/* WATCHED ribbon — 45° banner pinned to the top-right corner of the poster.
+   Gated by viewCount > 0 so unwatched cards have no DOM node, no layout shift.
+   Sits above the dim hover overlay (z-index:2) and above the progress bar. */
+.card-watched-ribbon {
+  position: absolute;
+  top: 14px;
+  right: -32px;
+  width: 120px;
+  padding: 3px 0;
+  background: var(--led-teal);
+  color: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  text-transform: uppercase;
+  transform: rotate(45deg);
+  transform-origin: center;
+  pointer-events: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
 .card-meta {
   padding: 6px 2px;
 }
