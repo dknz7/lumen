@@ -251,7 +251,7 @@ const potPlayerWindowClass = "PotPlayer64"
 // launch while media loads. Wrap reads with retries up to coldStartRetry,
 // sleeping coldStartGap between attempts.
 const (
-	coldStartRetry = 6
+	coldStartRetry = 7
 	coldStartGap   = 500 * time.Millisecond
 )
 ```
@@ -588,7 +588,7 @@ git commit -m "feat(potplayer): Client.Launch + IsAlive via FindWindowW polling"
 **Files:**
 - Modify: `internal/potplayer/client.go`
 
-**Context:** Three read methods, all share the cold-start retry envelope: if the first call returns `0` (position/duration) or `-1` sentinel (state), wait `coldStartGap` and retry up to `coldStartRetry` times. Returns the first non-zero / non-sentinel value.
+**Context:** Three read methods, all share the cold-start retry envelope: if the first call returns `0` (position/duration) or `-1` sentinel (state), wait `coldStartGap` and retry up to `coldStartRetry` times. `GetPosition` and `GetDuration` delegate to a shared `getMillisQuery` helper. The retry loop skips its sleep on the final iteration so the budget is exactly 7 reads + 6 sleeps = ~3 s; the same skip-last pattern applies to `GetState`. `sendUserQuery` returns the package-level `ErrWindowNotFound` sentinel when the HWND can't be resolved, so callers (e.g. the Task 11 status poller) can `errors.Is`-discriminate transient window failures from real syscall hangs.
 
 - [ ] **Step 1: Append to `client.go`**
 
@@ -603,47 +603,55 @@ var (
 )
 ```
 
-Then append the read methods + `sendUserQuery` helper:
+Add the `ErrWindowNotFound` sentinel at package level (just below the var block):
+
+```go
+// ErrWindowNotFound is returned by Client methods when no Pot Player window
+// is currently resolvable (either the cached HWND died and the helper
+// couldn't find a replacement, or the subprocess never produced one).
+// Callers can errors.Is this to discriminate transient-window failures from
+// e.g. SendMessageW hangs.
+var ErrWindowNotFound = errors.New("pot player window not found")
+```
+
+Then append the read methods + helpers:
 
 ```go
 // GetPosition returns the current playback position. May block up to
 // coldStartRetry × coldStartGap (~3 s) immediately after launch while
-// Pot Player loads the media.
+// Pot Player loads the media; final value is whatever the last query
+// returned (typically zero if the file never loaded).
 func (c *Client) GetPosition() (time.Duration, error) {
-	for i := 0; i < coldStartRetry; i++ {
-		ms, err := c.sendUserQuery(ppGetPosition)
-		if err != nil {
-			return 0, err
-		}
-		if ms > 0 {
-			return time.Duration(ms) * time.Millisecond, nil
-		}
-		time.Sleep(coldStartGap)
-	}
-	// Final attempt — return whatever we got, even zero.
-	ms, err := c.sendUserQuery(ppGetPosition)
-	if err != nil {
-		return 0, err
-	}
-	return time.Duration(ms) * time.Millisecond, nil
+	return c.getMillisQuery(ppGetPosition)
 }
 
-// GetDuration returns the media's total duration. Same cold-start envelope.
+// GetDuration returns the media's total duration. Same cold-start envelope
+// as GetPosition.
 func (c *Client) GetDuration() (time.Duration, error) {
+	return c.getMillisQuery(ppGetDuration)
+}
+
+// getMillisQuery is the shared retry envelope for ppGetPosition + ppGetDuration.
+// Both query types return milliseconds in SendMessageW's r1; both treat 0 as
+// "not yet ready, retry" and any positive value as the answer.
+func (c *Client) getMillisQuery(wParam uintptr) (time.Duration, error) {
+	var ms uintptr
 	for i := 0; i < coldStartRetry; i++ {
-		ms, err := c.sendUserQuery(ppGetDuration)
+		v, err := c.sendUserQuery(wParam)
 		if err != nil {
 			return 0, err
 		}
+		ms = v
 		if ms > 0 {
 			return time.Duration(ms) * time.Millisecond, nil
 		}
-		time.Sleep(coldStartGap)
+		if i < coldStartRetry-1 {
+			time.Sleep(coldStartGap)
+		}
 	}
-	ms, err := c.sendUserQuery(ppGetDuration)
-	if err != nil {
-		return 0, err
-	}
+	// All retries returned zero — surface the last value (likely zero) without
+	// erroring; callers decide what to do (status poller treats it as "still
+	// loading", direct-play timeout in api_play.go decides at 10 s).
 	return time.Duration(ms) * time.Millisecond, nil
 }
 
@@ -656,7 +664,9 @@ func (c *Client) GetState() (PlayState, error) {
 			return PlayStateUnknown, err
 		}
 		if raw == stateNotReady {
-			time.Sleep(coldStartGap)
+			if i < coldStartRetry-1 {
+				time.Sleep(coldStartGap)
+			}
 			continue
 		}
 		switch raw {
@@ -683,7 +693,7 @@ func (c *Client) sendUserQuery(wParam uintptr) (uintptr, error) {
 	if c.hwnd == 0 || !isWindow(c.hwnd) {
 		hwnd, ok := findPotPlayerWindow()
 		if !ok {
-			return 0, errors.New("pot player window not found")
+			return 0, ErrWindowNotFound
 		}
 		c.hwnd = hwnd
 	}
@@ -725,15 +735,15 @@ Extend the package-level Win32 proc block with `PostMessageW`:
 
 ```go
 var (
-	user32          = windows.NewLazySystemDLL("user32.dll")
-	procFindWindowW = user32.NewProc("FindWindowW")
-	procIsWindow    = user32.NewProc("IsWindow")
+	user32           = windows.NewLazySystemDLL("user32.dll")
+	procFindWindowW  = user32.NewProc("FindWindowW")
+	procIsWindow     = user32.NewProc("IsWindow")
 	procSendMessageW = user32.NewProc("SendMessageW")
 	procPostMessageW = user32.NewProc("PostMessageW") // <-- new in Task 6
 )
 ```
 
-Then append `Stop` + `sendAppCommand`:
+Then append `Stop` + `sendAppCommand`. `Stop` uses the package-level `procPostMessageW.Call` (no inline `windows.NewLazySystemDLL` lookup), and `sendAppCommand` uses the package-level `procSendMessageW`. If the window survives the 2 s grace period, the force-kill branch reaps the process via `go cmd.Wait()` so the OS handle is released — same pattern Launch uses on its window-never-appeared path.
 
 ```go
 // Stop halts playback and closes the Pot Player window. Returns when the
@@ -766,6 +776,7 @@ func (c *Client) Stop() error {
 	// Force-kill the subprocess. Last resort.
 	if cmd != nil && cmd.Process != nil {
 		_ = cmd.Process.Kill()
+		go func() { _ = cmd.Wait() }()
 	}
 	return nil
 }
