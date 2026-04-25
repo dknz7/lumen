@@ -1,4 +1,4 @@
-import { useParams } from "@solidjs/router";
+import { useParams, A } from "@solidjs/router";
 import { createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
@@ -144,7 +144,10 @@ export default function ItemDetail() {
 
 function Hero(props: { item: Item; serverID: string }) {
   const isEpisode = () => props.item.type === "episode";
+  const isSeason = () => props.item.type === "season";
+  const linksToShow = () => isEpisode() || isSeason();
   const showTitle = () => (isEpisode() ? props.item.grandparentTitle : props.item.title);
+  const showRatingKey = () => props.item.grandparentRatingKey;
   const episodeLabel = () => {
     if (!isEpisode()) return null;
     const season = props.item.parentIndex ?? 0;
@@ -169,7 +172,16 @@ function Hero(props: { item: Item; serverID: string }) {
         <div class="hero-fade" />
       </Show>
       <div class="hero-meta">
-        <h1>{showTitle() ?? props.item.title}</h1>
+        <h1>
+          <Show
+            when={linksToShow() && showRatingKey()}
+            fallback={<>{showTitle() ?? props.item.title}</>}
+          >
+            <A class="hero-title-link" href={`/item/${props.serverID}/${showRatingKey()}`}>
+              {showTitle() ?? props.item.title}
+            </A>
+          </Show>
+        </h1>
         {isEpisode() && <div class="hero-episode">{episodeLabel()}</div>}
         <div class="meta-pills">
           {props.item.year && <span class="pill">{props.item.year}</span>}
