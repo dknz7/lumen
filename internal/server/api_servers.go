@@ -51,7 +51,7 @@ func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
 }
 
 // handleServerScoped dispatches everything under /api/servers/<id>/...
-// Subpaths: libraries, libraries/<key>/items, ondeck.
+// Subpaths: libraries, libraries/<key>/items, ondeck, scrobble, unscrobble.
 func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/api/servers/")
 	parts := strings.Split(rest, "/")
@@ -92,8 +92,10 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		s.handleLibraryRecentlyAdded(w, r, srv, parts[2])
 	case len(parts) == 2 && parts[1] == "ondeck":
 		s.handleOnDeck(w, r, srv)
-	case len(parts) == 3 && parts[1] == "ondeck" && parts[2] == "remove":
-		s.handleOnDeckRemove(w, r, srv)
+	case len(parts) == 2 && parts[1] == "scrobble":
+		s.handleScrobble(w, r, srv)
+	case len(parts) == 2 && parts[1] == "unscrobble":
+		s.handleUnscrobble(w, r, srv)
 	default:
 		writeError(w, http.StatusNotFound, "unknown server sub-path")
 	}
@@ -175,10 +177,11 @@ func (s *Server) handleOnDeck(w http.ResponseWriter, r *http.Request, srv *confi
 	writeJSON(w, items)
 }
 
-// handleOnDeckRemove removes an item from the server's Continue Watching list
-// by marking it as watched via Plex's scrobble endpoint. Accepts POST with
-// ?ratingKey=<key>.
-func (s *Server) handleOnDeckRemove(w http.ResponseWriter, r *http.Request, srv *config.Server) {
+// handleScrobble marks a Plex item as fully watched (Plex's /:/scrobble).
+// Powers the "Mark as Watched" tick on Continue Watching cards. Side effect:
+// the item leaves the onDeck list because watched items aren't on-deck.
+// Accepts POST with ?ratingKey=<key>.
+func (s *Server) handleScrobble(w http.ResponseWriter, r *http.Request, srv *config.Server) {
 	if r.Method != "POST" {
 		writeError(w, http.StatusMethodNotAllowed, "POST required")
 		return
@@ -196,7 +199,32 @@ func (s *Server) handleOnDeckRemove(w http.ResponseWriter, r *http.Request, srv 
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	writeJSON(w, map[string]string{"status": "removed"})
+	writeJSON(w, map[string]string{"status": "scrobbled"})
+}
+
+// handleUnscrobble resets a Plex item's playback state (Plex's /:/unscrobble)
+// — viewCount=0, viewOffset=0. Powers the "Remove from Continue Watching" bin
+// on CW cards. Item leaves onDeck without entering watch history.
+// Accepts POST with ?ratingKey=<key>.
+func (s *Server) handleUnscrobble(w http.ResponseWriter, r *http.Request, srv *config.Server) {
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	ratingKey := r.URL.Query().Get("ratingKey")
+	if ratingKey == "" {
+		writeError(w, http.StatusBadRequest, "ratingKey query param required")
+		return
+	}
+	if err := s.plex.Unscrobble(toPlexServer(srv), ratingKey); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "unscrobbled"})
 }
 
 // toPlexServer maps a config.Server to the plex.Server shape the client needs.
