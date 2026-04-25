@@ -25,7 +25,10 @@ export default function ItemDetail() {
     if (!it) return;
     const offset = it.viewOffset ?? 0;
     const dur = it.duration ?? 0;
-    if (offset > 0 && dur > 0 && offset < dur * 0.9) {
+    // 95% matches the scrobble/end-of-file threshold in poller.go — past
+    // that point the user is functionally done with the item, just play
+    // from start instead of offering resume.
+    if (offset > 0 && dur > 0 && offset < dur * 0.95) {
       setResumeOpen(true);
       return;
     }
