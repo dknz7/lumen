@@ -2090,7 +2090,7 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		Title:         item.Title,
 		ShowTitle:     item.GrandparentTitle,
 		ThumbPath:     pickThumbPath(item),
-		Quality:       formatQuality(part),
+		Quality:       formatQuality(item),
 	}
 
 	if err := s.playback.Start(args); err != nil {
@@ -2116,7 +2116,9 @@ func containerToExt(container string) string {
 	return container
 }
 
-func msToDuration(ms int) (d time.Duration) {
+// msToDuration converts Plex's millisecond integer to time.Duration.
+// Item.Duration is int64 — match that type, NOT `int`.
+func msToDuration(ms int64) time.Duration {
 	return time.Duration(ms) * time.Millisecond
 }
 
@@ -2128,31 +2130,31 @@ func pickThumbPath(it plex.Item) string {
 	return it.Thumb
 }
 
-func formatQuality(p plex.Part) string {
-	if p.Container == "" {
+// formatQuality builds a human-readable "1080p H.264" string from the first
+// Media entry. Returns empty if no Media exists or both fields are empty.
+// Reads it.Media[0].VideoResolution / VideoCodec — Plex's wire format does NOT
+// expose Resolution/Codec on Part directly, so no fallback chain.
+func formatQuality(it plex.Item) string {
+	if len(it.Media) == 0 {
 		return ""
 	}
-	res := p.VideoResolution
-	if res == "" {
-		res = p.Resolution
-	}
-	codec := p.VideoCodec
-	if codec == "" {
-		codec = p.Codec
-	}
-	if res != "" && codec != "" {
+	m := it.Media[0]
+	res := m.VideoResolution
+	codec := m.VideoCodec
+	switch {
+	case res != "" && codec != "":
 		return fmt.Sprintf("%s %s", res, codec)
-	}
-	if res != "" {
+	case res != "":
 		return res
+	default:
+		return codec
 	}
-	return codec
 }
 ```
 
 You'll need to:
 - Add `"time"` import.
-- Confirm `plex.Item` struct has `GrandparentRatingKey`, `GrandparentTitle`, `GrandparentThumb`, `Title`, `Thumb`, `Type`, `Duration`, `Media[].Part[]` with the fields used. Add missing JSON-tagged fields to `internal/plex/types.go` if absent (e.g. `VideoResolution`, `VideoCodec`).
+- Confirm `plex.Item` struct has `GrandparentRatingKey`, `GrandparentTitle`, `GrandparentThumb`, `Title`, `Thumb`, `Type`, `Duration`, `Media[].Part[]` with the fields used. As-shipped: full named `Media` and `Part` types were added to `internal/plex/types.go` (with JSON tags for `VideoResolution`, `VideoCodec`, `Container`, `Part.ID`, etc.) AND `metadataSliceToItems` in `internal/plex/libraries.go` was extended to propagate the `Media` slice — the converter does field-by-field copy rather than unmarshalling directly into `Item`, so the propagation must be added explicitly.
 
 - [ ] **Step 3: Add a unit test**
 
@@ -2165,10 +2167,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"lumen/internal/config"
 )
 
+// No newTestServer helper exists — construct inline with a stub config + nil
+// playback manager + an unused listen address.
 func TestHandlePlay_RejectsGET(t *testing.T) {
-	s := newTestServer(t) // existing helper from api_servers_test.go
+	s := New(&config.Config{}, nil, "127.0.0.1:0")
 	req := httptest.NewRequest(http.MethodGet, "/api/play", nil)
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
@@ -2178,7 +2184,7 @@ func TestHandlePlay_RejectsGET(t *testing.T) {
 }
 
 func TestHandlePlay_BadJSON(t *testing.T) {
-	s := newTestServer(t)
+	s := New(&config.Config{}, nil, "127.0.0.1:0")
 	req := httptest.NewRequest(http.MethodPost, "/api/play", bytes.NewReader([]byte("not json")))
 	rr := httptest.NewRecorder()
 	s.mux.ServeHTTP(rr, req)
@@ -2188,7 +2194,7 @@ func TestHandlePlay_BadJSON(t *testing.T) {
 }
 
 func TestHandlePlay_UnknownServer(t *testing.T) {
-	s := newTestServer(t)
+	s := New(&config.Config{}, nil, "127.0.0.1:0")
 	body, _ := json.Marshal(playRequest{ServerID: "missing", RatingKey: "1"})
 	req := httptest.NewRequest(http.MethodPost, "/api/play", bytes.NewReader(body))
 	rr := httptest.NewRecorder()
