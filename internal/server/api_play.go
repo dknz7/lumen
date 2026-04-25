@@ -147,9 +147,15 @@ func (s *Server) handlePlayTranscode(w http.ResponseWriter, r *http.Request) {
 	plexSrv := toPlexServer(srv)
 	item, err := s.plex.GetItem(plexSrv, req.RatingKey)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		writeError(w, http.StatusBadGateway, "fetch item: "+err.Error())
 		return
 	}
+
+	// req.ResumeFromOffset is currently discarded — same v1.0 limitation as
+	// /api/play (Pot Player CLI doesn't accept seek; resume routing handled
+	// in Phase G modal). Phase G+ may extend the playback Manager to forward
+	// the offset to the timeline reporter for cross-device resume reflection.
+	_ = req.ResumeFromOffset
 
 	session := newTranscodeSession()
 	streamURL := plex.TranscodeURL(plexSrv, req.RatingKey, session)
@@ -168,7 +174,7 @@ func (s *Server) handlePlayTranscode(w http.ResponseWriter, r *http.Request) {
 		Title:            item.Title,
 		ShowTitle:        item.GrandparentTitle,
 		ThumbPath:        pickThumbPath(item),
-		Quality:          "transcoded 1080p",
+		Quality:          "transcoded 1080p", // TODO(phase-g+): derive from actual transcode profile
 	}
 	if err := s.playback.Start(args); err != nil {
 		if err == playback.ErrAlreadyActive {
