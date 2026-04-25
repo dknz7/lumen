@@ -15,6 +15,16 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// Lazily-resolved Win32 procs used across the package. Each call to
+// LazyProc.Call resolves the proc address on first use and caches it; we
+// hold these at package level so the cache is shared across goroutines and
+// helpers don't re-allocate the wrappers per invocation.
+var (
+	user32          = windows.NewLazySystemDLL("user32.dll")
+	procFindWindowW = user32.NewProc("FindWindowW")
+	procIsWindow    = user32.NewProc("IsWindow")
+)
+
 // PlayState mirrors Pot Player's GetState return values plus a sentinel.
 type PlayState int
 
@@ -75,8 +85,11 @@ func Launch(exePath, streamURL string) (*Client, error) {
 		}
 		time.Sleep(300 * time.Millisecond)
 	}
-	// Window never appeared — kill the subprocess to avoid orphaning.
+	// Window never appeared — kill the subprocess to avoid orphaning. Reap in
+	// the background so the OS process handle is released without slowing the
+	// error return.
 	_ = cmd.Process.Kill()
+	go func() { _ = cmd.Wait() }()
 	return nil, errors.New("potplayer.Launch: window did not appear within 3s")
 }
 
@@ -95,10 +108,8 @@ func (c *Client) IsAlive() bool {
 // findPotPlayerWindow looks up the top-level window with class PotPlayer64.
 // Returns the HWND and true if found.
 func findPotPlayerWindow() (windows.Handle, bool) {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	findWindowW := user32.NewProc("FindWindowW")
 	className, _ := syscall.UTF16PtrFromString(potPlayerWindowClass)
-	r1, _, _ := findWindowW.Call(
+	r1, _, _ := procFindWindowW.Call(
 		uintptr(unsafe.Pointer(className)),
 		0,
 	)
@@ -110,8 +121,6 @@ func findPotPlayerWindow() (windows.Handle, bool) {
 
 // isWindow wraps user32.IsWindow.
 func isWindow(hwnd windows.Handle) bool {
-	user32 := windows.NewLazySystemDLL("user32.dll")
-	isWin := user32.NewProc("IsWindow")
-	r1, _, _ := isWin.Call(uintptr(hwnd))
+	r1, _, _ := procIsWindow.Call(uintptr(hwnd))
 	return r1 != 0
 }
