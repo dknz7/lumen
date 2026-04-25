@@ -1,5 +1,5 @@
 import { useParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createResource, createSignal, For, Show, untrack } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
@@ -61,14 +61,23 @@ export default function Library() {
   });
 
   // Reset page whenever sort/mode changes, and persist the new preference.
+  // patch() reads settingsStore.settings() internally; without untrack the
+  // effect would subscribe to the settings signal and re-fire (resetting
+  // page to 0) whenever any setting elsewhere changes — including the
+  // debounced PUT response that lands ~300ms after this very call. That
+  // race caused the Page-2 snap-back regression (Task 29b smoke test).
   createEffect(() => {
     const s = sort();
-    settingsStore.patch({ defaultSort: s });
+    untrack(() => {
+      settingsStore.patch({ defaultSort: s });
+    });
     setPage(0);
   });
   createEffect(() => {
     const v = viewMode();
-    settingsStore.patch({ defaultViewMode: filterToViewMode(v) as any });
+    untrack(() => {
+      settingsStore.patch({ defaultViewMode: filterToViewMode(v) as any });
+    });
     setPage(0);
   });
 
