@@ -108,7 +108,7 @@
 
 .hero {
   position: relative;
-  min-height: 320px;
+  min-height: 65vh;
   margin: 0 calc(-1 * var(--top-bar-margin)) 24px;
   padding: 24px 24px 16px;
   border-radius: var(--radius-md);
@@ -139,7 +139,11 @@
 
 .hero-meta {
   position: relative;
-  margin-top: 220px;
+  /* Pin the meta block ~140px from the bottom of the hero so the title sits
+     consistently regardless of viewport height. On 4K (~1404px hero) the
+     title lands ~140px from the bottom; on 1080p (~702px hero) the same.
+     Smaller viewports compress the backdrop but stay legible. */
+  margin-top: calc(65vh - 140px);
 }
 
 .hero-meta h1 {
