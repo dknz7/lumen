@@ -9,20 +9,23 @@ import (
 	"time"
 
 	"lumen/internal/config"
+	"lumen/internal/playback"
 	"lumen/internal/plex"
+	"lumen/internal/potplayer"
 )
 
 // Server bundles the http.Server, mux, Plex client, and loaded config into one
 // lifecycle-managed unit.
 type Server struct {
-	cfg    *config.Config
-	plex   *plex.Client
-	mux    *http.ServeMux
-	http   *http.Server
-	ln     net.Listener
-	hubs   *hubCache
-	images *imageCache
-	quit   chan struct{}
+	cfg      *config.Config
+	plex     *plex.Client
+	mux      *http.ServeMux
+	http     *http.Server
+	ln       net.Listener
+	hubs     *hubCache
+	images   *imageCache
+	quit     chan struct{}
+	playback *playback.Manager
 }
 
 // New constructs the Server but does not bind yet. addr is in "host:port" form
@@ -46,6 +49,14 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 		// selecting on the channel.
 		quit: make(chan struct{}, 1),
 	}
+	s.playback = playback.NewManager(c, func() string {
+		override := cfg.UI.Playback.PotPlayerPath
+		p, err := potplayer.ResolveExePath(override)
+		if err != nil {
+			return ""
+		}
+		return p
+	})
 	s.registerRoutes()
 	return s
 }
