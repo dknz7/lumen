@@ -15,11 +15,13 @@ import Library from "./pages/Library";
 import ItemDetail from "./pages/ItemDetail";
 import Placeholder from "./pages/Placeholder";
 import { store as settingsStore } from "./state/settings";
+import { playbackStore } from "./state/playback";
 import "./theme.css";
 
 // Fire-and-forget — settings load populates the store and applies theme.
 // The UI renders defaults until the load resolves; no blocking splash.
 settingsStore.load().catch((e) => console.error("initial settings load failed:", e));
+playbackStore.connect();
 
 render(() => (
   <Router root={App}>

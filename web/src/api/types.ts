@@ -56,3 +56,40 @@ export interface Match {
   size: number;
   codec?: string;
 }
+
+export interface PlaybackState {
+  active: boolean;
+  ratingKey?: string;
+  serverID?: string;
+  title?: string;
+  showTitle?: string;
+  position: number; // ns (Go time.Duration JSON encoding)
+  duration: number; // ns
+  state: "playing" | "paused" | "stopped" | "unknown";
+  quality?: string;
+  transcoding?: boolean;
+  thumbPath?: string;
+}
+
+export interface NextEpisodeInfo {
+  ratingKey: string;
+  serverID: string;
+  title: string;
+  season: number;
+  episode: number;
+  thumbPath?: string;
+}
+
+export interface TranscodePromptInfo {
+  ratingKey: string;
+  serverID: string;
+  title: string;
+  reason: string;
+}
+
+export type PlaybackEvent =
+  | { type: "state"; state: PlaybackState }
+  | { type: "ended" }
+  | { type: "next-episode-prompt"; payload: NextEpisodeInfo }
+  | { type: "transcode-prompt"; payload: TranscodePromptInfo }
+  | { type: "stopped" };

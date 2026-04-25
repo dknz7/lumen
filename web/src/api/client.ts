@@ -90,4 +90,42 @@ export const api = {
     }
     return res.json();
   },
+
+  play: async (serverID: string, ratingKey: string, resumeFromOffset?: number) => {
+    const res = await fetch("/api/play", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serverID, ratingKey, resumeFromOffset }),
+    });
+    if (!res.ok) {
+      throw new Error(`${res.status} POST /api/play: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
+  playTranscode: async (serverID: string, ratingKey: string) => {
+    const res = await fetch("/api/play/transcode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ serverID, ratingKey }),
+    });
+    if (!res.ok) {
+      throw new Error(`${res.status} POST /api/play/transcode: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
+  playStop: async () => {
+    const res = await fetch("/api/play/stop", { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`${res.status} POST /api/play/stop: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
+  playbackState: async () => {
+    const res = await fetch("/api/playback");
+    if (!res.ok) throw new Error(`GET /api/playback: ${res.status}`);
+    return res.json() as Promise<import("./types").PlaybackState>;
+  },
 };
