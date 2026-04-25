@@ -243,5 +243,4 @@ var ErrPotPlayerPathUnresolved = errors.New("pot player path not resolved")
 
 // --- goroutine stubs — replaced by Tasks 11-13 ---
 
-func (m *Manager) runReporter(ctx context.Context)           {}
 func (m *Manager) runTranscodeKeepAlive(ctx context.Context) {}
