@@ -80,6 +80,10 @@ export interface PlaybackState {
   quality?: string;
   transcoding?: boolean;
   thumbPath?: string;
+  episodeIndex?: number;
+  seasonIndex?: number;
+  addedAt?: number;
+  originallyAvailableAt?: string;
 }
 
 export interface NextEpisodeInfo {

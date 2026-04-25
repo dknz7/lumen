@@ -1,6 +1,7 @@
 import { Show } from "solid-js";
 import { playbackStore } from "../state/playback";
 import { api } from "../api/client";
+import { formatAddedTimestamp } from "../util/date";
 import "./NowPlaying.css";
 
 export default function NowPlaying() {
@@ -31,30 +32,34 @@ export default function NowPlaying() {
           />
         </Show>
         <div class="np-meta">
-          <div class="np-title">
-            <Show when={s().showTitle} fallback={<span>{s().title}</span>}>
-              <span class="np-show">{s().showTitle}</span>
-              <span class="np-ep"> · {s().title}</span>
+          <div class="np-pills">
+            <Show when={s().showTitle}>
+              <span class="np-pill np-pill-strong">{s().showTitle}</span>
+            </Show>
+            <Show when={s().seasonIndex && s().episodeIndex}>
+              <span class="np-pill np-pill-mono">S{s().seasonIndex} · E{s().episodeIndex}</span>
+            </Show>
+            <span class="np-pill np-pill-strong">{s().title}</span>
+            <Show when={s().originallyAvailableAt}>
+              <span class="np-pill">Released {s().originallyAvailableAt}</span>
+            </Show>
+            <Show when={s().addedAt}>
+              <span class="np-pill">{formatAddedTimestamp(s().addedAt)}</span>
+            </Show>
+            <Show when={s().transcoding}>
+              <span class="np-pill np-pill-warn">TRANSCODE</span>
+            </Show>
+            <Show when={s().quality}>
+              <span class="np-pill np-pill-mono">{s().quality}</span>
             </Show>
           </div>
           <div class="np-progress">
+            <span class="np-time">{fmt(s().position)}</span>
             <div class="np-progress-track">
               <div class="np-progress-fill" style={{ width: `${pct()}%` }} />
             </div>
-            <div class="np-times">
-              <span>{fmt(s().position)}</span>
-              <span class="np-sep">/</span>
-              <span>{fmt(s().duration)}</span>
-            </div>
+            <span class="np-time">{fmt(s().duration)}</span>
           </div>
-        </div>
-        <div class="np-quality">
-          <Show when={s().transcoding}>
-            <span class="np-badge np-badge-warn">TRANSCODE</span>
-          </Show>
-          <Show when={s().quality}>
-            <span class="np-badge">{s().quality}</span>
-          </Show>
         </div>
       </div>
     </Show>

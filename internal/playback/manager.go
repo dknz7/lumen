@@ -50,6 +50,11 @@ type StartArgs struct {
 	ShowTitle        string
 	ThumbPath        string
 	Quality          string // e.g. "1080p H.264"
+
+	EpisodeIndex          int
+	SeasonIndex           int
+	AddedAt               int64
+	OriginallyAvailableAt string
 }
 
 // Start launches Pot Player, builds the Context, kicks the three goroutines.
@@ -94,7 +99,13 @@ func (m *Manager) Start(args StartArgs) (err error) {
 		ShowTitle:        args.ShowTitle,
 		ThumbPath:        args.ThumbPath,
 		Quality:          args.Quality,
-		PotPlayer:        pp,
+
+		EpisodeIndex:          args.EpisodeIndex,
+		SeasonIndex:           args.SeasonIndex,
+		AddedAt:               args.AddedAt,
+		OriginallyAvailableAt: args.OriginallyAvailableAt,
+
+		PotPlayer: pp,
 	}
 	m.active = c
 	m.cancel = cancel
@@ -231,6 +242,11 @@ func (m *Manager) snapshotLocked() State {
 		Transcoding: m.active.Transcoding,
 		ThumbPath:   m.active.ThumbPath,
 		Quality:     m.active.Quality,
+
+		EpisodeIndex:          m.active.EpisodeIndex,
+		SeasonIndex:           m.active.SeasonIndex,
+		AddedAt:               m.active.AddedAt,
+		OriginallyAvailableAt: m.active.OriginallyAvailableAt,
 	}
 }
 

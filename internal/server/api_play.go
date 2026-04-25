@@ -70,6 +70,11 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		ShowTitle:     item.GrandparentTitle,
 		ThumbPath:     pickThumbPath(item),
 		Quality:       formatQuality(item),
+
+		EpisodeIndex:          item.Index,
+		SeasonIndex:           item.ParentIndex,
+		AddedAt:               item.AddedAt,
+		OriginallyAvailableAt: item.OriginallyAvailableAt,
 	}
 
 	if err := s.playback.Start(args); err != nil {
@@ -175,6 +180,11 @@ func (s *Server) handlePlayTranscode(w http.ResponseWriter, r *http.Request) {
 		ShowTitle:        item.GrandparentTitle,
 		ThumbPath:        pickThumbPath(item),
 		Quality:          "transcoded 1080p", // TODO(phase-g+): derive from actual transcode profile
+
+		EpisodeIndex:          item.Index,
+		SeasonIndex:           item.ParentIndex,
+		AddedAt:               item.AddedAt,
+		OriginallyAvailableAt: item.OriginallyAvailableAt,
 	}
 	if err := s.playback.Start(args); err != nil {
 		if err == playback.ErrAlreadyActive {

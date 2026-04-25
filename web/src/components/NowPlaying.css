@@ -23,26 +23,49 @@
 .np-meta {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.np-title {
-  font-family: var(--font-headline);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 6px;
+.np-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
 }
 
-.np-show {
-  color: var(--text);
-}
-
-.np-ep {
+.np-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.np-pill-strong {
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--text);
   font-weight: 500;
+}
+
+.np-pill-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.np-pill-warn {
+  background: rgba(220, 160, 40, 0.15);
+  color: #e0b050;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .np-progress {
@@ -50,6 +73,17 @@
   align-items: center;
   gap: 10px;
 }
+
+.np-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+  min-width: 50px;
+}
+
+.np-time:first-child { text-align: right; }
+.np-time:last-child { text-align: left; }
 
 .np-progress-track {
   flex: 1;
@@ -63,39 +97,4 @@
   height: 100%;
   background: var(--led-teal);
   transition: width 0.4s ease;
-}
-
-.np-times {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  flex-shrink: 0;
-}
-
-.np-sep {
-  margin: 0 4px;
-  color: var(--border-soft);
-}
-
-.np-quality {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.np-badge {
-  display: inline-block;
-  padding: 3px 8px;
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-muted);
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-family: var(--font-mono);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.np-badge-warn {
-  background: rgba(220, 160, 40, 0.15);
-  color: #e0b050;
 }

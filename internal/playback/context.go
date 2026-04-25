@@ -32,6 +32,11 @@ type Context struct {
 	ThumbPath string
 	Quality   string
 
+	EpisodeIndex          int
+	SeasonIndex           int
+	AddedAt               int64
+	OriginallyAvailableAt string
+
 	PotPlayer *potplayer.Client
 }
 
@@ -48,6 +53,11 @@ type State struct {
 	Quality     string        `json:"quality,omitempty"`
 	Transcoding bool          `json:"transcoding"`
 	ThumbPath   string        `json:"thumbPath,omitempty"`
+
+	EpisodeIndex          int    `json:"episodeIndex,omitempty"`          // episode number within season; 0 for movies
+	SeasonIndex           int    `json:"seasonIndex,omitempty"`           // season number; 0 for movies
+	AddedAt               int64  `json:"addedAt,omitempty"`               // epoch seconds when item added to library
+	OriginallyAvailableAt string `json:"originallyAvailableAt,omitempty"` // air date / release date (YYYY-MM-DD)
 }
 
 // Event is the discriminated message the SPA receives over SSE.
