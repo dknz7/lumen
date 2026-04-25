@@ -1,13 +1,14 @@
 import { useParams } from "@solidjs/router";
-import { createResource, For, Show } from "solid-js";
+import { createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
+import ResumeRestartModal from "../components/Modal/ResumeRestartModal";
 import "./ItemDetail.css";
 
 export default function ItemDetail() {
   const params = useParams();
-  const [item] = createResource(
+  const [item, { refetch: refetchItem }] = createResource(
     () => ({ server: params.serverID!, rk: params.ratingKey! }),
     ({ server, rk }) => api.item(server, rk)
   );
@@ -16,13 +17,83 @@ export default function ItemDetail() {
     (guid) => (guid ? api.availability(guid) : Promise.resolve([] as Match[]))
   );
 
+  const [resumeOpen, setResumeOpen] = createSignal(false);
+
+  async function handlePlay() {
+    const it = item();
+    if (!it) return;
+    const offset = it.viewOffset ?? 0;
+    const dur = it.duration ?? 0;
+    if (offset > 0 && dur > 0 && offset < dur * 0.9) {
+      setResumeOpen(true);
+      return;
+    }
+    await playFromStart();
+  }
+
+  async function playFromStart() {
+    const it = item();
+    if (!it) return;
+    try {
+      await api.play(params.serverID!, it.ratingKey);
+    } catch (e) {
+      console.error("play failed:", e);
+      alert(`Play failed: ${(e as Error).message}`);
+    }
+  }
+
+  async function playResume() {
+    const it = item();
+    if (!it) return;
+    try {
+      await api.play(params.serverID!, it.ratingKey, it.viewOffset);
+    } catch (e) {
+      console.error("play resume failed:", e);
+      alert(`Play failed: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleMarkWatched() {
+    const it = item();
+    if (!it) return;
+    try {
+      await api.scrobble(params.serverID!, it.ratingKey);
+      refetchItem();
+    } catch (e) {
+      alert(`Mark watched failed: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleMarkUnwatched() {
+    const it = item();
+    if (!it) return;
+    try {
+      await api.unscrobble(params.serverID!, it.ratingKey);
+      refetchItem();
+    } catch (e) {
+      alert(`Mark unwatched failed: ${(e as Error).message}`);
+    }
+  }
+
   return (
     <div class="item-detail">
       <Show when={item()} fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}>
         {(it) => (
           <>
             <Hero item={it() as Item} serverID={params.serverID!} />
-            <ActionRow item={it() as Item} serverID={params.serverID!} />
+            <nav class="action-row">
+              <button class="btn-primary" onClick={handlePlay}>
+                ▶ {(it() as Item).viewOffset && (it() as Item).viewOffset! > 0 ? "Resume" : "Play"}
+              </button>
+              <select class="btn-subtitle" disabled>
+                <option>Subtitle: Default</option>
+                <option>Off</option>
+              </select>
+              <button class="btn" disabled title="Session 5">Play Trailer</button>
+              <button class="btn" onClick={handleMarkWatched}>Mark as Watched</button>
+              <button class="btn" onClick={handleMarkUnwatched}>Mark as Unwatched</button>
+              <button class="btn" disabled title="Session 5">Add to Watchlist</button>
+            </nav>
             <section class="overview">
               <h3>Overview</h3>
               <p>{(it() as Item).summary ?? "No synopsis available."}</p>
@@ -52,6 +123,13 @@ export default function ItemDetail() {
           </>
         )}
       </Show>
+      <ResumeRestartModal
+        open={resumeOpen()}
+        resumeOffsetMs={item()?.viewOffset ?? 0}
+        onResume={() => { setResumeOpen(false); playResume(); }}
+        onRestart={() => { setResumeOpen(false); playFromStart(); }}
+        onCancel={() => setResumeOpen(false)}
+      />
     </div>
   );
 }
@@ -93,34 +171,6 @@ function Hero(props: { item: Item; serverID: string }) {
       </div>
     </header>
   );
-}
-
-function ActionRow(props: { item: Item; serverID: string }) {
-  return (
-    <nav class="action-row">
-      <button class="btn-primary" onClick={() => launchPlayback(props.item, props.serverID)}>
-        ▶ Play
-      </button>
-      <select class="btn-subtitle" disabled>
-        <option>Subtitle: Default</option>
-        <option>Off</option>
-      </select>
-      <button class="btn" disabled title="Session 5">Play Trailer</button>
-      <button class="btn" disabled title="Session 4">Mark as Watched</button>
-      <button class="btn" disabled title="Session 4">Mark as Unwatched</button>
-      <button class="btn" disabled title="Session 5">Add to Watchlist</button>
-    </nav>
-  );
-}
-
-async function launchPlayback(item: Item, serverID: string) {
-  console.log("play stub — Session 4 will wire this", { item, serverID });
-  try {
-    const res = await fetch("/api/play", { method: "POST" });
-    console.log("server said:", res.status);
-  } catch (e) {
-    console.error(e);
-  }
 }
 
 function formatBytes(n: number): string {
