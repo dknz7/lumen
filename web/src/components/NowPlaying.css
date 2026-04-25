@@ -1,0 +1,101 @@
+.now-playing {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px var(--top-bar-margin);
+  margin: 0 var(--top-bar-margin);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  /* Sits just below the top bar; no extra top margin so the gap from TopBar
+     (--top-bar-gap) does the breathing-room work. */
+  margin-top: 0;
+}
+
+.np-thumb {
+  width: 48px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.np-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.np-title {
+  font-family: var(--font-headline);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 6px;
+}
+
+.np-show {
+  color: var(--text);
+}
+
+.np-ep {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.np-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.np-progress-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.np-progress-fill {
+  height: 100%;
+  background: var(--led-teal);
+  transition: width 0.4s ease;
+}
+
+.np-times {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.np-sep {
+  margin: 0 4px;
+  color: var(--border-soft);
+}
+
+.np-quality {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.np-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.np-badge-warn {
+  background: rgba(220, 160, 40, 0.15);
+  color: #e0b050;
+}

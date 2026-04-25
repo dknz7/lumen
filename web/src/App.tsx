@@ -1,5 +1,6 @@
 import { createSignal, ParentProps } from "solid-js";
 import TopBar from "./components/TopBar";
+import NowPlaying from "./components/NowPlaying";
 import LeftMenu from "./components/LeftMenu";
 import SettingsModal from "./components/Settings/SettingsModal";
 
@@ -8,6 +9,7 @@ export default function App(props: ParentProps) {
   return (
     <div class="app-shell">
       <TopBar />
+      <NowPlaying />
       <div class="app-body">
         <LeftMenu onOpenSettings={() => setSettingsOpen(true)} />
         <main class="content">{props.children}</main>
