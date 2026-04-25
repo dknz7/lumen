@@ -67,8 +67,21 @@ function Hero(props: { item: Item; serverID: string }) {
     const title = props.item.title;
     return se + (title && se ? ` · ${title}` : title ?? "");
   };
+  // Backdrop preference order:
+  //  1. item.art (movie/show backdrop)
+  //  2. item.grandparentArt (episode → show backdrop)
+  //  3. item.thumb (poster as last resort)
+  const backdropPath = () =>
+    props.item.art || props.item.grandparentArt || props.item.thumb;
   return (
     <header class="hero">
+      <Show when={backdropPath()}>
+        <div
+          class="hero-backdrop"
+          style={{ "background-image": `url(${api.image(props.serverID, backdropPath()!)})` }}
+        />
+        <div class="hero-fade" />
+      </Show>
       <div class="hero-meta">
         <h1>{showTitle() ?? props.item.title}</h1>
         {isEpisode() && <div class="hero-episode">{episodeLabel()}</div>}
