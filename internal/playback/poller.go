@@ -9,7 +9,7 @@ import (
 const (
 	pollInterval         = 5 * time.Second
 	directPlayTimeout    = 10 * time.Second
-	watchedThresholdFrac = 0.90 // mirrors Plex's server-side default
+	watchedThresholdFrac = 0.95 // bumped from Plex's 90% default — leaves more room on shorter shows
 )
 
 // runPoller reads Pot Player's position/state every pollInterval, broadcasts
@@ -92,7 +92,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 			}
 		}
 
-		// 90% threshold: scrobble once, emit ended/next-episode once.
+		// 95% threshold: scrobble once, emit ended/next-episode once.
 		if c.Duration > 0 && pos >= time.Duration(float64(c.Duration)*watchedThresholdFrac) {
 			if !scrobbled {
 				if err := m.plex.Scrobble(c.Server, c.RatingKey); err != nil {

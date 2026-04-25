@@ -4,7 +4,7 @@ import { playbackStore } from "../../state/playback";
 import { api } from "../../api/client";
 import "./NextEpisodeModal.css";
 
-const COUNTDOWN_MS = 5000;
+const COUNTDOWN_MS = 10000;
 const TICK_MS = 100;
 
 export default function NextEpisodeModal() {
