@@ -1,12 +1,128 @@
 package server
 
-import "net/http"
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"time"
+
+	"lumen/internal/playback"
+	"lumen/internal/plex"
+)
+
+type playRequest struct {
+	ServerID         string `json:"serverID"`
+	RatingKey        string `json:"ratingKey"`
+	ResumeFromOffset int64  `json:"resumeFromOffset,omitempty"` // ms
+}
 
 func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "POST required")
 		return
 	}
-	// TODO Session 4: parse {ratingKey, server, subtitleStreamID} and launch Pot Player.
-	writeError(w, http.StatusNotImplemented, "playback launches in Session 4")
+	var req playRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	srv := s.serverByID(req.ServerID)
+	if srv == nil {
+		writeError(w, http.StatusNotFound, "unknown server")
+		return
+	}
+	plexSrv := toPlexServer(srv)
+
+	item, err := s.plex.GetItem(plexSrv, req.RatingKey)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, "fetch item: "+err.Error())
+		return
+	}
+	if len(item.Media) == 0 || len(item.Media[0].Part) == 0 {
+		writeError(w, http.StatusUnprocessableEntity, "item has no playable parts")
+		return
+	}
+	part := item.Media[0].Part[0]
+	ext := containerToExt(part.Container)
+
+	streamURL := plex.DirectPlayURL(plexSrv, fmt.Sprintf("%d", part.ID), ext)
+	// Note: req.ResumeFromOffset is recorded for the timeline reporter to post on
+	// the first tick so Plex's Now Playing reflects resume. Pot Player itself
+	// starts at position 0 — the resume modal (Phase G Task 22) decides whether
+	// the user wants to restart or pick up. We hand a clean URL to Pot Player
+	// either way. Future enhancement: explore /seek=N if Pot Player adds CLI
+	// support, or send WM_USER position-set message after launch.
+	_ = req.ResumeFromOffset
+
+	args := playback.StartArgs{
+		Server:        plexSrv,
+		RatingKey:     req.RatingKey,
+		ShowRatingKey: item.GrandparentRatingKey,
+		IsEpisode:     item.Type == "episode",
+		PartID:        fmt.Sprintf("%d", part.ID),
+		Container:     part.Container,
+		StreamURL:     streamURL,
+		Transcoding:   false,
+		Duration:      msToDuration(item.Duration),
+		Title:         item.Title,
+		ShowTitle:     item.GrandparentTitle,
+		ThumbPath:     pickThumbPath(item),
+		Quality:       formatQuality(item),
+	}
+
+	if err := s.playback.Start(args); err != nil {
+		if err == playback.ErrAlreadyActive {
+			writeError(w, http.StatusConflict, "another session is already active")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "start: "+err.Error())
+		return
+	}
+
+	writeJSON(w, s.playback.SnapshotState())
+}
+
+// containerToExt maps a Plex container value to the file extension Pot Player
+// expects in the direct-play URL. Plex uses "mkv", "mp4", "avi" etc. mostly
+// directly — pass through, default to "mp4" if blank.
+func containerToExt(container string) string {
+	if container == "" {
+		return "mp4"
+	}
+	return container
+}
+
+// msToDuration converts Plex's millisecond integer to time.Duration.
+// Item.Duration is int64 — match that type, NOT the plan's `int`.
+func msToDuration(ms int64) time.Duration {
+	return time.Duration(ms) * time.Millisecond
+}
+
+// pickThumbPath returns the best thumb for the Now Playing strip. For
+// episodes, prefers the show's portrait poster (GrandparentThumb); for
+// movies, falls back to the item's own Thumb.
+func pickThumbPath(it plex.Item) string {
+	if it.GrandparentThumb != "" {
+		return it.GrandparentThumb
+	}
+	return it.Thumb
+}
+
+// formatQuality builds a human-readable "1080p H.264" string from the first
+// Media entry. Returns empty if no Media exists or both fields are empty.
+func formatQuality(it plex.Item) string {
+	if len(it.Media) == 0 {
+		return ""
+	}
+	m := it.Media[0]
+	res := m.VideoResolution
+	codec := m.VideoCodec
+	switch {
+	case res != "" && codec != "":
+		return fmt.Sprintf("%s %s", res, codec)
+	case res != "":
+		return res
+	default:
+		return codec
+	}
 }

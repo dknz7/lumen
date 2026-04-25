@@ -31,24 +31,25 @@ type metadataWire struct {
 	GuidArray []struct {
 		ID string `json:"id"`
 	} `json:"Guid"`
-	Title                string `json:"title"`
-	Type                 string `json:"type"`
-	Year                 int    `json:"year"`
-	Summary              string `json:"summary"`
-	Thumb                string `json:"thumb"`
-	Art                  string `json:"art"`
-	Duration             int64  `json:"duration"`
-	ViewOffset           int64  `json:"viewOffset"`
-	AddedAt              int64  `json:"addedAt"`
-	LastViewedAt         int64  `json:"lastViewedAt"`
-	Index                int    `json:"index"`
-	ParentIndex          int    `json:"parentIndex"`
-	ParentTitle          string `json:"parentTitle"`
-	ParentThumb          string `json:"parentThumb"`
-	GrandparentTitle     string `json:"grandparentTitle"`
-	GrandparentThumb     string `json:"grandparentThumb"`
-	GrandparentArt       string `json:"grandparentArt"`
-	GrandparentRatingKey string `json:"grandparentRatingKey"`
+	Title                string  `json:"title"`
+	Type                 string  `json:"type"`
+	Year                 int     `json:"year"`
+	Summary              string  `json:"summary"`
+	Thumb                string  `json:"thumb"`
+	Art                  string  `json:"art"`
+	Duration             int64   `json:"duration"`
+	ViewOffset           int64   `json:"viewOffset"`
+	AddedAt              int64   `json:"addedAt"`
+	LastViewedAt         int64   `json:"lastViewedAt"`
+	Index                int     `json:"index"`
+	ParentIndex          int     `json:"parentIndex"`
+	ParentTitle          string  `json:"parentTitle"`
+	ParentThumb          string  `json:"parentThumb"`
+	GrandparentTitle     string  `json:"grandparentTitle"`
+	GrandparentThumb     string  `json:"grandparentThumb"`
+	GrandparentArt       string  `json:"grandparentArt"`
+	GrandparentRatingKey string  `json:"grandparentRatingKey"`
+	Media                []Media `json:"Media"`
 }
 
 // GetLibraries returns all top-level library sections on the server.
@@ -188,6 +189,7 @@ func metadataSliceToItems(mw []metadataWire) []Item {
 			GrandparentThumb:     m.GrandparentThumb,
 			GrandparentArt:       m.GrandparentArt,
 			GrandparentRatingKey: m.GrandparentRatingKey,
+			Media:                m.Media,
 		})
 	}
 	return out

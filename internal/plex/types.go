@@ -33,27 +33,50 @@ type Library struct {
 // Episode-specific fields (GrandparentTitle, ParentIndex, etc.) are only
 // populated when Type == "episode".
 type Item struct {
-	RatingKey            string `json:"ratingKey"`
-	GUID                 string `json:"guid,omitempty"`
-	Title                string `json:"title"`
-	Type                 string `json:"type"` // "movie" | "show" | "season" | "episode"
-	Year                 int    `json:"year,omitempty"`
-	Summary              string `json:"summary,omitempty"`
-	Thumb                string `json:"thumb,omitempty"` // server-relative path to portrait poster
-	Art                  string `json:"art,omitempty"`   // server-relative path to landscape art
-	Duration             int64  `json:"duration,omitempty"`     // media length in ms
-	ViewOffset           int64  `json:"viewOffset,omitempty"`   // resume position in ms (0 = unstarted)
-	AddedAt              int64  `json:"addedAt,omitempty"`      // epoch seconds when added to library
-	LastViewedAt         int64  `json:"lastViewedAt,omitempty"` // epoch seconds of most recent view
+	RatingKey    string `json:"ratingKey"`
+	GUID         string `json:"guid,omitempty"`
+	Title        string `json:"title"`
+	Type         string `json:"type"` // "movie" | "show" | "season" | "episode"
+	Year         int    `json:"year,omitempty"`
+	Summary      string `json:"summary,omitempty"`
+	Thumb        string `json:"thumb,omitempty"`        // server-relative path to portrait poster
+	Art          string `json:"art,omitempty"`          // server-relative path to landscape art
+	Duration     int64  `json:"duration,omitempty"`     // media length in ms
+	ViewOffset   int64  `json:"viewOffset,omitempty"`   // resume position in ms (0 = unstarted)
+	AddedAt      int64  `json:"addedAt,omitempty"`      // epoch seconds when added to library
+	LastViewedAt int64  `json:"lastViewedAt,omitempty"` // epoch seconds of most recent view
 	// Episode-specific fields — empty for non-episodes.
-	Index                int    `json:"index,omitempty"`                // episode number within season
-	ParentIndex          int    `json:"parentIndex,omitempty"`          // season number
-	ParentTitle          string `json:"parentTitle,omitempty"`          // e.g. "Season 1"
-	ParentThumb          string `json:"parentThumb,omitempty"`          // season poster
-	GrandparentTitle     string `json:"grandparentTitle,omitempty"`     // show name
-	GrandparentThumb     string `json:"grandparentThumb,omitempty"`     // show poster (portrait)
-	GrandparentArt       string `json:"grandparentArt,omitempty"`       // show backdrop (landscape)
-	GrandparentRatingKey string `json:"grandparentRatingKey,omitempty"` // show's ratingKey
+	Index                int     `json:"index,omitempty"`                // episode number within season
+	ParentIndex          int     `json:"parentIndex,omitempty"`          // season number
+	ParentTitle          string  `json:"parentTitle,omitempty"`          // e.g. "Season 1"
+	ParentThumb          string  `json:"parentThumb,omitempty"`          // season poster
+	GrandparentTitle     string  `json:"grandparentTitle,omitempty"`     // show name
+	GrandparentThumb     string  `json:"grandparentThumb,omitempty"`     // show poster (portrait)
+	GrandparentArt       string  `json:"grandparentArt,omitempty"`       // show backdrop (landscape)
+	GrandparentRatingKey string  `json:"grandparentRatingKey,omitempty"` // show's ratingKey
+	Media                []Media `json:"Media,omitempty"`
+}
+
+// Media is one quality variant of an Item — Plex returns one entry per
+// transcode profile / source file. The first entry is normally the original.
+type Media struct {
+	ID              int    `json:"id"`
+	Container       string `json:"container,omitempty"`
+	VideoResolution string `json:"videoResolution,omitempty"`
+	VideoCodec      string `json:"videoCodec,omitempty"`
+	AudioCodec      string `json:"audioCodec,omitempty"`
+	Bitrate         int    `json:"bitrate,omitempty"`
+	Duration        int64  `json:"duration,omitempty"` // overrides Item.Duration when present
+	Part            []Part `json:"Part,omitempty"`
+}
+
+// Part is a single file backing a Media. Most items have exactly one Part.
+type Part struct {
+	ID        int    `json:"id"`
+	Key       string `json:"key,omitempty"` // e.g. "/library/parts/123/file.mkv"
+	Size      int64  `json:"size,omitempty"`
+	Duration  int64  `json:"duration,omitempty"`
+	Container string `json:"container,omitempty"`
 }
 
 // HubItem is one card on a plex.tv Discover hub (home or watchlist namespace).
