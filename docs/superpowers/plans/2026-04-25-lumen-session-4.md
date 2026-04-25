@@ -220,6 +220,8 @@ git commit -m "feat(build): embed lumen.ico into lumen.exe via goversioninfo"
 // v260422 (1.7.22859) during the Session 0 spike — see docs/session-0-findings.md.
 package potplayer
 
+import "time"
+
 // Win32 message constants.
 const (
 	wmUser       uintptr = 0x0400 // base for user-defined messages
@@ -238,15 +240,19 @@ const (
 	appCmdMediaPlayPause uintptr = 14 // toggle (kept for completeness; v1 UI doesn't use it)
 )
 
+// Sentinel returned by ppGetState while media is still loading. Pot Player
+// returns -1; Go's SendMessage wrapper sees this as ^uintptr(0).
+const stateNotReady = ^uintptr(0)
+
 // Window class for Pot Player's main window. Used by FindWindowW.
 const potPlayerWindowClass = "PotPlayer64"
 
 // Cold-start: position/duration/state can return 0 or -1 for ~2 s after
-// launch while media loads. Wrap reads with retries up to coldStartRetry.
+// launch while media loads. Wrap reads with retries up to coldStartRetry,
+// sleeping coldStartGap between attempts.
 const (
-	coldStartRetry  = 6                // number of read attempts during cold-start
-	coldStartGap_ms = 500              // ms between attempts
-	stateNotReady   = ^uintptr(0)      // -1 cast to uintptr; Go sees uint64 max
+	coldStartRetry = 6
+	coldStartGap   = 500 * time.Millisecond
 )
 ```
 
@@ -570,13 +576,13 @@ git commit -m "feat(potplayer): Client.Launch + IsAlive via FindWindowW polling"
 **Files:**
 - Modify: `internal/potplayer/client.go`
 
-**Context:** Three read methods, all share the cold-start retry envelope: if the first call returns `0` (position/duration) or `-1` sentinel (state), wait `coldStartGap_ms` and retry up to `coldStartRetry` times. Returns the first non-zero / non-sentinel value.
+**Context:** Three read methods, all share the cold-start retry envelope: if the first call returns `0` (position/duration) or `-1` sentinel (state), wait `coldStartGap` and retry up to `coldStartRetry` times. Returns the first non-zero / non-sentinel value.
 
 - [ ] **Step 1: Append to `client.go`**
 
 ```go
 // GetPosition returns the current playback position. May block up to
-// coldStartRetry × coldStartGap_ms (~3 s) immediately after launch while
+// coldStartRetry × coldStartGap (~3 s) immediately after launch while
 // Pot Player loads the media.
 func (c *Client) GetPosition() (time.Duration, error) {
 	for i := 0; i < coldStartRetry; i++ {
@@ -587,7 +593,7 @@ func (c *Client) GetPosition() (time.Duration, error) {
 		if ms > 0 {
 			return time.Duration(ms) * time.Millisecond, nil
 		}
-		time.Sleep(coldStartGap_ms * time.Millisecond)
+		time.Sleep(coldStartGap)
 	}
 	// Final attempt — return whatever we got, even zero.
 	ms, err := c.sendUserQuery(ppGetPosition)
@@ -607,7 +613,7 @@ func (c *Client) GetDuration() (time.Duration, error) {
 		if ms > 0 {
 			return time.Duration(ms) * time.Millisecond, nil
 		}
-		time.Sleep(coldStartGap_ms * time.Millisecond)
+		time.Sleep(coldStartGap)
 	}
 	ms, err := c.sendUserQuery(ppGetDuration)
 	if err != nil {
@@ -625,7 +631,7 @@ func (c *Client) GetState() (PlayState, error) {
 			return PlayStateUnknown, err
 		}
 		if raw == stateNotReady {
-			time.Sleep(coldStartGap_ms * time.Millisecond)
+			time.Sleep(coldStartGap)
 			continue
 		}
 		switch raw {
