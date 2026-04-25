@@ -1,6 +1,8 @@
 package server
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -125,4 +127,65 @@ func formatQuality(it plex.Item) string {
 	default:
 		return codec
 	}
+}
+
+func (s *Server) handlePlayTranscode(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	var req playRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
+		return
+	}
+	srv := s.serverByID(req.ServerID)
+	if srv == nil {
+		writeError(w, http.StatusNotFound, "unknown server")
+		return
+	}
+	plexSrv := toPlexServer(srv)
+	item, err := s.plex.GetItem(plexSrv, req.RatingKey)
+	if err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+
+	session := newTranscodeSession()
+	streamURL := plex.TranscodeURL(plexSrv, req.RatingKey, session)
+
+	args := playback.StartArgs{
+		Server:           plexSrv,
+		RatingKey:        req.RatingKey,
+		ShowRatingKey:    item.GrandparentRatingKey,
+		IsEpisode:        item.Type == "episode",
+		PartID:           "",
+		Container:        "",
+		StreamURL:        streamURL,
+		Transcoding:      true,
+		TranscodeSession: session,
+		Duration:         msToDuration(item.Duration),
+		Title:            item.Title,
+		ShowTitle:        item.GrandparentTitle,
+		ThumbPath:        pickThumbPath(item),
+		Quality:          "transcoded 1080p",
+	}
+	if err := s.playback.Start(args); err != nil {
+		if err == playback.ErrAlreadyActive {
+			writeError(w, http.StatusConflict, "another session is already active")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, s.playback.SnapshotState())
+}
+
+// newTranscodeSession returns a fresh hex-encoded session identifier prefixed
+// with "lumen-" so the value is recognisable in Plex's transcode session list.
+// 8 bytes of crypto/rand → 16 hex chars → "lumen-XXXXXXXXXXXXXXXX" (22 chars).
+func newTranscodeSession() string {
+	var b [8]byte
+	_, _ = rand.Read(b[:])
+	return "lumen-" + hex.EncodeToString(b[:])
 }
