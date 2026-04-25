@@ -65,6 +65,21 @@ export default function ItemDetail() {
     }
   }
 
+  // ms → "H:MM:SS" (or "M:SS" when <1h). Plex's viewOffset/duration on Item
+  // are milliseconds; NowPlaying.tsx has a similar helper but operates on
+  // nanoseconds — keep these inline until Phase 3's Now Playing rebuild
+  // promotes them to util/time.ts.
+  const fmtMs = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    const h = Math.floor(m / 60);
+    const min = m % 60;
+    if (h > 0) return `${h}:${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+    return `${min}:${String(sec).padStart(2, "0")}`;
+  };
+  const remainingPct = (offset: number, dur: number) => Math.round(100 - (offset / dur) * 100);
+
   async function handleMarkUnwatched() {
     const it = item();
     if (!it) return;
@@ -95,6 +110,13 @@ export default function ItemDetail() {
               <button class="btn" onClick={handleMarkUnwatched}>Mark as Unwatched</button>
               <button class="btn" disabled title="Session 5">Add to Watchlist</button>
             </nav>
+            <Show when={(it() as Item).viewOffset && (it() as Item).viewOffset! > 0 && (it() as Item).duration && (it() as Item).duration! > 0}>
+              <div class="resume-subtitle">
+                Watched {fmtMs((it() as Item).viewOffset!)} of {fmtMs((it() as Item).duration!)}
+                {" · "}
+                {remainingPct((it() as Item).viewOffset!, (it() as Item).duration!)}% remaining
+              </div>
+            </Show>
             <section class="overview">
               <h3>Overview</h3>
               <p>{(it() as Item).summary ?? "No synopsis available."}</p>

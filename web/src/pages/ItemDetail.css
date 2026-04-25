@@ -51,6 +51,14 @@
   cursor: not-allowed;
 }
 
+.resume-subtitle {
+  margin-top: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .overview {
   margin-bottom: 28px;
 }
