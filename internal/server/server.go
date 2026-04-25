@@ -83,6 +83,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/play/transcode", s.handlePlayTranscode)
 	s.mux.HandleFunc("/api/play/stop", s.handlePlayStop)
 	s.mux.HandleFunc("/api/playback", s.handlePlaybackState)
+	s.mux.HandleFunc("/api/playback/stream", s.handlePlaybackStream)
 	s.mux.HandleFunc("/api/settings", s.handleSettings)
 	s.mux.HandleFunc("/api/cache/size", s.handleCacheSize)
 	s.mux.HandleFunc("/api/cache/clear", s.handleCacheClear)
