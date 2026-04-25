@@ -43,12 +43,16 @@ func runServe(args []string) {
 		fmt.Fprintf(os.Stderr, "(couldn't open browser automatically: %v)\n", err)
 	}
 
-	// Trap SIGINT / SIGTERM for graceful shutdown.
+	// Trap SIGINT / SIGTERM for graceful shutdown. Also listen on s.Quit() so
+	// the SPA's "Close Lumen" button can end the process.
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	select {
 	case <-sig:
 		fmt.Println("\nshutting down...")
+		_ = s.Shutdown()
+	case <-s.Quit():
+		fmt.Println("\nquit requested via Lumen UI, shutting down...")
 		_ = s.Shutdown()
 	case err := <-errCh:
 		fmt.Fprintf(os.Stderr, "server error: %v\n", err)

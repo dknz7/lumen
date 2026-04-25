@@ -22,6 +22,7 @@ type Server struct {
 	ln     net.Listener
 	hubs   *hubCache
 	images *imageCache
+	quit   chan struct{}
 }
 
 // New constructs the Server but does not bind yet. addr is in "host:port" form
@@ -41,9 +42,18 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 		},
 		hubs:   newHubCache(),
 		images: newImageCache(),
+		// Buffered so handleQuit's send never blocks even if main isn't yet
+		// selecting on the channel.
+		quit: make(chan struct{}, 1),
 	}
 	s.registerRoutes()
 	return s
+}
+
+// Quit returns a channel that fires when the SPA requests shutdown via
+// /api/quit (e.g. the Close Lumen confirmation in the top bar).
+func (s *Server) Quit() <-chan struct{} {
+	return s.quit
 }
 
 // registerRoutes wires every /api/* endpoint. Later tasks register more.
@@ -66,6 +76,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/servers/refresh", s.handleServersRefresh)
 	s.mux.HandleFunc("/api/settings/omdb", s.handleSettingsOMDB)
 	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
+	s.mux.HandleFunc("/api/quit", s.handleQuit)
 	s.mux.HandleFunc("/", s.handleSPA)
 }
 
