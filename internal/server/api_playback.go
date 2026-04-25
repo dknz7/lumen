@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"lumen/internal/playback"
 )
@@ -26,6 +27,13 @@ func (s *Server) handlePlaybackStream(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "streaming unsupported")
 		return
 	}
+
+	// Disable the per-connection write deadline (Server.WriteTimeout = 30s in
+	// server.go is the right default for short-lived JSON handlers; SSE streams
+	// live for hours). Without this, every 30s of idle time would trigger a
+	// write error mid-event and force the browser to reconnect.
+	rc := http.NewResponseController(w)
+	_ = rc.SetWriteDeadline(time.Time{})
 
 	// No keep-alive heartbeat. Lumen serves on 127.0.0.1 with no proxy
 	// intermediaries, so idle SSE connections won't be culled. If we ever
