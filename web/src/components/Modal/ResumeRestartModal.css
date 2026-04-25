@@ -1,0 +1,52 @@
+.rrm-title {
+  margin: 0;
+  font-family: var(--font-headline);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+
+.rrm-body {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.rrm-progress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rrm-progress-fill {
+  height: 100%;
+  background: var(--led-teal);
+  transition: width 0.1s linear;
+}
+
+.rrm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.rrm-cancel,
+.rrm-restart,
+.rrm-resume {
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: 1px solid var(--border-soft);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rrm-cancel { background: transparent; color: var(--text); }
+.rrm-restart { background: transparent; color: var(--text); }
+.rrm-resume { background: var(--bg-inverse); color: var(--text-inverse); border-color: var(--bg-inverse); }
+.rrm-cancel:hover, .rrm-restart:hover { border-color: var(--stroke); }
+.rrm-resume:hover { background: var(--text); }
