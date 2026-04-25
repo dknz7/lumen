@@ -1161,8 +1161,7 @@ type allLeavesResponse struct {
 // in show showRatingKey, ordered by (season, episode-index). Returns nil
 // (without error) when currentRatingKey is the last episode in the show.
 func (c *Client) NextEpisode(s *Server, showRatingKey, currentRatingKey string) (*Item, error) {
-	u := fmt.Sprintf("%s/library/metadata/%s/allLeaves?X-Plex-Token=%s",
-		s.BaseURL, showRatingKey, s.AccessToken)
+	u := fmt.Sprintf("%s/library/metadata/%s/allLeaves", s.BaseURL, showRatingKey)
 	req, err := c.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
