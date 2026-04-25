@@ -20,6 +20,15 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 
 	startedAt := time.Now()
 	scrobbled := false
+	// Note: args.Duration is sourced from Plex item metadata in the /api/play
+	// handler (Task 15) BEFORE Start is called, so it's always non-zero in
+	// practice — both for direct play and for transcoded sessions. The
+	// durationConfirmed=false path below exists as a defensive backstop in
+	// case Plex returns metadata without a duration (rare, but possible for
+	// in-progress live recordings). The 10 s direct-play timeout is gated by
+	// !c.Transcoding because transcode bootstrap can legitimately take longer
+	// than that window — and again, the durationConfirmed=true entry case
+	// covers the common transcode path.
 	durationConfirmed := args.Duration > 0
 	endedFired := false
 
@@ -88,8 +97,9 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 			if !scrobbled {
 				if err := m.plex.Scrobble(c.Server, c.RatingKey); err != nil {
 					log.Printf("playback: Scrobble: %v", err)
+				} else {
+					scrobbled = true
 				}
-				scrobbled = true
 			}
 			if !endedFired {
 				m.fireEnded(c)

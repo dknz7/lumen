@@ -117,13 +117,19 @@ func (m *Manager) Start(args StartArgs) (err error) {
 
 // Stop tears down the active session. Idempotent — capture-and-clear under
 // one lock so concurrent Stop() calls don't double-fire teardown side effects
-// (notably the final ReportTimeline POST).
+// (notably the final ReportTimeline POST). Also captures c.Duration in the
+// same critical section so the poller's duration-refinement write doesn't
+// race the final timeline report.
 func (m *Manager) Stop() {
 	m.mu.Lock()
 	c := m.active
 	cancel := m.cancel
 	m.active = nil
 	m.cancel = nil
+	var duration time.Duration
+	if c != nil {
+		duration = c.Duration
+	}
 	m.mu.Unlock()
 	if c == nil {
 		return
@@ -140,7 +146,7 @@ func (m *Manager) Stop() {
 		RatingKey: c.RatingKey,
 		State:     "stopped",
 		Position:  pos,
-		Duration:  c.Duration,
+		Duration:  duration,
 	})
 	m.broadcast(Event{Type: EventStopped})
 }

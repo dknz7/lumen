@@ -1444,13 +1444,19 @@ func (m *Manager) Start(args StartArgs) (err error) {
 
 // Stop tears down the active session. Idempotent — capture-and-clear under
 // one lock so concurrent Stop() calls don't double-fire teardown side effects
-// (notably the final ReportTimeline POST).
+// (notably the final ReportTimeline POST). Also captures c.Duration in the
+// same critical section so the poller's duration-refinement write doesn't
+// race the final timeline report.
 func (m *Manager) Stop() {
 	m.mu.Lock()
 	c := m.active
 	cancel := m.cancel
 	m.active = nil
 	m.cancel = nil
+	var duration time.Duration
+	if c != nil {
+		duration = c.Duration
+	}
 	m.mu.Unlock()
 	if c == nil {
 		return
@@ -1467,7 +1473,7 @@ func (m *Manager) Stop() {
 		RatingKey: c.RatingKey,
 		State:     "stopped",
 		Position:  pos,
-		Duration:  c.Duration,
+		Duration:  duration,
 	})
 	m.broadcast(Event{Type: EventStopped})
 }
@@ -1602,9 +1608,6 @@ import (
 	"context"
 	"log"
 	"time"
-
-	"lumen/internal/plex"
-	"lumen/internal/potplayer"
 )
 
 const (
@@ -1621,6 +1624,15 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 
 	startedAt := time.Now()
 	scrobbled := false
+	// Note: args.Duration is sourced from Plex item metadata in the /api/play
+	// handler (Task 15) BEFORE Start is called, so it's always non-zero in
+	// practice — both for direct play and for transcoded sessions. The
+	// durationConfirmed=false path below exists as a defensive backstop in
+	// case Plex returns metadata without a duration (rare, but possible for
+	// in-progress live recordings). The 10 s direct-play timeout is gated by
+	// !c.Transcoding because transcode bootstrap can legitimately take longer
+	// than that window — and again, the durationConfirmed=true entry case
+	// covers the common transcode path.
 	durationConfirmed := args.Duration > 0
 	endedFired := false
 
@@ -1641,7 +1653,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 		// Liveness check first — fast and cheap.
 		if !c.PotPlayer.IsAlive() {
 			// Final position is whatever we last saw.
-			m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot(args.Title, args.ShowTitle, args.ThumbPath, args.Quality)})
+			m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot()})
 			m.Stop()
 			return
 		}
@@ -1675,7 +1687,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 					Payload: TranscodePromptInfo{
 						RatingKey: c.RatingKey,
 						ServerID:  c.Server.MachineIdentifier,
-						Title:     args.Title,
+						Title:     c.Title,
 						Reason:    "Pot Player did not report a duration within 10 s",
 					},
 				})
@@ -1689,24 +1701,25 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 			if !scrobbled {
 				if err := m.plex.Scrobble(c.Server, c.RatingKey); err != nil {
 					log.Printf("playback: Scrobble: %v", err)
+				} else {
+					scrobbled = true
 				}
-				scrobbled = true
 			}
 			if !endedFired {
-				m.fireEnded(c, args)
+				m.fireEnded(c)
 				endedFired = true
 			}
 		}
 
 		// Always rebroadcast latest state.
-		m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot(args.Title, args.ShowTitle, args.ThumbPath, args.Quality)})
+		m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot()})
 	}
 }
 
 // fireEnded emits the appropriate "we crossed the watched threshold" event.
 // For episodes, looks up the next-up episode and emits next-episode-prompt;
 // for movies, emits a generic ended event.
-func (m *Manager) fireEnded(c *Context, args StartArgs) {
+func (m *Manager) fireEnded(c *Context) {
 	if !c.IsEpisode || c.ShowRatingKey == "" {
 		m.broadcast(Event{Type: EventEnded})
 		return
@@ -1736,10 +1749,6 @@ func (m *Manager) fireEnded(c *Context, args StartArgs) {
 	}
 	m.broadcast(Event{Type: EventNextEpisode, Payload: info})
 }
-
-// Re-export for the unused-import linter while the file is light.
-var _ = potplayer.PlayStatePlaying
-var _ = plex.TimelineReport{}
 ```
 
 - [ ] **Step 2: Remove the `runPoller` stub from `manager.go`** (if you added it in Task 10's compile shim).
