@@ -34,6 +34,6 @@ const potPlayerWindowClass = "PotPlayer64"
 // launch while media loads. Wrap reads with retries up to coldStartRetry,
 // sleeping coldStartGap between attempts.
 const (
-	coldStartRetry = 6
+	coldStartRetry = 7
 	coldStartGap   = 500 * time.Millisecond
 )
