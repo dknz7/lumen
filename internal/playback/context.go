@@ -25,6 +25,13 @@ type Context struct {
 	Transcoding      bool
 	TranscodeSession string
 
+	// Display metadata cached at Start time so snapshots stay populated
+	// for the lifetime of the session (immutable per session).
+	Title     string
+	ShowTitle string
+	ThumbPath string
+	Quality   string
+
 	PotPlayer *potplayer.Client
 }
 
@@ -77,8 +84,8 @@ type TranscodePromptInfo struct {
 	Reason    string `json:"reason"`
 }
 
-// stateMu protects mutable fields on the live Context (position, etc.) so
-// the poller and SSE encoder don't race.
+// liveState protects mutable fields on the active session (position, state)
+// so the poller and SSE encoder don't race.
 type liveState struct {
 	mu       sync.Mutex
 	position time.Duration

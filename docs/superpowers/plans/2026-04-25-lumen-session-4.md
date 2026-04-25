@@ -1254,6 +1254,13 @@ type Context struct {
 	Transcoding      bool
 	TranscodeSession string
 
+	// Display metadata cached at Start time so snapshots stay populated
+	// for the lifetime of the session (immutable per session).
+	Title     string
+	ShowTitle string
+	ThumbPath string
+	Quality   string
+
 	PotPlayer *potplayer.Client
 }
 
@@ -1306,8 +1313,8 @@ type TranscodePromptInfo struct {
 	Reason    string `json:"reason"`
 }
 
-// stateMu protects mutable fields on the live Context (position, etc.) so
-// the poller and SSE encoder don't race.
+// liveState protects mutable fields on the active session (position, state)
+// so the poller and SSE encoder don't race.
 type liveState struct {
 	mu       sync.Mutex
 	position time.Duration
@@ -1374,7 +1381,7 @@ type StartArgs struct {
 
 // Start launches Pot Player, builds the Context, kicks the three goroutines.
 // Returns ErrAlreadyActive if another session is live.
-func (m *Manager) Start(args StartArgs) error {
+func (m *Manager) Start(args StartArgs) (err error) {
 	m.mu.Lock()
 	if m.active != nil {
 		m.mu.Unlock()
@@ -1384,7 +1391,7 @@ func (m *Manager) Start(args StartArgs) error {
 	exe := m.potPath()
 	if exe == "" {
 		m.mu.Unlock()
-		return errors.New("pot player path not resolved")
+		return ErrPotPlayerPathUnresolved
 	}
 
 	pp, err := potplayer.Launch(exe, args.StreamURL)
@@ -1392,6 +1399,11 @@ func (m *Manager) Start(args StartArgs) error {
 		m.mu.Unlock()
 		return err
 	}
+	defer func() {
+		if err != nil {
+			_ = pp.Stop()
+		}
+	}()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	c := &Context{
@@ -1405,6 +1417,10 @@ func (m *Manager) Start(args StartArgs) error {
 		Duration:         args.Duration,
 		Transcoding:      args.Transcoding,
 		TranscodeSession: args.TranscodeSession,
+		Title:            args.Title,
+		ShowTitle:        args.ShowTitle,
+		ThumbPath:        args.ThumbPath,
+		Quality:          args.Quality,
 		PotPlayer:        pp,
 	}
 	m.active = c
@@ -1414,7 +1430,7 @@ func (m *Manager) Start(args StartArgs) error {
 	m.mu.Unlock()
 
 	// Initial state broadcast.
-	m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot(args.Title, args.ShowTitle, args.ThumbPath, args.Quality)})
+	m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot()})
 
 	// Kick goroutines (each is defined in its own file).
 	go m.runPoller(ctx, args)
@@ -1426,11 +1442,15 @@ func (m *Manager) Start(args StartArgs) error {
 	return nil
 }
 
-// Stop tears down the active session. Idempotent.
+// Stop tears down the active session. Idempotent — capture-and-clear under
+// one lock so concurrent Stop() calls don't double-fire teardown side effects
+// (notably the final ReportTimeline POST).
 func (m *Manager) Stop() {
 	m.mu.Lock()
 	c := m.active
 	cancel := m.cancel
+	m.active = nil
+	m.cancel = nil
 	m.mu.Unlock()
 	if c == nil {
 		return
@@ -1449,16 +1469,13 @@ func (m *Manager) Stop() {
 		Position:  pos,
 		Duration:  c.Duration,
 	})
-
-	m.mu.Lock()
-	m.active = nil
-	m.cancel = nil
-	m.mu.Unlock()
 	m.broadcast(Event{Type: EventStopped})
 }
 
-// Subscribe returns a channel of events. Caller MUST drain the channel and
-// call the returned cleanup func when done.
+// Subscribe returns a channel of events. Caller MUST call the returned cleanup
+// func — even on error or early return — or the subscription leaks for the
+// process lifetime. The channel is buffered (16 slots) and broadcast drops
+// events on full channels rather than blocking.
 func (m *Manager) Subscribe() (<-chan Event, func()) {
 	ch := make(chan Event, 16)
 	m.mu.Lock()
@@ -1468,7 +1485,6 @@ func (m *Manager) Subscribe() (<-chan Event, func()) {
 		m.mu.Lock()
 		delete(m.subs, ch)
 		m.mu.Unlock()
-		close(ch)
 	}
 	return ch, cleanup
 }
@@ -1481,7 +1497,7 @@ func (m *Manager) SnapshotState() State {
 	if m.active == nil {
 		return State{Active: false}
 	}
-	return m.snapshotLocked("", "", "", "")
+	return m.snapshotLocked()
 }
 
 // broadcast fans an event out to all subscribers. Drops events on full
@@ -1509,14 +1525,14 @@ func (m *Manager) currentPosition() time.Duration {
 }
 
 // snapshot builds a fresh State; call without holding m.mu (it locks itself).
-func (m *Manager) snapshot(title, showTitle, thumbPath, quality string) *State {
+func (m *Manager) snapshot() *State {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	st := m.snapshotLocked(title, showTitle, thumbPath, quality)
+	st := m.snapshotLocked()
 	return &st
 }
 
-func (m *Manager) snapshotLocked(title, showTitle, thumbPath, quality string) State {
+func (m *Manager) snapshotLocked() State {
 	if m.active == nil {
 		return State{Active: false}
 	}
@@ -1528,19 +1544,23 @@ func (m *Manager) snapshotLocked(title, showTitle, thumbPath, quality string) St
 		Active:      true,
 		RatingKey:   m.active.RatingKey,
 		ServerID:    m.active.Server.MachineIdentifier,
-		Title:       title,
-		ShowTitle:   showTitle,
+		Title:       m.active.Title,
+		ShowTitle:   m.active.ShowTitle,
 		Position:    pos,
 		Duration:    m.active.Duration,
 		State:       stateStr,
 		Transcoding: m.active.Transcoding,
-		ThumbPath:   thumbPath,
-		Quality:     quality,
+		ThumbPath:   m.active.ThumbPath,
+		Quality:     m.active.Quality,
 	}
 }
 
 // ErrAlreadyActive is returned by Start when a session is already running.
 var ErrAlreadyActive = errors.New("playback session already active")
+
+// ErrPotPlayerPathUnresolved is returned by Start when the Pot Player path
+// resolver returns an empty string — typically a Settings configuration gap.
+var ErrPotPlayerPathUnresolved = errors.New("pot player path not resolved")
 ```
 
 - [ ] **Step 3: Verify compilation**
