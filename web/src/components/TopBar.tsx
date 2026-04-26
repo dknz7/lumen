@@ -29,7 +29,7 @@ export default function TopBar() {
 
   function onSearch(e: SubmitEvent) {
     e.preventDefault();
-    // Session 5 wires real search; Session 2 just logs.
+    // Stub — search lands in a later session.
     console.log("search:", query());
   }
 
@@ -74,7 +74,7 @@ export default function TopBar() {
         </form>
         <div class="tb-divider" />
         <div class="tb-group tb-kiosk">
-          <button class="icon-btn" title="Kiosk mode (Session 5)" aria-label="Kiosk mode">
+          <button class="icon-btn" title="Kiosk mode (later session)" aria-label="Kiosk mode">
             <Maximize2 size={16} />
           </button>
         </div>

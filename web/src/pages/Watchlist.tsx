@@ -76,10 +76,10 @@ export default function Watchlist() {
 }
 
 function WatchlistCard(props: { item: WatchlistItem }) {
-  // plex.tv ratingKeys aren't routable to a server-local item directly —
-  // the card link goes to /watchlist/<ratingKey>; that route lands in
-  // Task 15 alongside the Add/Remove from Item Detail wiring. Click-through
-  // to plex.tv item detail will be wired then.
+  // plex.tv ratingKeys aren't routable to a server-local item — the
+  // /watchlist/<ratingKey> link is currently a 404 stub. plex.tv-source
+  // Item Detail variant is post-1.0 polish (see session-5-findings.md
+  // "Known issues carried forward" #2).
   return (
     <li class="watchlist-card">
       <A href={`/watchlist/${encodeURIComponent(props.item.ratingKey)}`} class="watchlist-card-link">

@@ -33,10 +33,10 @@ type ShelfDef =
   | { kind: "stub"; id: string; title: string; reason: string };
 
 const STARGAZE_SHELVES: ShelfDef[] = [
-  { kind: "stub", id: "stargaze-trending-movies", title: "Trending Movies", reason: "Plex Collections — Session 5" },
+  { kind: "stub", id: "stargaze-trending-movies", title: "Trending Movies", reason: "Plex Collections — deferred to a later session" },
   { kind: "server-recent", id: "stargaze-recent-movies", title: "Recently Released Movies", serverName: "Stargaze", libraryName: "Movies" },
   { kind: "server-recent", id: "stargaze-recent-movies-4k", title: "Recently Released Movies (4K)", serverName: "Stargaze", libraryName: "Movies - 4K" },
-  { kind: "stub", id: "stargaze-trending-tv", title: "Trending TV Shows", reason: "Plex Collections — Session 5" },
+  { kind: "stub", id: "stargaze-trending-tv", title: "Trending TV Shows", reason: "Plex Collections — deferred to a later session" },
   { kind: "server-recent", id: "stargaze-recent-episodes", title: "Recently Released Episodes", serverName: "Stargaze", libraryName: "TV Shows" },
   { kind: "server-recent", id: "stargaze-recent-episodes-4k", title: "Recently Released Episodes (4K)", serverName: "Stargaze", libraryName: "TV Shows - 4K" },
   { kind: "server-recent", id: "stargaze-recent-anime", title: "Recently Released Anime Episodes", serverName: "Stargaze", libraryName: "Anime" },

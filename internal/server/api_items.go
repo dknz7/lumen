@@ -30,7 +30,5 @@ func (s *Server) handleItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	// TODO Session 5: enrich with OMDB rating if item has an imdb:// GUID and
-	// cfg.OMDBKey is set.
 	writeJSON(w, item)
 }

@@ -22,7 +22,7 @@ export default function KioskShortcuts() {
   return (
     <Section
       title="Kiosk & Shortcuts"
-      description="Launch behaviour. Kiosk mode actually starts Lumen in Session 5; these toggles save the preference."
+      description="Launch behaviour. Kiosk mode launching lands in a later session; these toggles save the preference."
     >
       <Show when={s()} fallback={<p>Loading…</p>}>
         {(settings) => (

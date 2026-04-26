@@ -141,7 +141,7 @@ export default function AccountsServers() {
           <input
             id="omdbKey"
             type="password"
-            placeholder="8-char hex key (Session 5 enables IMDB ratings)"
+            placeholder="8-char hex key (powers IMDB ratings on Item Detail)"
             value={omdbKey()}
             onInput={(e) => setOmdbKey(e.currentTarget.value)}
             onBlur={validateAndSaveOMDB}
