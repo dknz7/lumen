@@ -265,10 +265,26 @@
 .people-grid {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 0 8px;             /* extra bottom padding so the scrollbar doesn't crowd the next section */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-flow: column;       /* fill columns first → 2 rows max grow horizontally */
+  grid-template-rows: repeat(2, auto);
+  grid-auto-columns: 140px;     /* each cell fixed width so cards don't squish */
   gap: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;        /* Firefox */
+  scroll-snap-type: x proximity;
+}
+.people-grid > .person-card {
+  scroll-snap-align: start;
+}
+.people-grid::-webkit-scrollbar {
+  height: 8px;
+}
+.people-grid::-webkit-scrollbar-thumb {
+  background: var(--border-soft);
+  border-radius: 4px;
 }
 .person-card {
   display: flex;
