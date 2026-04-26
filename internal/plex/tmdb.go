@@ -70,11 +70,13 @@ func (c *TMDBClient) LookupTrailerByIMDBID(imdbID, mediaType string) (string, er
 	}
 
 	// Step 1 — IMDB → TMDB id via /3/find.
-	findURL := fmt.Sprintf("%s/3/find/%s?external_source=imdb_id&api_key=%s",
-		c.base, url.PathEscape(imdbID), url.QueryEscape(c.apiKey))
+	findQuery := url.Values{}
+	findQuery.Set("external_source", "imdb_id")
+	findQuery.Set("api_key", c.apiKey)
+	findURL := fmt.Sprintf("%s/3/find/%s?%s", c.base, url.PathEscape(imdbID), findQuery.Encode())
 	resp, err := c.http.Get(findURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("tmdb find: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
@@ -82,7 +84,7 @@ func (c *TMDBClient) LookupTrailerByIMDBID(imdbID, mediaType string) (string, er
 	}
 	var find findResponse
 	if err := json.NewDecoder(resp.Body).Decode(&find); err != nil {
-		return "", err
+		return "", fmt.Errorf("tmdb find decode: %w", err)
 	}
 
 	var tmdbID int
@@ -102,11 +104,12 @@ func (c *TMDBClient) LookupTrailerByIMDBID(imdbID, mediaType string) (string, er
 	}
 
 	// Step 2 — TMDB id → videos.
-	videosURL := fmt.Sprintf("%s%s%d/videos?api_key=%s",
-		c.base, videosPath, tmdbID, url.QueryEscape(c.apiKey))
+	videosQuery := url.Values{}
+	videosQuery.Set("api_key", c.apiKey)
+	videosURL := fmt.Sprintf("%s%s%d/videos?%s", c.base, videosPath, tmdbID, videosQuery.Encode())
 	resp2, err := c.http.Get(videosURL)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("tmdb videos: %w", err)
 	}
 	defer resp2.Body.Close()
 	if resp2.StatusCode != http.StatusOK {
@@ -114,7 +117,7 @@ func (c *TMDBClient) LookupTrailerByIMDBID(imdbID, mediaType string) (string, er
 	}
 	var vids videosResponse
 	if err := json.NewDecoder(resp2.Body).Decode(&vids); err != nil {
-		return "", err
+		return "", fmt.Errorf("tmdb videos decode: %w", err)
 	}
 	return pickBestTrailer(vids.Results), nil
 }
