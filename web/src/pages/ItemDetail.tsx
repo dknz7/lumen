@@ -291,7 +291,7 @@ function Hero(props: { item: Item; serverID: string }) {
       <Show when={backdropPath()}>
         <div
           class="hero-backdrop"
-          style={{ "background-image": `url(${api.image(props.serverID, backdropPath()!)})` }}
+          style={{ "background-image": `url(${api.image(props.serverID, backdropPath()!, "hero")})` }}
         />
         <div class="hero-fade" />
       </Show>
@@ -377,7 +377,7 @@ function PersonCard(props: { person: import("../api/types").Person; serverID: st
   const fallbackThumb = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjY2IiBzdHJva2Utd2lkdGg9IjEuNSI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI0Ii8+PHBhdGggZD0iTTQgMjBjMC00IDQtNyA4LTdzOCAzIDggNyIvPjwvc3ZnPg==";
   const src = () =>
     props.person.thumb
-      ? `/api/image-proxy?server=${encodeURIComponent(props.serverID)}&path=${encodeURIComponent(props.person.thumb!)}`
+      ? api.image(props.serverID, props.person.thumb!, "person")
       : fallbackThumb;
   return (
     <li class="person-card">

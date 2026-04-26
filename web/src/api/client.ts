@@ -1,4 +1,5 @@
 import type { Server, Library, Item, HubItem, Match } from "./types";
+import { imageDims, type ImageDimPreset } from "../util/imageDims";
 
 async function getJSON<T>(url: string): Promise<T> {
   const res = await fetch(url);
@@ -128,8 +129,12 @@ export const api = {
   },
 
   // Session 2 just needs the path-building helper — actual images are <img src=...>.
-  image: (serverID: string, path: string) =>
-    `/api/image-proxy?server=${encodeURIComponent(serverID)}&path=${encodeURIComponent(path)}`,
+  image: (serverID: string, path: string, preset?: ImageDimPreset) => {
+    const base = `/api/image-proxy?server=${encodeURIComponent(serverID)}&path=${encodeURIComponent(path)}`;
+    if (!preset) return base;
+    const { w, h } = imageDims[preset];
+    return `${base}&w=${w}&h=${h}`;
+  },
 
   // Asks the lumen.exe process to gracefully shut down. Used by the "Close
   // Lumen" confirmation in the top bar. The server flushes a 200 then exits
