@@ -23,10 +23,17 @@ type watchlistWire struct {
 		Metadata []struct {
 			RatingKey string `json:"ratingKey"`
 			GUID      string `json:"guid"`
-			Title     string `json:"title"`
-			Type      string `json:"type"`
-			Year      int    `json:"year"`
-			Thumb     string `json:"thumb"`
+			// GuidArray absorbs Plex's capital-"Guid" array of external IDs
+			// (imdb/tmdb/tvdb) so Go's case-insensitive json matching doesn't
+			// spill it into the GUID string field and fail to unmarshal.
+			// Session 3 critical gotcha #6.
+			GuidArray []struct {
+				ID string `json:"id"`
+			} `json:"Guid"`
+			Title string `json:"title"`
+			Type  string `json:"type"`
+			Year  int    `json:"year"`
+			Thumb string `json:"thumb"`
 		} `json:"Metadata"`
 	} `json:"MediaContainer"`
 }
