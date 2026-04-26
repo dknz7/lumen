@@ -17,16 +17,17 @@ import (
 // Server bundles the http.Server, mux, Plex client, and loaded config into one
 // lifecycle-managed unit.
 type Server struct {
-	cfg      *config.Config
-	plex     *plex.Client
-	mux      *http.ServeMux
-	http     *http.Server
-	ln       net.Listener
-	hubs     *hubCache
-	images   *imageCache
-	auth     *authState
-	quit     chan struct{}
-	playback *playback.Manager
+	cfg       *config.Config
+	plex      *plex.Client
+	mux       *http.ServeMux
+	http      *http.Server
+	ln        net.Listener
+	hubs      *hubCache
+	watchlist *watchlistCache
+	images    *imageCache
+	auth      *authState
+	quit      chan struct{}
+	playback  *playback.Manager
 }
 
 // New constructs the Server but does not bind yet. addr is in "host:port" form
@@ -44,9 +45,10 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 			WriteTimeout: 30 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
-		hubs:   newHubCache(),
-		images: newImageCache(),
-		auth:   newAuthState(),
+		hubs:      newHubCache(),
+		watchlist: newWatchlistCache(),
+		images:    newImageCache(),
+		auth:      newAuthState(),
 		// Buffered so handleQuit's send never blocks even if main isn't yet
 		// selecting on the channel.
 		quit: make(chan struct{}, 1),
@@ -79,6 +81,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/servers/", s.handleServerScoped)
 	s.mux.HandleFunc("/api/items/", s.handleItem)
 	s.mux.HandleFunc("/api/hubs/", s.handleHub)
+	s.mux.HandleFunc("/api/watchlist", s.handleWatchlist)
 	s.mux.HandleFunc("/api/availability", s.handleAvailability)
 	s.mux.HandleFunc("/api/image-proxy", s.handleImageProxy)
 	s.mux.HandleFunc("/api/play", s.handlePlay)
