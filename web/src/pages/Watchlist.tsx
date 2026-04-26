@@ -6,6 +6,10 @@ import Skeleton from "../components/Skeleton";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Watchlist.css";
 
+function isAbsoluteURL(s: string): boolean {
+  return /^https?:\/\//i.test(s);
+}
+
 type TypeFilter = "all" | "movie" | "show";
 type SortKey = "addedAt" | "title" | "year";
 
@@ -57,7 +61,7 @@ export default function Watchlist() {
           </Show>
         </div>
       </header>
-      <Show when={items()} fallback={<Skeleton kind="card" count={12} />}>
+      <Show when={items()} fallback={<div class="watchlist-grid"><Skeleton kind="card" count={12} /></div>}>
         <ul class="watchlist-grid">
           <For each={visible()}>
             {(it) => <WatchlistCard item={it} />}
@@ -80,8 +84,8 @@ function WatchlistCard(props: { item: WatchlistItem }) {
     <li class="watchlist-card">
       <A href={`/watchlist/${encodeURIComponent(props.item.ratingKey)}`} class="watchlist-card-link">
         <div class="watchlist-poster">
-          <Show when={props.item.thumb} fallback={<div class="watchlist-poster-empty" />}>
-            <img src={`/api/image-proxy?path=${encodeURIComponent(props.item.thumb!)}&server=`} alt={props.item.title}
+          <Show when={props.item.thumb && isAbsoluteURL(props.item.thumb)} fallback={<div class="watchlist-poster-empty" />}>
+            <img src={props.item.thumb!} alt={props.item.title} referrerpolicy="no-referrer"
                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
           </Show>
         </div>
