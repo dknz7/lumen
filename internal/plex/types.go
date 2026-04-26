@@ -78,8 +78,16 @@ type Media struct {
 }
 
 // Part is a single file backing a Media. Most items have exactly one Part.
+//
+// ID is intentionally string: server-local Plex returns numeric ids
+// (e.g. "12345") but plex.tv Discover hub items return UUID-shaped
+// composite ids (e.g. "691648f137d5bdeaa81f55b1-6918087fc7abb5aa29a67b10").
+// Typing as string accepts both shapes. Discovered Session 5 post-smoke
+// when home/trending-trailers responses started failing to unmarshal
+// after we added includeMeta=1 (which surfaces full Media→Part chains
+// on hub items).
 type Part struct {
-	ID        int    `json:"id"`
+	ID        string `json:"id"`
 	Key       string `json:"key,omitempty"` // e.g. "/library/parts/123/file.mkv"
 	Size      int64  `json:"size,omitempty"`
 	Duration  int64  `json:"duration,omitempty"`

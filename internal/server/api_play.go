@@ -47,14 +47,14 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 	part := item.Media[0].Part[0]
 	ext := containerToExt(part.Container)
 
-	streamURL := plex.DirectPlayURL(plexSrv, fmt.Sprintf("%d", part.ID), ext)
+	streamURL := plex.DirectPlayURL(plexSrv, part.ID, ext)
 
 	args := playback.StartArgs{
 		Server:        plexSrv,
 		RatingKey:     req.RatingKey,
 		ShowRatingKey: item.GrandparentRatingKey,
 		IsEpisode:     item.Type == "episode",
-		PartID:        fmt.Sprintf("%d", part.ID),
+		PartID:        part.ID,
 		Container:     part.Container,
 		StreamURL:     streamURL,
 		Transcoding:   false,
