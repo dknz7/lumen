@@ -131,10 +131,6 @@ export default function ItemDetail() {
               <button class="btn-primary" onClick={handlePlay}>
                 ▶ {(it() as Item).viewOffset && (it() as Item).viewOffset! > 0 ? "Resume" : "Play"}
               </button>
-              <select class="btn-subtitle" disabled>
-                <option>Subtitle: Default</option>
-                <option>Off</option>
-              </select>
               <button class="btn" disabled title="Session 5">Play Trailer</button>
               <button class="btn" onClick={handleMarkWatched}>
                 {((it() as Item).viewCount ?? 0) > 0 ? "✓ Watched" : "Mark as Watched"}
