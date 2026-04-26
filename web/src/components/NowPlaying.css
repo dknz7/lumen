@@ -36,7 +36,9 @@
 }
 
 .np-pill {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 3px 10px;
   background: rgba(255, 255, 255, 0.06);
   color: var(--text-muted);
@@ -46,18 +48,24 @@
   white-space: nowrap;
 }
 
-.np-pill-strong {
-  background: rgba(255, 255, 255, 0.10);
+.np-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--led-teal);
+  /* Subtle glow to match the settings-pill LED affordance */
+  box-shadow: 0 0 4px var(--led-teal), 0 0 2px rgba(45, 212, 191, 0.6);
+  flex-shrink: 0;
+}
+
+.np-pill-title {
+  font-weight: 700;
   color: var(--text);
-  font-weight: 500;
 }
 
-.np-pill-mono {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-transform: uppercase;
-}
-
+/* Status badge — distinct from metadata pills. Amber LED + amber text + mono.
+   It's an alert, not data, so we keep the warn theme intact. */
 .np-pill-warn {
   background: rgba(220, 160, 40, 0.15);
   color: #e0b050;
@@ -66,6 +74,11 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.np-pill-warn::before {
+  background: #e0b050;
+  box-shadow: 0 0 4px #e0b050, 0 0 2px rgba(224, 176, 80, 0.6);
 }
 
 .np-progress {

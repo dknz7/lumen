@@ -34,12 +34,12 @@ export default function NowPlaying() {
         <div class="np-meta">
           <div class="np-pills">
             <Show when={s().showTitle}>
-              <span class="np-pill np-pill-strong">{s().showTitle}</span>
+              <span class="np-pill np-pill-title">{s().showTitle}</span>
             </Show>
             <Show when={s().seasonIndex && s().episodeIndex}>
-              <span class="np-pill np-pill-mono">S{s().seasonIndex} · E{s().episodeIndex}</span>
+              <span class="np-pill">S{s().seasonIndex} · E{s().episodeIndex}</span>
             </Show>
-            <span class="np-pill np-pill-strong">{s().title}</span>
+            <span class="np-pill">{s().title}</span>
             <Show when={s().originallyAvailableAt}>
               <span class="np-pill">Released {s().originallyAvailableAt}</span>
             </Show>
@@ -50,7 +50,7 @@ export default function NowPlaying() {
               <span class="np-pill np-pill-warn">TRANSCODE</span>
             </Show>
             <Show when={s().quality}>
-              <span class="np-pill np-pill-mono">{s().quality}</span>
+              <span class="np-pill">{s().quality}</span>
             </Show>
           </div>
           <div class="np-progress">
