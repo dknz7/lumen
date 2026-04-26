@@ -54,6 +54,7 @@ export default function Library() {
   const currentLibrary = () =>
     ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
   const isTVLibrary = () => currentLibrary()?.type === "show";
+  const libName = () => currentLibrary()?.title ?? "";
 
   // Reset page on library/server change.
   createEffect(() => {
@@ -113,6 +114,7 @@ export default function Library() {
   return (
     <div class="library-page">
       <header class="library-header">
+        <h1 class="library-name">{libName()}</h1>
         <Show when={isTVLibrary()}>
           <label>
             View:

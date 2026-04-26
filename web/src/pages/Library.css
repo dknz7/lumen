@@ -47,6 +47,15 @@
   z-index: 5;
 }
 
+.library-name {
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text);
+  margin: 0;
+}
+
 .library-header label {
   display: flex;
   align-items: center;
