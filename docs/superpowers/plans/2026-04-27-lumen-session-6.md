@@ -475,6 +475,81 @@ WebKit; Firefox uses scrollbar-width: thin."
 
 ---
 
+## Phase 2.5 — IMDB pill inherits from parent show on episode/season pages
+
+Episodes and seasons don't have their own IMDB IDs — OMDB tracks shows, not individual episodes. Currently the IMDB pill on an episode detail page shows N/A because `item.imdbId` is empty for episodes. **Fix: when viewing an episode or season, fall back to the parent show's IMDB ID** (already accessible via `grandparentRatingKey` for episodes; via `parentRatingKey` for seasons or just use the existing show fetch path).
+
+### Task 4.5: IMDB pill parent-show fallback
+
+**Files:**
+- Modify: `web/src/pages/ItemDetail.tsx`
+
+- [ ] **Step 1: Resolve effective IMDB id at the ItemDetail level.**
+
+In `web/src/pages/ItemDetail.tsx`, near the existing `[item, { refetch: refetchItem }]` resource, add a parent-show resource that fires only when the current item is an episode or season:
+
+```tsx
+// When viewing an episode or season, the IMDB pill should reflect the
+// parent SHOW's rating (OMDB tracks shows, not individual episodes).
+// Resource fires only when applicable; movies and shows use their own
+// imdbId without this round-trip.
+const [parentShow] = createResource(
+  () => {
+    const it = item();
+    if (!it) return null;
+    if (it.type !== "episode" && it.type !== "season") return null;
+    const showRk = it.grandparentRatingKey;
+    if (!showRk) return null;
+    return { server: params.serverID!, rk: showRk };
+  },
+  ({ server, rk }) => api.item(server, rk)
+);
+
+// Effective IMDB id used by the pill: parent show for episodes/seasons,
+// own id for everything else.
+const effectiveImdbId = createMemo(() => {
+  const it = item();
+  if (!it) return undefined;
+  if (it.type === "episode" || it.type === "season") {
+    return parentShow()?.imdbId ?? undefined;
+  }
+  return it.imdbId;
+});
+```
+
+- [ ] **Step 2: Pass `effectiveImdbId()` to the IMDBPill in Hero.**
+
+The current Hero component renders `<IMDBPill imdbId={props.item.imdbId} />`. Add an `effectiveImdbId` prop to `Hero` and pass it through:
+
+```tsx
+// In Hero's props:
+function Hero(props: { item: Item; serverID: string; effectiveImdbId?: string }) {
+
+// In the meta-pills block:
+<IMDBPill imdbId={props.effectiveImdbId} />
+
+// In the ItemDetail render where Hero is mounted:
+<Hero item={it() as Item} serverID={params.serverID!} effectiveImdbId={effectiveImdbId()} />
+```
+
+- [ ] **Step 3: Verify + commit.**
+
+```bash
+cd web && npx tsc --noEmit && npm run build && cd .. && go build -o lumen.exe ./cmd/lumen
+git add web/src/pages/ItemDetail.tsx
+git commit -m "fix(item-detail): IMDB pill on episodes inherits parent show rating
+
+Episodes and seasons don't have their own IMDB IDs (OMDB tracks shows,
+not individual episodes). Pill was showing N/A on every episode page.
+Now: episodes/seasons fetch the parent show via grandparentRatingKey
+and use its imdbId for the OMDB lookup. Movies/shows unchanged — they
+use their own imdbId directly. Single extra round-trip on episode
+pages, eliminated by the OMDB 30-day disk cache once the show's
+rating is fetched once."
+```
+
+---
+
 ## Phase 3 — TMDB trailer integration
 
 ### Task 5: Add TMDBKey to config
