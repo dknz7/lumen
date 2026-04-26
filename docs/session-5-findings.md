@@ -88,4 +88,104 @@ Phase 2 (Tasks 10-18) covers the Plex Discover stack (Watchlist + Add/Remove, Re
 1. **Task 13 — Watchlist Add/Remove endpoint shape** (likely `PUT discover.provider.plex.tv/actions/{addToWatchlist,removeFromWatchlist}?ratingKey=<plexTvRk>` per the plan, but worth live-confirming).
 2. **Task 16 — "Pick Up Again" hub slug** (spec §5.2 left this pinned to be confirmed — likely `continue-watching` but DevTools is ground truth).
 
-[Phase 2 section appended after Task 18.]
+## Phase 2 — Stream A (Plex Discover stack)
+
+### Commits (since Phase 1 findings `52ede4d`)
+
+```
+cdf3193 feat(spa): Discover page (8 home-namespace shelves)
+c23e0ac feat(spa): Recommended page (4 watchlist-namespace shelves)
+852adbc feat(item-detail): Add to Watchlist button with optimistic toggle
+b6b78b8 feat(server): /api/watchlist/{add,remove} with cache invalidation
+a496472 feat(plex): AddToWatchlist + RemoveFromWatchlist
+611268a fix(watchlist): render plex.tv thumbs directly + skeleton grid wrapper
+36c0a01 feat(spa): Watchlist page (read-only, type filter + sort + count)
+9484fc4 feat(server): GET /api/watchlist with 5-min cache
+70d66d5 fix(plex): add Guid array absorber to watchlistWire
+a6ac6d3 feat(plex): GetWatchlist via metadata.provider.plex.tv
+```
+
+10 commits across 9 tasks. Two are post-implementation fixes flagged by stage 2 quality reviewers (the watchlistWire `Guid` absorber on Task 10, and the Watchlist page thumb URL + skeleton-in-grid fix on Task 12) — both demonstrate the value of the 2-stage cadence catching real issues that combined-review would have shipped. Task 13 (Watchlist Add) DevTools-confirmed via Byron's live capture; Remove inferred symmetric.
+
+### Verification results
+
+| Gate | Result |
+|---|---|
+| `go build ./...` | **CLEAN** |
+| `go vet ./...` | **CLEAN** |
+| `gofmt -l cmd internal probe` | **CLEAN** |
+| `go test ./internal/plex/...` | All PASS (4 new tests: `TestGetWatchlistHeaderOnlyAuthAndShape`, `TestAddRemoveWatchlistShape`, plus the existing suite) |
+| `go test ./internal/server/...` | All new tests PASS (`TestWatchlistRequiresAccountToken`, `TestWatchlistAddRequiresPOST`, `TestWatchlistAddRequiresRatingKey`, `TestWatchlistRemoveRequiresPOST`); pre-existing `TestImageProxyForwardsWithTokenServerSide` still failing per Session 2 carry-over |
+| `npx tsc --noEmit` | **CLEAN** |
+| `npm run build` | **CLEAN** — JS 154.52 kB (gzip 50.29 kB), CSS 41.73 kB (gzip 7.37 kB), 6.25s |
+| `go build -o lumen.exe ./cmd/lumen` | **CLEAN** |
+
+Bundle deltas:
+- vs Phase 1 close (147.09 / 38.87): JS +7.43 kB / +1.69 kB gzipped, CSS +2.86 kB / +0.29 kB gzipped — three new pages (Watchlist, Recommended, Discover) plus the watchlist toggle on Item Detail.
+- vs Session 4.5 close (140.37 / 36.71): JS +14.15 kB / +3.76 kB gzipped, CSS +5.02 kB / +0.64 kB gzipped — full Session 5 surface area.
+
+### Highlights
+
+- **`/api/watchlist`** + **`/api/watchlist/{add,remove}`** via `metadata.provider.plex.tv` (read) and `discover.provider.plex.tv` (mutate). 5-min in-memory cache, invalidated on Add/Remove.
+- **Watchlist page**: type filter (All/Movies/TV Shows), sort dropdown (Date Added/Title/Release Year), count, plex.tv thumbs rendered directly with `referrerpolicy=no-referrer` (no proxy round-trip).
+- **Recommended page**: 4 watchlist-namespace shelves (Pick Up Again dropped per Byron — Home already pins Continue Watching, upstream data unreliable).
+- **Discover page**: 8 home-namespace shelves per spec §12.4. `top_watchlisted` slug preserved with underscore (Plex's spelling).
+- **Add to Watchlist button on Item Detail**: optimistic toggle, reverts on failure, dispatches `lumen:data-invalidated` 350ms after success for cross-resource refetch. Disabled with explanatory tooltip for items lacking a `plex://` GUID.
+
+### DevTools-confirmed endpoints
+
+- `PUT https://discover.provider.plex.tv/actions/addToWatchlist?ratingKey=<plexTvRk>` — header-only `X-Plex-Token`, empty body, 200 with `{"MediaContainer":{"size":0}}`. Captured Sun 26 Apr 2026 09:10 by Byron.
+- `PUT https://discover.provider.plex.tv/actions/removeFromWatchlist?ratingKey=<plexTvRk>` — inferred symmetric. Manual smoke will validate.
+
+### New patterns introduced this phase
+
+1. **`metadata.provider.plex.tv` base** added to `plex.Client` (`metadataBase` field). Distinct from `discoverBase` because read vs write paths use different plex.tv subdomains.
+
+2. **Plex.tv ratingKey extraction from GUID** — `web/src/util/plexGuid.ts` — `plex://movie/<id>` → `<id>` regex pull. The discover-namespace ratingKey IS the trailing GUID segment; no separate lookup needed.
+
+3. **Optimistic toggle override pattern** — `Signal<boolean | null>` overlaid on top of a server-truth resource via `createMemo`. Override flips immediately, reverts on API failure, server resource catches up via `lumen:data-invalidated` event. Reusable for any future mutation that benefits from instant UI feedback.
+
+4. **`watchlistAction` private helper** mirroring `scrobbleAction` — two public methods + one shared private helper for action-style endpoints. Pattern reaffirmed (this is now the 3rd action-helper instance: scrobble, removeFromCW from Session 4.5, watchlistAction).
+
+### Spec deviations
+
+- **§12.3 Recommended page — "Pick Up Again" shelf dropped.** Reason: Home already pins Continue Watching at the top, and Plex Web's upstream "Pick Up Again" data is unreliable (stale watchlist entries reported by Byron during execution). Recommended now has 4 shelves instead of 5. Capture 2 from the original plan no longer needed — saved one DevTools round-trip.
+- **§12.6.2 Subtitle picker — DROPPED** (Phase 1, Task 1). PotPlayer's domain.
+
+### Known issues carried forward
+
+1. **`/discover-item/<ratingKey>` route is a 404 stub** — Recommended and Discover cards link there. Post-1.0 polish: implement a plex.tv-source Item Detail variant that handles non-server-local items.
+2. **Watchlist page cards link to `/watchlist/<ratingKey>` (also a 404 stub)** — same plex.tv item detail story.
+3. **Watchlist removal from the page itself** — spec §12.2 called for a bin icon + Undo toast on Watchlist cards. Item Detail's Add/Remove button covers the action; bin-icon-on-card deferred to post-1.0.
+4. **Stargaze movie thumbnail 404 mystery** — still deferred per Byron's earlier call.
+5. **Pre-existing `TestImageProxyForwardsWithTokenServerSide`** — Session 2 carry-over, not addressed this session.
+6. **Watchlist page silent error swallow** — `.catch(() => [])` in shelf resources collapses network failure into "Nothing here yet." UX. Post-1.0 polish: distinguish "loaded but empty" from "load failed".
+
+### Manual smoke test pending
+
+Byron to walk through:
+
+1. Settings → Accounts & Servers → Re-authenticate (Phase 1 carry-over if not already smoked).
+2. Item Detail with a known IMDB ID — yellow IMDB pill renders.
+3. Item Detail with cast/crew metadata — Cast and Crew grids render.
+4. Item Detail with a YouTube trailer Extra — Play Trailer enabled, modal plays.
+5. Left menu → Watchlist — page loads, type filter and sort dropdowns work, count updates, plex.tv thumbs render directly.
+6. Item Detail with a `plex://` GUID — Add to Watchlist button enabled. Click flips to Remove. Verify in Plex Web that the item appears on the watchlist. Click again to remove; verify removal in Plex Web.
+7. Item Detail with no `plex://` GUID (server-local-only) — button disabled with explanatory tooltip.
+8. Left menu → Recommended — 4 shelves load.
+9. Left menu → Discover — 8 shelves load.
+
+### Reviewer cadence (Phase 2)
+
+2-stage reviews per task per Byron's directive — spec compliance reviewer first, then code quality reviewer. All 9 implementation tasks landed cleanly. Two re-dispatches required:
+
+- **Task 10**: stage 2 reviewer flagged missing `Guid` array absorber (Session 3 critical gotcha #6). Fixed at `70d66d5`.
+- **Task 12**: stage 2 reviewer flagged broken thumb URL composition (every poster 400'd through the proxy) AND skeleton fallback escaping the grid container. Fixed at `611268a`.
+
+Both catches were specifically things combined-review would have likely missed — vindicating the 2-stage cadence for the Plex Discover stack.
+
+### Next steps
+
+1. Manual smoke test (Byron).
+2. Final whole-branch code review.
+3. Session 5 close-out commit message + findings finalisation.
