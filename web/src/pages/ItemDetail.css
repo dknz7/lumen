@@ -63,7 +63,7 @@
   margin-bottom: 28px;
 }
 
-.overview h3, .availability h3 {
+.overview h3 {
   font-size: 14px;
   color: var(--text-muted);
   letter-spacing: 1px;
@@ -77,16 +77,48 @@
   max-width: 80ch;
 }
 
+/* MORE WAYS TO WATCH is a distinct visual tier from the in-page sections
+   (Overview, Episodes) — it points users to alternative servers, not deeper
+   into the current item. The generous top margin + top border segregate it
+   from the Episode list above; the larger heading reads as a major divider
+   rather than another sub-section title. */
+.availability {
+  margin-top: 48px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.availability h3 {
+  font-family: var(--font-headline);
+  font-size: 24px;
+  color: var(--text);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  margin: 0 0 18px;
+}
+
 .availability ul { list-style: none; padding: 0; margin: 0; }
 
 .availability-row {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Wrap the row content in <A> via display: contents so the existing grid
+   layout on .availability-row continues to govern column placement, while
+   the entire row becomes a single click target to /item/<machineID>/<rk>
+   on the matched server. */
+.availability-link {
   display: grid;
   grid-template-columns: 160px 1fr 160px 120px;
   gap: 16px;
   padding: 10px 0;
-  border-bottom: 1px solid var(--border);
   align-items: center;
+  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.12s ease;
 }
+
+.availability-link:hover { opacity: 0.75; }
 
 .availability-row strong { color: var(--text); }
 .availability-lib, .availability-quality, .availability-size {

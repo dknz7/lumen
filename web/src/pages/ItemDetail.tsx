@@ -156,10 +156,12 @@ export default function ItemDetail() {
                     <For each={matches() as Match[]}>
                       {(m) => (
                         <li class="availability-row">
-                          <strong>{m.serverName || m.machineIdentifier}</strong>
-                          <span class="availability-lib">{m.libraryName}</span>
-                          <span class="availability-quality">{m.resolution}p · {m.codec ?? m.container}</span>
-                          <span class="availability-size">{formatBytes(m.size)}</span>
+                          <A href={`/item/${m.machineIdentifier}/${m.ratingKey}`} class="availability-link">
+                            <strong>{m.serverName || m.machineIdentifier}</strong>
+                            <span class="availability-lib">{m.libraryName}</span>
+                            <span class="availability-quality">{m.resolution}p · {m.codec ?? m.container}</span>
+                            <span class="availability-size">{formatBytes(m.size)}</span>
+                          </A>
                         </li>
                       )}
                     </For>
