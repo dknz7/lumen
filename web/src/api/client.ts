@@ -73,9 +73,23 @@ export const api = {
     return res.json();
   },
 
-  // Removes an item from Continue Watching by resetting its playback state
-  // (viewCount=0, viewOffset=0) — does NOT mark as watched. Used by the
-  // "Remove from Continue Watching" bin button.
+  // Removes the show containing this item from Continue Watching via Plex's
+  // first-class PUT /actions/removeFromContinueWatching endpoint. Pass the
+  // EPISODE ratingKey for shows — Plex's logic handles the whole-show
+  // removal semantic. Removal syncs cross-device (Plex Web, mobile, TV apps).
+  removeFromCW: async (serverID: string, ratingKey: string) => {
+    const url = `/api/servers/${encodeURIComponent(serverID)}/cw/remove?ratingKey=${encodeURIComponent(ratingKey)}`;
+    const res = await fetch(url, { method: "POST" });
+    if (!res.ok) {
+      throw new Error(`${res.status} POST ${url}: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
+  // Resets a Plex item's playback state (viewCount=0, viewOffset=0) via the
+  // legacy /:/unscrobble endpoint. Kept for any future "reset progress"
+  // power-user feature — the bin icon now uses removeFromCW instead, since
+  // unscrobble alone doesn't actually evict items from Plex's onDeck.
   unscrobble: async (serverID: string, ratingKey: string) => {
     const url = `/api/servers/${encodeURIComponent(serverID)}/unscrobble?ratingKey=${encodeURIComponent(ratingKey)}`;
     const res = await fetch(url, { method: "POST" });

@@ -94,6 +94,8 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		s.handleSeasons(w, r, srv, parts[2])
 	case len(parts) == 4 && parts[1] == "seasons" && parts[3] == "episodes":
 		s.handleSeasonEpisodes(w, r, srv, parts[2])
+	case len(parts) == 3 && parts[1] == "cw" && parts[2] == "remove":
+		s.handleRemoveFromCW(w, r, srv)
 	case len(parts) == 2 && parts[1] == "ondeck":
 		s.handleOnDeck(w, r, srv)
 	case len(parts) == 2 && parts[1] == "scrobble":
@@ -229,6 +231,34 @@ func (s *Server) handleUnscrobble(w http.ResponseWriter, r *http.Request, srv *c
 		return
 	}
 	writeJSON(w, map[string]string{"status": "unscrobbled"})
+}
+
+// handleRemoveFromCW proxies Plex's first-class
+// PUT /actions/removeFromContinueWatching?ratingKey=<key> endpoint. Powers
+// the trash icon on Continue Watching cards — Plex propagates the removal
+// cross-device (Plex Web, mobile, smart-TV apps reflect it on next fetch).
+// Pass the EPISODE ratingKey for shows; Plex's logic figures out the
+// "remove the whole show" semantic.
+// Accepts POST with ?ratingKey=<key>.
+func (s *Server) handleRemoveFromCW(w http.ResponseWriter, r *http.Request, srv *config.Server) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	ratingKey := r.URL.Query().Get("ratingKey")
+	if ratingKey == "" {
+		writeError(w, http.StatusBadRequest, "ratingKey query param required")
+		return
+	}
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex not initialised")
+		return
+	}
+	if err := s.plex.RemoveFromContinueWatching(toPlexServer(srv), ratingKey); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	writeJSON(w, map[string]string{"status": "removed"})
 }
 
 // handleSeasons proxies /library/metadata/<showKey>/children for the season

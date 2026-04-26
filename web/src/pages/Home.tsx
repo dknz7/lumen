@@ -173,7 +173,7 @@ function ContinueWatching(props: { servers: Server[] }) {
   }
 
   const markWatched = (item: CWItem) => applyCWAction(item, api.scrobble, "mark as watched");
-  const removeItem = (item: CWItem) => applyCWAction(item, api.unscrobble, "remove from Continue Watching");
+  const removeItem = (item: CWItem) => applyCWAction(item, api.removeFromCW, "remove from Continue Watching");
 
   // Items are passed to Shelf only when loaded successfully and non-empty;
   // otherwise children render the skeleton / error / empty stub instead.
