@@ -9,8 +9,18 @@ import (
 
 // GetHub calls the plex.tv Discover hubs endpoint for a given namespace + slug.
 // Namespace is "home" or "watchlist".
+//
+// Request shape mirrors Plex Web's call (Session 5 post-smoke DevTools
+// capture): includeMeta=1 enables richer metadata fields, and the
+// X-Plex-Container-Size param is required for some clip-type hubs (e.g.
+// home/trending-trailers) that returned empty without it.
 func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error) {
-	qs := url.Values{"contentDirectoryID": []string{namespace}}
+	qs := url.Values{
+		"contentDirectoryID":     []string{namespace},
+		"includeMeta":            []string{"1"},
+		"X-Plex-Container-Start": []string{"0"},
+		"X-Plex-Container-Size":  []string{"50"},
+	}
 	u := fmt.Sprintf("%s/hubs/sections/%s/%s?%s", c.discoverBase, namespace, slug, qs.Encode())
 	req, err := c.NewRequest("GET", u, nil)
 	if err != nil {
@@ -37,6 +47,7 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 			Title:     m.Title,
 			Type:      m.Type,
 			Year:      m.Year,
+			Thumb:     m.Thumb,
 		})
 	}
 	return out, nil

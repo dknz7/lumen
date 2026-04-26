@@ -87,12 +87,18 @@ type Part struct {
 }
 
 // HubItem is one card on a plex.tv Discover hub (home or watchlist namespace).
+//
+// Thumb is an absolute URL (e.g. https://metadata-static.plex.tv/... or
+// https://image.tmdb.org/...). Render directly with <img src> — does NOT
+// need to go through Lumen's image proxy. Confirmed via Plex Web capture
+// of home/trending-trailers in Session 5 post-smoke.
 type HubItem struct {
 	GUID      string `json:"guid,omitempty"`
 	RatingKey string `json:"ratingKey"`
 	Title     string `json:"title"`
 	Type      string `json:"type"`
 	Year      int    `json:"year,omitempty"`
+	Thumb     string `json:"thumb,omitempty"`
 }
 
 // ItemQuery carries optional filter/sort parameters for GetItems.
