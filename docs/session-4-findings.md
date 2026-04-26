@@ -124,6 +124,8 @@ Task 26 said "append" the new hero rules — but Session 2's original `.hero` bl
 ### 1. Resume offset is cosmetic-only for v1.0 (plan-acknowledged)
 `/api/play` handler currently DISCARDS `req.ResumeFromOffset` (`_ = req.ResumeFromOffset` with comment in `api_play.go`). Frontend `ResumeRestartModal` wiring is contractually correct, but Pot Player starts at position 0 regardless of Resume vs Start Over. Fix options: (a) explore Pot Player CLI seek arg, (b) `WM_USER` position-set after launch, (c) extend Manager to forward offset to timeline reporter for cross-device resume reflection. **Defer to Session 4.5 or 5.**
 
+**Resolved in Session 4.5 polish PR (E):** wired `req.ResumeFromOffset` through `playback.StartArgs.ResumeOffsetMs` -> `potplayer.Launch` -> Pot Player's `/seek=hh:mm:ss` CLI arg (option a). Applied to both `handlePlay` and `handlePlayTranscode`. Smoke verification pending.
+
 ### 2. `TestImageProxyForwardsWithTokenServerSide` failure carries from Session 2
 Pre-existing test in `internal/server` — token isn't being forwarded server-side per the test expectation. Session 3 findings already document this. **Not introduced by Session 4.**
 

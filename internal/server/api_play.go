@@ -48,13 +48,6 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 	ext := containerToExt(part.Container)
 
 	streamURL := plex.DirectPlayURL(plexSrv, fmt.Sprintf("%d", part.ID), ext)
-	// Note: req.ResumeFromOffset is recorded for the timeline reporter to post on
-	// the first tick so Plex's Now Playing reflects resume. Pot Player itself
-	// starts at position 0 — the resume modal (Phase G Task 22) decides whether
-	// the user wants to restart or pick up. We hand a clean URL to Pot Player
-	// either way. Future enhancement: explore /seek=N if Pot Player adds CLI
-	// support, or send WM_USER position-set message after launch.
-	_ = req.ResumeFromOffset
 
 	args := playback.StartArgs{
 		Server:        plexSrv,
@@ -75,6 +68,8 @@ func (s *Server) handlePlay(w http.ResponseWriter, r *http.Request) {
 		SeasonIndex:           item.ParentIndex,
 		AddedAt:               item.AddedAt,
 		OriginallyAvailableAt: item.OriginallyAvailableAt,
+
+		ResumeOffsetMs: req.ResumeFromOffset,
 	}
 
 	if err := s.playback.Start(args); err != nil {
@@ -156,12 +151,6 @@ func (s *Server) handlePlayTranscode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// req.ResumeFromOffset is currently discarded — same v1.0 limitation as
-	// /api/play (Pot Player CLI doesn't accept seek; resume routing handled
-	// in Phase G modal). Phase G+ may extend the playback Manager to forward
-	// the offset to the timeline reporter for cross-device resume reflection.
-	_ = req.ResumeFromOffset
-
 	session := newTranscodeSession()
 	streamURL := plex.TranscodeURL(plexSrv, req.RatingKey, session)
 
@@ -185,6 +174,8 @@ func (s *Server) handlePlayTranscode(w http.ResponseWriter, r *http.Request) {
 		SeasonIndex:           item.ParentIndex,
 		AddedAt:               item.AddedAt,
 		OriginallyAvailableAt: item.OriginallyAvailableAt,
+
+		ResumeOffsetMs: req.ResumeFromOffset,
 	}
 	if err := s.playback.Start(args); err != nil {
 		if err == playback.ErrAlreadyActive {

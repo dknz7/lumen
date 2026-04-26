@@ -65,15 +65,21 @@ type Client struct {
 
 // Launch spawns Pot Player against streamURL and waits up to 3 s for the
 // HWND to appear before returning. Caller should keep the *Client until
-// playback is torn down.
-func Launch(exePath, streamURL string) (*Client, error) {
+// playback is torn down. When resumeOffsetMs > 0, Pot Player's
+// /seek=hh:mm:ss CLI flag is appended so playback opens at the resume
+// position instead of position 0.
+func Launch(exePath, streamURL string, resumeOffsetMs int64) (*Client, error) {
 	if exePath == "" {
 		return nil, errors.New("potplayer.Launch: empty exePath")
 	}
 	if streamURL == "" {
 		return nil, errors.New("potplayer.Launch: empty streamURL")
 	}
-	cmd := exec.Command(exePath, streamURL)
+	args := []string{streamURL}
+	if resumeOffsetMs > 0 {
+		args = append(args, formatSeekArg(resumeOffsetMs))
+	}
+	cmd := exec.Command(exePath, args...)
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("start PotPlayer: %w", err)
 	}
@@ -212,6 +218,16 @@ func (c *Client) Stop() error {
 		go func() { _ = cmd.Wait() }()
 	}
 	return nil
+}
+
+// formatSeekArg converts ms to Pot Player's /seek=hh:mm:ss CLI argument.
+// Pot Player Mini accepts this as a launch-time seek directive.
+func formatSeekArg(ms int64) string {
+	s := ms / 1000
+	h := s / 3600
+	m := (s % 3600) / 60
+	sec := s % 60
+	return fmt.Sprintf("/seek=%02d:%02d:%02d", h, m, sec)
 }
 
 // findPotPlayerWindow looks up the top-level window with class PotPlayer64.

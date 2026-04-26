@@ -37,6 +37,8 @@ type Context struct {
 	AddedAt               int64
 	OriginallyAvailableAt string
 
+	ResumeOffsetMs int64
+
 	PotPlayer *potplayer.Client
 }
 

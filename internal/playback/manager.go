@@ -55,6 +55,8 @@ type StartArgs struct {
 	SeasonIndex           int
 	AddedAt               int64
 	OriginallyAvailableAt string
+
+	ResumeOffsetMs int64
 }
 
 // Start launches Pot Player, builds the Context, kicks the three goroutines.
@@ -72,7 +74,7 @@ func (m *Manager) Start(args StartArgs) (err error) {
 		return ErrPotPlayerPathUnresolved
 	}
 
-	pp, err := potplayer.Launch(exe, args.StreamURL)
+	pp, err := potplayer.Launch(exe, args.StreamURL, args.ResumeOffsetMs)
 	if err != nil {
 		m.mu.Unlock()
 		return err
@@ -104,6 +106,8 @@ func (m *Manager) Start(args StartArgs) (err error) {
 		SeasonIndex:           args.SeasonIndex,
 		AddedAt:               args.AddedAt,
 		OriginallyAvailableAt: args.OriginallyAvailableAt,
+
+		ResumeOffsetMs: args.ResumeOffsetMs,
 
 		PotPlayer: pp,
 	}
