@@ -95,6 +95,14 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 		// 95% threshold: scrobble once, emit ended/next-episode once.
 		if c.Duration > 0 && pos >= time.Duration(float64(c.Duration)*watchedThresholdFrac) {
 			if !scrobbled {
+				// Race guard: Stop may have run between the m.mu unlock above
+				// and now. Without this, a stale Scrobble can land after Stop
+				// nilled m.active and mark the wrong viewCount on Plex.
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				if err := m.plex.Scrobble(c.Server, c.RatingKey); err != nil {
 					log.Printf("playback: Scrobble: %v", err)
 				} else {

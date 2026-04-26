@@ -45,6 +45,15 @@ func (m *Manager) runReporter(ctx context.Context) {
 		state := stateToPlexString(m.live.state)
 		m.live.mu.Unlock()
 
+		// Race guard: Stop may have run between capturing c above and now.
+		// Without this, a stale ReportTimeline can land after Stop's final
+		// stopped-state report and overwrite Plex's viewOffset.
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		err := m.plex.ReportTimeline(c.Server, plex.TimelineReport{
 			RatingKey: c.RatingKey,
 			State:     state,

@@ -40,6 +40,16 @@ func (m *Manager) runTranscodeKeepAlive(ctx context.Context) {
 			continue
 		}
 		m.plex.SetToken(req, c.Server.AccessToken)
+
+		// Race guard: Stop may have run between capturing c above and now.
+		// Benign in this case (the transcode session is about to be reaped),
+		// but still worth skipping the wasted POST.
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+
 		resp, err := m.plex.Do(req)
 		if err != nil {
 			log.Printf("playback: keepalive request: %v", err)
