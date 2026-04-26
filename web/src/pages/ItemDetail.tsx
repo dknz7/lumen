@@ -159,7 +159,7 @@ export default function ItemDetail() {
                           <A href={`/item/${m.machineIdentifier}/${m.ratingKey}`} class="availability-link">
                             <span class="availability-server">
                               <strong>{m.serverName || m.machineIdentifier}</strong>
-                              <Show when={m.machineIdentifier === params.serverID}>
+                              <Show when={m.machineIdentifier === params.serverID && m.ratingKey === params.ratingKey}>
                                 <span class="availability-current-led" title="Currently viewing" aria-label="Currently viewing" />
                               </Show>
                             </span>
