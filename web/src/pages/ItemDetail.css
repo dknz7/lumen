@@ -126,6 +126,28 @@
   font-size: 13px;
 }
 
+/* Server-name slot — inline-flex so the "currently viewing" LED sits beside
+ * the name without wrapping or breaking the parent grid column.
+ */
+.availability-server {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Green LED on the current-server row — distinct from the brand teal
+ * (--led-teal) used elsewhere; green reads as "you are here" / connected.
+ */
+.availability-current-led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+  flex-shrink: 0;
+}
+
 .availability-empty {
   padding: 10px 0;
   color: var(--text-muted);

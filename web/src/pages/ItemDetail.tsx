@@ -157,7 +157,12 @@ export default function ItemDetail() {
                       {(m) => (
                         <li class="availability-row">
                           <A href={`/item/${m.machineIdentifier}/${m.ratingKey}`} class="availability-link">
-                            <strong>{m.serverName || m.machineIdentifier}</strong>
+                            <span class="availability-server">
+                              <strong>{m.serverName || m.machineIdentifier}</strong>
+                              <Show when={m.machineIdentifier === params.serverID}>
+                                <span class="availability-current-led" title="Currently viewing" aria-label="Currently viewing" />
+                              </Show>
+                            </span>
                             <span class="availability-lib">{m.libraryName}</span>
                             <span class="availability-quality">{m.resolution}p · {m.codec ?? m.container}</span>
                             <span class="availability-size">{formatBytes(m.size)}</span>
