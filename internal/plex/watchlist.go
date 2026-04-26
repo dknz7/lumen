@@ -73,3 +73,41 @@ func (c *Client) GetWatchlist(accountToken string) ([]WatchlistItem, error) {
 	}
 	return out, nil
 }
+
+// AddToWatchlist adds a Discover-namespace ratingKey to the user's
+// plex.tv watchlist. The ratingKey here is plex.tv's metadata rating
+// key (NOT a server-local one). Caller must resolve that via the
+// item's plex.tv GUID before invoking. Endpoint shape confirmed via
+// Plex Web DevTools capture in Session 5 (PUT /actions/addToWatchlist
+// with header-only X-Plex-Token, ratingKey via URL query, empty body,
+// 200 response with {"MediaContainer":{"size":0}}).
+func (c *Client) AddToWatchlist(accountToken, plexTvRatingKey string) error {
+	return c.watchlistAction(accountToken, plexTvRatingKey, "addToWatchlist")
+}
+
+// RemoveFromWatchlist removes a Discover-namespace ratingKey from the
+// watchlist. Same ratingKey semantics as AddToWatchlist. Symmetric
+// shape to Add (not directly DevTools-captured but action-verb-only
+// difference is the conventional Plex pattern; see scrobble.go for
+// precedent).
+func (c *Client) RemoveFromWatchlist(accountToken, plexTvRatingKey string) error {
+	return c.watchlistAction(accountToken, plexTvRatingKey, "removeFromWatchlist")
+}
+
+func (c *Client) watchlistAction(accountToken, plexTvRatingKey, action string) error {
+	u := c.discoverBase + "/actions/" + action + "?ratingKey=" + plexTvRatingKey
+	req, err := c.NewRequest("PUT", u, nil)
+	if err != nil {
+		return err
+	}
+	c.SetToken(req, accountToken)
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s %s: status %d", action, plexTvRatingKey, resp.StatusCode)
+	}
+	return nil
+}

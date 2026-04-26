@@ -43,3 +43,41 @@ func TestGetWatchlistHeaderOnlyAuthAndShape(t *testing.T) {
 		t.Errorf("unexpected items: %+v", items)
 	}
 }
+
+func TestAddRemoveWatchlistShape(t *testing.T) {
+	hits := map[string]int{} // path → count
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "PUT" {
+			http.Error(w, "expected PUT", http.StatusBadRequest)
+			return
+		}
+		if r.Header.Get("X-Plex-Token") != "tok" {
+			http.Error(w, "missing token header", http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Query().Get("ratingKey") != "12345" {
+			http.Error(w, "missing ratingKey query", http.StatusBadRequest)
+			return
+		}
+		hits[r.URL.Path]++
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"MediaContainer":{"size":0}}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("client-id", "test")
+	c.discoverBase = srv.URL
+
+	if err := c.AddToWatchlist("tok", "12345"); err != nil {
+		t.Fatalf("AddToWatchlist: %v", err)
+	}
+	if err := c.RemoveFromWatchlist("tok", "12345"); err != nil {
+		t.Fatalf("RemoveFromWatchlist: %v", err)
+	}
+	if hits["/actions/addToWatchlist"] != 1 {
+		t.Errorf("addToWatchlist hit count: %d", hits["/actions/addToWatchlist"])
+	}
+	if hits["/actions/removeFromWatchlist"] != 1 {
+		t.Errorf("removeFromWatchlist hit count: %d", hits["/actions/removeFromWatchlist"])
+	}
+}
