@@ -2212,6 +2212,24 @@ Recommended/Discover/Watchlist now have a real destination."
 
 ---
 
+## Phase 4.6 — Card UX additions (scope reminders)
+
+High-level reminders only — Byron will flesh out specifics when execution reaches this phase. Treat each as a single task to brainstorm, design, then implement.
+
+### Task 12.6: Recommended Page — card functionality + info improvements
+
+Beyond the basic title/year/contentRating pill from Task 12, Recommended cards should gain richer hover state (tagline, studio, release date, summary preview) and interactive affordances appropriate for plex.tv-source items (Add to Watchlist quick-add on hover; Play if locally available via `availability` lookup; click-through to DiscoverItem detail otherwise). Implementer brief: read `web/src/components/Card.tsx` and the existing CW hover pattern from Session 4.5 first, then propose a design before coding.
+
+### Task 12.7: Discover Page — card functionality + info improvements
+
+Same surface as Task 12.6 but on the Discover page. Likely shares 90% of the implementation — the two pages render the same `HubItem` shape via the same `<Shelf />` component (post Phase 4 refactor). If Tasks 12.6 + 12.7 collapse to one Card.tsx change that benefits both pages, ship as a single task.
+
+### Task 12.8: Trailer card functionality improvements
+
+Trending Trailers items (Discover hub `home/trending-trailers`) carry their own HLS playback URL inside `Media[].Part[].key` (Session 5 capture: `/library/metadata/.../extras/.../parts/hls.m3u8`). Distinct from YouTube-embedded trailers used by Item Detail's Play Trailer button (Phase 3). Possible directions: play inline on the card via HLS.js or a video tag, modal popover, or click-to-launch in a dedicated trailer player. Brainstorm + decide before coding.
+
+---
+
 ## Phase 5 — Verification + findings
 
 ### Task 13: Full-session verification + findings doc
