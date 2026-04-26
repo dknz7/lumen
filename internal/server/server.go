@@ -100,6 +100,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/auth/start", s.handleAuthStart)
 	s.mux.HandleFunc("/api/auth/poll", s.handleAuthPoll)
 	s.mux.HandleFunc("/api/imdb/", s.handleIMDB)
+	s.mux.HandleFunc("/api/tmdb/trailer/", s.handleTMDBTrailer)
 	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
 	s.mux.HandleFunc("/api/quit", s.handleQuit)
 	s.mux.HandleFunc("/", s.handleSPA)
