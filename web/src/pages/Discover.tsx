@@ -1,67 +1,95 @@
-import { createResource, For, Show } from "solid-js";
-import { A } from "@solidjs/router";
-import type { HubItem } from "../api/types";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import type { HubItem, WatchlistItem } from "../api/types";
 import { api } from "../api/client";
+import Shelf from "../components/Shelf";
 import Skeleton from "../components/Skeleton";
+import DiscoverTile, { DiscoverTileProvider } from "../components/DiscoverTile";
+import TrailerModal from "../components/Modal/TrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Discover.css";
 
 // Per spec §12.4 — eight Byron-curated shelves from the home namespace.
-const SHELVES: { title: string; slug: string }[] = [
-  { title: "Coming Soon", slug: "coming-soon" },
-  { title: "New Trailers", slug: "recently-released-trailers" },
-  { title: "Trending Trailers", slug: "trending-trailers" },
-  { title: "Most Watchlisted This Week", slug: "top_watchlisted" },
-  { title: "Trending on Plex", slug: "trending-plex" },
-  { title: "Upcoming Blockbusters", slug: "blockbuster-trailers" },
-  { title: "Highly Anticipated", slug: "highly-anticipated-movies" },
-  { title: "Trending on Apple TV", slug: "trend-apple-itunes" },
+// Order kept as-is per Byron's call (Phase 4 Task 11).
+const SHELVES: { id: string; title: string; slug: string }[] = [
+  { id: "disc-coming-soon", title: "Coming Soon", slug: "coming-soon" },
+  { id: "disc-new-trailers", title: "New Trailers", slug: "recently-released-trailers" },
+  { id: "disc-trending-trailers", title: "Trending Trailers", slug: "trending-trailers" },
+  { id: "disc-top-watchlisted", title: "Most Watchlisted This Week", slug: "top_watchlisted" },
+  { id: "disc-trending-plex", title: "Trending on Plex", slug: "trending-plex" },
+  { id: "disc-blockbusters", title: "Upcoming Blockbusters", slug: "blockbuster-trailers" },
+  { id: "disc-anticipated", title: "Highly Anticipated", slug: "highly-anticipated-movies" },
+  { id: "disc-apple-tv", title: "Trending on Apple TV", slug: "trend-apple-itunes" },
 ];
 
 export default function Discover() {
+  // Page-level watchlist resource — same pattern as Recommended. Each page
+  // gets its own copy; the API layer caches /api/watchlist for 5 min so
+  // mounting both pages in quick succession is cheap.
+  const [watchlist, { refetch: refetchWatchlist }] = createResource<WatchlistItem[]>(() =>
+    api.watchlist().catch(() => [] as WatchlistItem[]),
+  );
+  refetchOnFocus(refetchWatchlist);
+  const watchlistSet = createMemo(
+    () => new Set((watchlist() ?? []).map((w) => w.ratingKey)),
+  );
+
+  const [trailerOpen, setTrailerOpen] = createSignal(false);
+  const [trailerYouTubeID, setTrailerYouTubeID] = createSignal<string | undefined>(undefined);
+  const [trailerTitle, setTrailerTitle] = createSignal<string>("");
+
+  function openTrailer(youtubeID: string, title: string) {
+    setTrailerYouTubeID(youtubeID);
+    setTrailerTitle(title);
+    setTrailerOpen(true);
+  }
+
   return (
-    <div class="discover-page">
-      <For each={SHELVES}>
-        {(shelf) => <DiscoverShelf title={shelf.title} slug={shelf.slug} />}
-      </For>
-    </div>
+    <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer }}>
+      <div class="discover-page">
+        <For each={SHELVES}>
+          {(s) => <DiscoverShelfHost id={s.id} title={s.title} slug={s.slug} />}
+        </For>
+      </div>
+      <TrailerModal
+        open={trailerOpen()}
+        onClose={() => {
+          setTrailerOpen(false);
+          setTrailerYouTubeID(undefined);
+        }}
+        youtubeID={trailerYouTubeID()}
+        title={trailerTitle()}
+      />
+    </DiscoverTileProvider>
   );
 }
 
-function DiscoverShelf(props: { title: string; slug: string }) {
+function DiscoverShelfHost(props: { id: string; title: string; slug: string }) {
   const [items, { refetch }] = createResource<HubItem[]>(() =>
-    api.hub("home", props.slug).catch(() => [])
+    api.hub("home", props.slug).catch(() => [] as HubItem[]),
   );
   refetchOnFocus(refetch);
+
+  const itemList = () => {
+    if (items.loading || items.error) return undefined;
+    const list = items() ?? [];
+    return list.length > 0 ? list : undefined;
+  };
+
   return (
-    <section class="discover-shelf">
-      <h2 class="discover-shelf-title">{props.title}</h2>
-      <Show when={items()} fallback={<div class="discover-shelf-row"><Skeleton kind="card" count={6} /></div>}>
-        <Show when={items()!.length > 0} fallback={<div class="discover-empty">Nothing here yet.</div>}>
-          <ul class="discover-shelf-row">
-            <For each={items()}>
-              {(it) => (
-                <li class="discover-card">
-                  <A href={`/discover-item/${encodeURIComponent(it.ratingKey)}`} class="discover-card-link">
-                    <div class="discover-poster">
-                      <Show when={it.thumb}>
-                        <img src={it.thumb!} alt={it.title} referrerpolicy="no-referrer"
-                             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                      </Show>
-                    </div>
-                    <div class="discover-card-meta">
-                      <div class="discover-card-title">{it.title}</div>
-                      <Show when={it.year}>
-                        <div class="discover-card-sub">{it.year}</div>
-                      </Show>
-                    </div>
-                  </A>
-                </li>
-              )}
-            </For>
-          </ul>
-        </Show>
+    <Shelf
+      id={props.id}
+      title={props.title}
+      rowsPerPage={2}
+      sortable={false}
+      items={itemList()}
+      renderItem={(it: HubItem) => <DiscoverTile item={it} />}
+    >
+      <Show when={items.loading}>
+        <Skeleton kind="card" count={6} />
       </Show>
-    </section>
+      <Show when={!items.loading && (items() ?? []).length === 0}>
+        <div class="shelf-stub">Nothing here yet.</div>
+      </Show>
+    </Shelf>
   );
 }

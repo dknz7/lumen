@@ -1,0 +1,148 @@
+/* DiscoverTile — plex.tv hub-item card.
+   Visual parity target: Card.tsx (server-local cards). Same hover lift,
+   same dim overlay, same poster radius. The clip variant adds a top-right
+   action cluster (Play Trailer + +/✓ Watchlist) that fades in on hover. */
+
+.discover-tile {
+  display: block;
+  width: var(--card-width);
+  cursor: pointer;
+  transition: transform 0.15s ease, width 0.18s ease-out;
+  color: inherit;
+}
+
+.discover-tile:hover {
+  transform: translateY(-2px);
+}
+
+.discover-tile:hover .discover-tile-poster {
+  box-shadow: var(--shadow);
+}
+
+.discover-tile:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.discover-tile-poster {
+  aspect-ratio: 2 / 3;
+  background: var(--bg-card-empty);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+/* Dim overlay — matches Card.css pattern. Sits below the action buttons via
+   z-index stacking. */
+.discover-tile-poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.18s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.discover-tile:hover .discover-tile-poster::after {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.discover-tile-poster-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  background: var(--bg-card-empty);
+}
+
+.discover-tile-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Action cluster (clip variant only) — top-right, fades in on hover. Same
+   button dimensions as Card.css's CW action buttons for visual continuity. */
+.discover-tile-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.discover-tile:hover .discover-tile-actions {
+  opacity: 1;
+}
+
+.discover-tile-action-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  padding: 0;
+}
+
+.discover-tile-action-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  border-color: var(--led-teal);
+}
+
+.discover-tile-action-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Watchlisted-on state — teal LED tint mirrors the "WATCHED" ribbon hue. */
+.discover-tile-action-btn.is-on {
+  color: var(--led-teal);
+  border-color: var(--led-teal);
+}
+
+.discover-tile-meta {
+  padding: 6px 2px;
+}
+
+.discover-tile-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.discover-tile-title {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.discover-tile-title-link:hover .discover-tile-title {
+  color: var(--led-teal);
+}
+
+.discover-tile-year {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}

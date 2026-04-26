@@ -1,66 +1,97 @@
-import { createResource, For, Show } from "solid-js";
-import { A } from "@solidjs/router";
-import type { HubItem } from "../api/types";
+import { createMemo, createResource, createSignal, For } from "solid-js";
+import { Show } from "solid-js";
+import type { HubItem, WatchlistItem } from "../api/types";
 import { api } from "../api/client";
+import Shelf from "../components/Shelf";
 import Skeleton from "../components/Skeleton";
+import DiscoverTile, { DiscoverTileProvider } from "../components/DiscoverTile";
+import TrailerModal from "../components/Modal/TrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Recommended.css";
 
-// Per spec §12.3 (revised — Pick Up Again dropped during Session 5 Phase 2).
-// Four watchlist-namespace Plex Discover hubs. Lumen's Home pins Continue
-// Watching at the top, so the original "Pick Up Again" shelf was redundant
-// and upstream data was unreliable (stale watchlist entries).
-const SHELVES: { title: string; slug: string }[] = [
-  { title: "Recently Aired Episodes", slug: "new-episodes" },
-  { title: "Coming Soon", slug: "coming-soon" },
-  { title: "New Trailers from Your Watchlist", slug: "new-trailers" },
-  { title: "Recently Added", slug: "recently-added" },
+// Per spec — Phase 4 Task 10. New shelf order (Byron's call): Coming Soon
+// leads, then trailers, then recently added, then aired episodes. Watchlist
+// namespace.
+const SHELVES: { id: string; title: string; slug: string }[] = [
+  { id: "rec-coming-soon", title: "Coming Soon", slug: "coming-soon" },
+  { id: "rec-new-trailers", title: "New Trailers From Your Watchlist", slug: "new-trailers" },
+  { id: "rec-recently-added", title: "Recently Added", slug: "recently-added" },
+  { id: "rec-new-episodes", title: "Recently Aired Episodes", slug: "new-episodes" },
 ];
 
 export default function Recommended() {
+  // Page-level watchlist resource powers the +/✓ state on every clip card
+  // across all four shelves. refetchOnFocus picks up lumen:data-invalidated
+  // dispatched by DiscoverTile's toggle handler so other tiles' state syncs.
+  const [watchlist, { refetch: refetchWatchlist }] = createResource<WatchlistItem[]>(() =>
+    api.watchlist().catch(() => [] as WatchlistItem[]),
+  );
+  refetchOnFocus(refetchWatchlist);
+  const watchlistSet = createMemo(
+    () => new Set((watchlist() ?? []).map((w) => w.ratingKey)),
+  );
+
+  // Page-level TrailerModal — DiscoverTile's clip variant resolves a YouTube
+  // ID then calls openTrailer() via the DiscoverTileProvider context.
+  const [trailerOpen, setTrailerOpen] = createSignal(false);
+  const [trailerYouTubeID, setTrailerYouTubeID] = createSignal<string | undefined>(undefined);
+  const [trailerTitle, setTrailerTitle] = createSignal<string>("");
+
+  function openTrailer(youtubeID: string, title: string) {
+    setTrailerYouTubeID(youtubeID);
+    setTrailerTitle(title);
+    setTrailerOpen(true);
+  }
+
   return (
-    <div class="recommended-page">
-      <For each={SHELVES}>
-        {(shelf) => <RecommendedShelf title={shelf.title} slug={shelf.slug} />}
-      </For>
-    </div>
+    <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer }}>
+      <div class="recommended-page">
+        <For each={SHELVES}>
+          {(s) => <RecommendedShelfHost id={s.id} title={s.title} slug={s.slug} />}
+        </For>
+      </div>
+      <TrailerModal
+        open={trailerOpen()}
+        onClose={() => {
+          setTrailerOpen(false);
+          setTrailerYouTubeID(undefined);
+        }}
+        youtubeID={trailerYouTubeID()}
+        title={trailerTitle()}
+      />
+    </DiscoverTileProvider>
   );
 }
 
-function RecommendedShelf(props: { title: string; slug: string }) {
+function RecommendedShelfHost(props: { id: string; title: string; slug: string }) {
   const [items, { refetch }] = createResource<HubItem[]>(() =>
-    api.hub("watchlist", props.slug).catch(() => [])
+    api.hub("watchlist", props.slug).catch(() => [] as HubItem[]),
   );
   refetchOnFocus(refetch);
+
+  // Items only handed to Shelf when loaded successfully and non-empty;
+  // otherwise children render the skeleton / empty stub (Home pattern).
+  const itemList = () => {
+    if (items.loading || items.error) return undefined;
+    const list = items() ?? [];
+    return list.length > 0 ? list : undefined;
+  };
+
   return (
-    <section class="recommended-shelf">
-      <h2 class="recommended-shelf-title">{props.title}</h2>
-      <Show when={items()} fallback={<div class="recommended-shelf-row"><Skeleton kind="card" count={6} /></div>}>
-        <Show when={items()!.length > 0} fallback={<div class="recommended-empty">Nothing here yet.</div>}>
-          <ul class="recommended-shelf-row">
-            <For each={items()}>
-              {(it) => (
-                <li class="recommended-card">
-                  <A href={`/discover-item/${encodeURIComponent(it.ratingKey)}`} class="recommended-card-link">
-                    <div class="recommended-poster">
-                      <Show when={it.thumb}>
-                        <img src={it.thumb!} alt={it.title} referrerpolicy="no-referrer"
-                             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                      </Show>
-                    </div>
-                    <div class="recommended-card-meta">
-                      <div class="recommended-card-title">{it.title}</div>
-                      <Show when={it.year}>
-                        <div class="recommended-card-sub">{it.year}</div>
-                      </Show>
-                    </div>
-                  </A>
-                </li>
-              )}
-            </For>
-          </ul>
-        </Show>
+    <Shelf
+      id={props.id}
+      title={props.title}
+      rowsPerPage={2}
+      sortable={false}
+      items={itemList()}
+      renderItem={(it: HubItem) => <DiscoverTile item={it} />}
+    >
+      <Show when={items.loading}>
+        <Skeleton kind="card" count={6} />
       </Show>
-    </section>
+      <Show when={!items.loading && (items() ?? []).length === 0}>
+        <div class="shelf-stub">Nothing here yet.</div>
+      </Show>
+    </Shelf>
   );
 }
