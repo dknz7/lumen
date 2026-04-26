@@ -90,6 +90,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/user", s.handleUser)
 	s.mux.HandleFunc("/api/servers/refresh", s.handleServersRefresh)
 	s.mux.HandleFunc("/api/settings/omdb", s.handleSettingsOMDB)
+	s.mux.HandleFunc("/api/imdb/", s.handleIMDB)
 	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
 	s.mux.HandleFunc("/api/quit", s.handleQuit)
 	s.mux.HandleFunc("/", s.handleSPA)
