@@ -188,7 +188,7 @@ function ContinueWatching(props: { servers: Server[] }) {
       id="continue-watching"
       title="Continue Watching"
       sortable={false}
-      rowsPerPage={3}
+      rowsPerPage={2}
       icon={<Play size={18} />}
       items={cwItems()}
       renderItem={(it: CWItem) => (

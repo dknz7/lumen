@@ -20,7 +20,7 @@ export interface ShelfProps {
    * When set together with items + renderItem, lays out cards in viewport-wide
    * pages of (cardsPerRow × rowsPerPage) cells, ROW-MAJOR fill within each
    * page (row 1 fills viewport-width left-to-right, then row 2). Floating
-   * arrows scroll between pages. CW uses 3, other Home shelves use 2.
+   * arrows scroll between pages. All Home shelves currently use 2.
    */
   rowsPerPage?: number;
   /** Card source array. Required for paginated mode. */

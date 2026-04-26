@@ -31,7 +31,7 @@ const VIEW_MODE_OPTIONS = [
 const viewModeToFilter = (mode: string) => (mode === "episodes" ? "4" : "");
 const filterToViewMode = (filter: string) => (filter === "4" ? "episodes" : "");
 
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 200;
 
 export default function Library() {
   const params = useParams();
