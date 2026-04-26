@@ -13,6 +13,7 @@ import App from "./App";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import ItemDetail from "./pages/ItemDetail";
+import DiscoverItem from "./pages/DiscoverItem";
 import Placeholder from "./pages/Placeholder";
 import Watchlist from "./pages/Watchlist";
 import Recommended from "./pages/Recommended";
@@ -31,6 +32,8 @@ render(() => (
     <Route path="/" component={Home} />
     <Route path="/library/:serverID/:libraryID" component={Library} />
     <Route path="/item/:serverID/:ratingKey" component={ItemDetail} />
+    <Route path="/discover-item/:ratingKey" component={DiscoverItem} />
+    <Route path="/watchlist/:ratingKey" component={DiscoverItem} />
     <Route path="/watchlist" component={Watchlist} />
     <Route path="/recommended" component={Recommended} />
     <Route path="/discover" component={Discover} />

@@ -137,6 +137,42 @@ export interface OMDBRating {
   imdbVotes?: string;
 }
 
+// One rating row from discover.provider.plex.tv — typically Plex returns
+// 3-4 (RT critic + RT audience + IMDB audience + TMDB audience). Image
+// scheme tells the SPA which logo/badge to render.
+export interface DiscoverRating {
+  type: string;   // "critic" | "audience"
+  image: string;  // "rottentomatoes://image.rating.rotten" | "imdb://image.rating" | "themoviedb://image.rating"
+  value: number;
+}
+
+// Curated shape for plex.tv-source items (movies/shows from Recommended,
+// Discover, Watchlist that may not be on any local server). Distinct from
+// Item: no Media/Part chain, but richer marketing metadata.
+export interface DiscoverItem {
+  ratingKey: string;
+  guid: string;
+  imdbId?: string;
+  title: string;
+  type: string;
+  year?: number;
+  summary?: string;
+  tagline?: string;
+  contentRating?: string;
+  studios?: string[];
+  originallyAvailableAt?: string;
+  duration?: number; // milliseconds
+  thumb?: string;
+  art?: string;
+  addedAt?: number;
+  publicPagesURL?: string;
+  genres?: string[];
+  ratings?: DiscoverRating[];
+  cast?: Person[];
+  directors?: Person[];
+  writers?: Person[];
+}
+
 export interface WatchlistItem {
   ratingKey: string;
   guid?: string;

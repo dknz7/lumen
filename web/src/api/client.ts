@@ -1,4 +1,4 @@
-import type { Server, Library, Item, HubItem, Match } from "./types";
+import type { Server, Library, Item, HubItem, Match, DiscoverItem } from "./types";
 import { imageDims, type ImageDimPreset } from "../util/imageDims";
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -62,6 +62,15 @@ export const api = {
 
   availability: (guid: string) =>
     getJSON<Match[]>(`/api/availability?guid=${encodeURIComponent(guid)}`),
+
+  // Rich metadata for a plex.tv-source item (Recommended/Discover/Watchlist
+  // tile click destination). Distinct from `item()` which hits a server-local
+  // /api/items/<rk> — this hits discover.provider.plex.tv via the proxy.
+  discoverItem: async (ratingKey: string): Promise<DiscoverItem> => {
+    const res = await fetch(`/api/discover-item/${encodeURIComponent(ratingKey)}`);
+    if (!res.ok) throw new Error(`${res.status} GET /api/discover-item/${ratingKey}`);
+    return res.json();
+  },
 
   imdb: async (id: string): Promise<import("./types").OMDBRating | null> => {
     const res = await fetch(`/api/imdb/${encodeURIComponent(id)}`);

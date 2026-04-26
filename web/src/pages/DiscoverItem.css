@@ -1,0 +1,81 @@
+/* DiscoverItem-specific overlays. The page-host class composes ItemDetail.css
+   for .hero / .meta-pills / .btn / .availability / .people-grid / etc. so
+   this file stays small — only the bits that diverge from the server-local
+   ItemDetail layout live here. */
+
+.discover-item-page {
+  /* Inherits .item-detail from ItemDetail.css; nothing extra needed at the
+     page-host level today. Reserved for future tweaks (e.g. a different
+     content-area max-width if the design diverges). */
+}
+
+/* plex.tv backdrop URLs already serve high-res JPEGs (1280×720 banner art
+   typically); no need to centre 30% from top like server library art —
+   plex.tv crops the banner edition for hero use. */
+.discover-hero-backdrop {
+  background-position: center center;
+}
+
+/* Tagline sits between the H1 and the meta-pills row — small italic muted
+   line that mirrors the marketing pitch on Plex Web's discover detail
+   pages ("The galaxy awaits."). */
+.discover-tagline {
+  font-style: italic;
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 0 0 12px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Genre line under the meta-pills row — separator-bullet joined list
+   ("Animation · Adventure · Comedy"). Distinct from a pill row so the
+   eye reads ratings/runtime as primary metadata and genres as ancillary. */
+.discover-genres {
+  margin-top: 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+/* Rotten Tomatoes pills — RT brand red for critic, lighter red for audience.
+   Following the same compact label+value pattern as .pill-imdb so the row
+   stays visually homogeneous. */
+.pill-rt,
+.pill-rt-audience {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-weight: 600;
+}
+
+.pill-rt {
+  background: #fa320a; /* RT brand red */
+  color: #fff;
+}
+
+.pill-rt-audience {
+  background: #f8c91c; /* RT audience yellow (popcorn) */
+  color: #000;
+}
+
+.pill-rt-label,
+.pill-rt-audience .pill-rt-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+.pill-rt-value {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* IMDB anchor pill (action-row) needs the same .btn affordance hover but
+   keeps its native <a> styling — explicit text-decoration override keeps
+   the underline off so it reads like the sibling buttons. */
+.action-row a.btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
