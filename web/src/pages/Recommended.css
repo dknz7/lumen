@@ -1,0 +1,52 @@
+.recommended-page {
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.recommended-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.recommended-shelf-title {
+  font-size: 18px;
+  color: var(--text);
+  margin: 0;
+  font-weight: 600;
+}
+.recommended-shelf-row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+.recommended-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+.recommended-poster {
+  aspect-ratio: 2 / 3;
+  background: var(--bg-menu);
+  border-radius: 4px;
+}
+.recommended-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text);
+  line-height: 1.3;
+}
+.recommended-card-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.recommended-empty {
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
