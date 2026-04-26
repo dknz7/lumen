@@ -16,6 +16,7 @@ import ItemDetail from "./pages/ItemDetail";
 import Placeholder from "./pages/Placeholder";
 import Watchlist from "./pages/Watchlist";
 import Recommended from "./pages/Recommended";
+import Discover from "./pages/Discover";
 import { store as settingsStore } from "./state/settings";
 import { playbackStore } from "./state/playback";
 import "./theme.css";
@@ -32,7 +33,7 @@ render(() => (
     <Route path="/item/:serverID/:ratingKey" component={ItemDetail} />
     <Route path="/watchlist" component={Watchlist} />
     <Route path="/recommended" component={Recommended} />
-    <Route path="/discover"    component={() => <Placeholder name="Discover"    session="Session 5" />} />
+    <Route path="/discover" component={Discover} />
     <Route path="/settings"    component={() => <Placeholder name="Settings"    session="opens modal instead" />} />
   </Router>
 ), document.getElementById("root")!);
