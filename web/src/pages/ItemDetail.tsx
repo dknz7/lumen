@@ -16,6 +16,33 @@ export default function ItemDetail() {
     () => ({ server: params.serverID!, rk: params.ratingKey! }),
     ({ server, rk }) => api.item(server, rk)
   );
+  // When viewing an episode, the IMDB pill should reflect the parent
+  // SHOW's rating (OMDB tracks shows, not individual episodes).
+  // Resource fires only when applicable; movies and shows use their own
+  // imdbId without this round-trip. Seasons fall through — the Item type
+  // doesn't carry parentRatingKey, so they show "—" until that wire field
+  // is plumbed through (separate task).
+  const [parentShow] = createResource(
+    () => {
+      const it = item();
+      if (!it) return null;
+      if (it.type !== "episode") return null;
+      const showRk = it.grandparentRatingKey;
+      if (!showRk) return null;
+      return { server: params.serverID!, rk: showRk };
+    },
+    ({ server, rk }) => api.item(server, rk)
+  );
+  // Effective IMDB id used by the pill: parent show for episodes, own id
+  // for everything else.
+  const effectiveImdbId = createMemo(() => {
+    const it = item();
+    if (!it) return undefined;
+    if (it.type === "episode") {
+      return parentShow()?.imdbId ?? undefined;
+    }
+    return it.imdbId;
+  });
   const [availability] = createResource(
     () => item()?.guid,
     (guid) => (guid ? api.availability(guid) : Promise.resolve([] as Match[]))
@@ -162,7 +189,7 @@ export default function ItemDetail() {
       <Show when={item()} fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}>
         {(it) => (
           <>
-            <Hero item={it() as Item} serverID={params.serverID!} />
+            <Hero item={it() as Item} serverID={params.serverID!} effectiveImdbId={effectiveImdbId()} />
             <nav class="action-row">
               <button class="btn-primary" onClick={handlePlay}>
                 ▶ {(it() as Item).viewOffset && (it() as Item).viewOffset! > 0 ? "Resume" : "Play"}
@@ -266,7 +293,7 @@ export default function ItemDetail() {
   );
 }
 
-function Hero(props: { item: Item; serverID: string }) {
+function Hero(props: { item: Item; serverID: string; effectiveImdbId?: string }) {
   const isEpisode = () => props.item.type === "episode";
   const isSeason = () => props.item.type === "season";
   const linksToShow = () => isEpisode() || isSeason();
@@ -310,7 +337,7 @@ function Hero(props: { item: Item; serverID: string }) {
         <div class="meta-pills">
           {props.item.year && <span class="pill">{props.item.year}</span>}
           {props.item.type && <span class="pill">{props.item.type}</span>}
-          <IMDBPill imdbId={props.item.imdbId} />
+          <IMDBPill imdbId={props.effectiveImdbId} />
         </div>
       </div>
     </header>
