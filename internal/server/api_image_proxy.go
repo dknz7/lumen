@@ -10,9 +10,12 @@ import (
 	"strings"
 )
 
+// Defaults match Plex Web's poster-cell request (240×360 — Session 5 post-smoke
+// capture) so we share Stargaze's CDN cache instead of cold-missing on every
+// first paint with our own dimension permutation.
 const (
-	defaultImageWidth  = 320
-	defaultImageHeight = 480
+	defaultImageWidth  = 240
+	defaultImageHeight = 360
 )
 
 // handleImageProxy fetches a Plex poster/art via the server's own
