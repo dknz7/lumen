@@ -55,6 +55,9 @@ func (m *Manager) runTranscodeKeepAlive(ctx context.Context) {
 			log.Printf("playback: keepalive request: %v", err)
 			continue
 		}
+		if resp.StatusCode >= 400 {
+			log.Printf("playback: keepalive status %d (session=%s)", resp.StatusCode, c.TranscodeSession)
+		}
 		// Explicit close — defer would accumulate inside the for-loop and leak fds.
 		_ = resp.Body.Close()
 	}

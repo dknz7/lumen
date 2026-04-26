@@ -59,6 +59,10 @@ func (c *Client) PollPIN(pin PIN, timeout time.Duration) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return "", fmt.Errorf("PIN poll: status %d (PIN may have expired or been revoked)", resp.StatusCode)
+		}
 		var p pinResponse
 		_ = json.NewDecoder(resp.Body).Decode(&p)
 		resp.Body.Close()
