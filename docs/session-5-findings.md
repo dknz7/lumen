@@ -189,3 +189,122 @@ Both catches were specifically things combined-review would have likely missed �
 1. Manual smoke test (Byron).
 2. Final whole-branch code review.
 3. Session 5 close-out commit message + findings finalisation.
+
+---
+
+## Post-Smoke Polish (Phase A + A.5 + A.6)
+
+Manual smoke surfaced six issues spanning subtle bugs and UX gaps. Three rounds of iterate followed.
+
+### Smoke results — what Byron found
+
+| # | Issue | Severity | Outcome |
+|---|---|---|---|
+| 1 | Re-Auth | ✅ working | — |
+| 2 | IMDB pill rendered but no score | bug | OMDB key was unactivated; activation email needed clicking. Confirmed via direct curl returning `{"Response":"False","Error":"Invalid API key!"}`. |
+| 3 | Cast & Crew rendered but no thumbs + no pagination | spec gap | Deferred to Session 6 (image-proxy rework + 2-row scroll). |
+| 4 | Play Trailer "No trailer available" | spec gap | Plex Extras YouTube IDs sparse on shared/older libraries. Deferred to Session 6 (TMDB integration). |
+| 5 | Watchlist stuck loading, single XHR firing | **bug** | Initial host fix (Phase A) → 502 with `"watchlist: status 400"`. Plex Discover caps container size at ~100; Phase A.5 paginates at 100/chunk. |
+| 6 | Add/Remove Watchlist | ✅ working | — |
+| 7 | Recommended + Discover loading content but no thumbs | bug | Phase A: `HubItem.Thumb` extension + SPA renders absolute URLs directly. |
+| 8 | Discover Trending Trailers "Nothing here yet" | bug | Two causes: (a) missing `includeMeta=1` + container-size on hub requests (Phase A), (b) `Part.id` shape mismatch — server-local int vs Discover composite string (Phase A.5/A.6). |
+
+### Phase A — initial fixes (3 commits + janitorial)
+
+```
+6abd0ae feat(spa): hub thumb rendering on Recommended + Discover
+9425756 feat(plex): HubItem.Thumb + match Plex Web request shape
+db399b2 fix(plex): watchlist host correction + pagination params
+97302ef chore(session-5): retire stale 'Session 5' sentinels in disabled UI + comments
+```
+
+#### `db399b2` — Watchlist host correction
+
+Plex Web DevTools capture revealed the watchlist endpoint is now at `discover.provider.plex.tv/library/sections/watchlist/all`, not `metadata.provider.plex.tv` as the original design spec said. Plex consolidated the watchlist read paths onto the discover host. Speculative `metadataBase` field on `plex.Client` dropped — never actually working.
+
+#### `9425756` — HubItem.Thumb + Plex Web request parity
+
+Plex Web's hub request includes `includeMeta=1` + `X-Plex-Container-Start=0` + `X-Plex-Container-Size=24`. Without these, some clip-type hubs (notably `home/trending-trailers` — 59 items in the live response) return empty for our backend while other home shelves work. Bumped to `X-Plex-Container-Size=50` to cover all eight Discover shelves with one round trip.
+
+`HubItem` gained a `Thumb` field — plex.tv hub thumbs are absolute URLs (`https://metadata-static.plex.tv/...` or `https://image.tmdb.org/...`), no proxy round-trip needed.
+
+#### `6abd0ae` — SPA hub thumb rendering
+
+Recommended + Discover cards render `<img src={thumb}>` directly with `referrerpolicy="no-referrer"`. Posters fade to the empty `.recommended-poster` / `.discover-poster` container background on load failure via `onError`, matching the Watchlist page behaviour from Session 5 Phase 2.
+
+#### `97302ef` — Janitorial: retire stale "Session 5" sentinels
+
+Final-review pass found six stale `"Session 5"` placeholder strings in shipped UI surfaces (OMDB key placeholder, kiosk button tooltip, Home Stargaze stub reasons, etc.) that read as lies once the session shipped. Plus one stale TODO in `internal/server/api_items.go` for an OMDB inline-enrichment that was actually delivered via the separate `/api/imdb/<id>` endpoint pattern. All retired in one commit.
+
+### Phase A.5 — Second-round smoke regressions (2 commits)
+
+```
+a05308f fix(plex): Part.ID is string (was int) — supports plex.tv Discover composite IDs
+0ae7e4c fix(plex): paginate watchlist in 100-item chunks
+```
+
+#### `0ae7e4c` — Watchlist 400 cap
+
+After Phase A's host fix, /api/watchlist returned 502 with body `"watchlist: status 400"`. Plex Discover rejects `X-Plex-Container-Size > ~100` with a 400 (our 500-item single-call was over the cap). Plex Web pages 50→100→100→… — we now mirror by paging at 100 until `totalSize` is reached or 1000 items collected (generous cap, well above any realistic library).
+
+Added `totalSize` parsing on `watchlistWire.MediaContainer` for the termination condition.
+
+#### `a05308f` — Part.ID string (broken — see A.6)
+
+After Phase A's `includeMeta=1` addition to hub requests, /api/hubs/home/trending-trailers started 502'ing with `json: cannot unmarshal string into Go struct field Part.MediaContainer.Metadata.Media.Part.id of type int`. Plex's Discover hub items have `Part.id` as composite UUID-shaped strings (e.g. `691648f137d5bdeaa81f55b1-6918087fc7abb5aa29a67b10`) while server-local items return numeric IDs. Hot fix: change `Part.ID int → string`.
+
+`api_play.go`'s two `%d` format calls became direct string passthroughs.
+
+**This commit broke server-local Plex parsing.** See A.6.
+
+### Phase A.6 — Regression fix from third smoke (1 commit)
+
+```
+51576b9 fix(plex): Part.ID custom unmarshaler accepts int OR string
+```
+
+#### `51576b9` — Part.ID custom unmarshaler
+
+Byron's third smoke: "Continue Watching failed: onDeck failed for all 2 servers. Every other shelf is empty. When attempting to view a library folder nothing is loading there either."
+
+The `int → string` change broke EVERY server-local request. Plex Media Server returns `Part.id` as a JSON number (e.g. `12345`). Go's JSON decoder refuses to unmarshal a bare number into a string field. The fix in A.5 had passed our existing tests because the test fixtures used STRING ids — sloppy on my part for not testing both shapes.
+
+**Fix:** new `PartID` type with custom `UnmarshalJSON` that accepts both shapes — quoted string passes through; bare number is read as text. Underlying type stays string so callers just need a one-character `string(part.ID)` cast.
+
+**Regression guard:** new [internal/plex/types_test.go](../internal/plex/types_test.go) with `TestPartID_AcceptsBothShapes` locking in three sub-cases (numeric server id, string composite id, string-numeric lookalike). This shape mismatch can never sneak through silently again.
+
+**Final smoke confirmed full recovery** — Watchlist loading 471 items, IMDB pill populating after OMDB key activation, Trending Trailers loading "Super Mario Galaxy Movie" in position 1, Continue Watching restored, Library browse restored, Item Detail accessible.
+
+### Lessons learned (Session 5 + post-smoke)
+
+1. **Plex's mixed JSON shapes across surfaces.** Server-local responses and plex.tv Discover responses are NOT interchangeable wire shapes even on overlapping field names. `Part.id` was the bite this session. Future Plex types decoding fields used across both surfaces must accept both shapes or be tested against fixtures from both.
+2. **The 2-stage review caught real things in Session 5 Phase 2 but missed the Stargaze direction-finding and Plex Web parity gaps.** Static review against the spec doesn't catch issues that only surface when the live API behaves differently than the spec described. Plex Web DevTools captures = ground truth — keep using them.
+3. **Test fixtures should cover both wire-shape variants when a type travels across surfaces.** The Phase A.5 regression slipped because our `Part` test only used string IDs. The Phase A.6 fix added a multi-case test that covers both shapes — this pattern should be applied to any future Plex type used in both server-local and Discover contexts.
+4. **OMDB API keys require activation.** The activation email step is undocumented in our Settings UI copy. Worth adding a one-line note next to the key input pointing users at the activation email — Session 6 polish item.
+5. **Smoke + iterate beats over-planning when bugs are the issue.** Session 4.5 used this pattern; Session 5 post-smoke used it again successfully. The key is honest commit messages so the iteration history reads cleanly later.
+
+### Final state at hand-off to Session 6
+
+- **All Session 5 features functional.** IMDB pill, Cast & Crew (no thumbs yet — Session 6), Play Trailer (Plex Extras only — TMDB lands Session 6), Inline PIN re-auth, Watchlist (read + Add/Remove), Recommended (4 shelves), Discover (8 shelves, including Trending Trailers).
+- **All gates clean.** `go build` / `go vet` / `gofmt -l` clean. `go test ./internal/plex/...` PASS including new `TestPartID_AcceptsBothShapes`. `go test ./internal/server/...` only fails the documented Session 2 carry-over `TestImageProxyForwardsWithTokenServerSide` (acceptable). `npx tsc --noEmit` clean. `npm run build` clean.
+- **Bundle:** 155.21 kB JS / 50.40 kB gzipped, 41.91 kB CSS / 7.38 kB gzipped. Vs Session 4.5 close (140.37 / 36.71): JS +14.84 kB / +3.87 kB gzipped, CSS +5.20 kB / +0.65 kB gzipped — proportional to 5 new SPA components + 3 new pages + watchlist add/remove wiring.
+- **Session 6 plan ready** at [docs/superpowers/plans/2026-04-27-lumen-session-6.md](superpowers/plans/2026-04-27-lumen-session-6.md). 18 tasks across 7 phases; reviewer cadence pre-set; subagent-driven-development handoff ready when Byron gives the go.
+
+### Carry-forward to Session 6
+
+Captured in the Session 6 plan as in-scope:
+
+- Stargaze movie thumbnail 404 fix (image-proxy token try-with-fallback + dimension presets) — root cause now diagnosed via Plex Web capture, fix is small.
+- Cast/Crew thumbnails (free benefit of Stargaze image-proxy fix) + 2-row pagination with horizontal scroll.
+- TMDB trailer integration (free key entry in Settings, /api/tmdb/trailer endpoint, TMDB-first with Plex Extras fallback).
+- Home UI parity for Recommended/Discover (refactor to share existing `<Shelf />` component for drag-drop / chevrons / wrapper styling).
+- Watchlist card hover actions (Play / Remove / Mark Watched).
+- plex.tv Discover Item Detail page (`/discover-item/<rk>` and `/watchlist/<rk>` were 404 stubs).
+- Card UX additions on plex.tv pages (functionality + info improvements; brainstorm-first).
+- Trailer card functionality (Trending Trailers items have HLS playback URLs — distinct from YouTube-embed TMDB trailers).
+
+Out of scope (still post-1.0):
+
+- Watchlist bin icon + Undo toast on the Watchlist *page itself* (Phase 4.4 covers card hover Remove instead, which subsumes the use case).
+- Vimeo / non-YouTube trailer sources.
+- Plex.tv avatar endpoint for Settings user thumbnail.
