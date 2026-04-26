@@ -97,6 +97,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/user", s.handleUser)
 	s.mux.HandleFunc("/api/servers/refresh", s.handleServersRefresh)
 	s.mux.HandleFunc("/api/settings/omdb", s.handleSettingsOMDB)
+	s.mux.HandleFunc("/api/settings/tmdb", s.handleSettingsTMDB)
 	s.mux.HandleFunc("/api/auth/start", s.handleAuthStart)
 	s.mux.HandleFunc("/api/auth/poll", s.handleAuthPoll)
 	s.mux.HandleFunc("/api/imdb/", s.handleIMDB)

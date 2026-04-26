@@ -19,6 +19,8 @@ export default function AccountsServers() {
   const [refreshStatus, setRefreshStatus] = createSignal("");
   const [omdbKey, setOmdbKey] = createSignal("");
   const [omdbError, setOmdbError] = createSignal("");
+  const [tmdbKey, setTmdbKey] = createSignal("");
+  const [tmdbError, setTmdbError] = createSignal("");
   const [reAuthOpen, setReAuthOpen] = createSignal(false);
 
   async function renameServer(machineID: string, newName: string) {
@@ -68,6 +70,30 @@ export default function AccountsServers() {
     }
     setOmdbError("");
     saveOMDB();
+  }
+
+  function saveTMDB() {
+    fetch("/api/settings/tmdb", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: tmdbKey() }),
+    });
+  }
+
+  function validateAndSaveTMDB() {
+    const k = tmdbKey().trim();
+    if (k === "") {
+      setTmdbError("");
+      saveTMDB();
+      return;
+    }
+    // TMDB v3 keys are 32 hex chars.
+    if (!/^[a-f0-9]{32}$/i.test(k)) {
+      setTmdbError("Expected 32 hexadecimal characters.");
+      return;
+    }
+    setTmdbError("");
+    saveTMDB();
   }
 
   return (
@@ -155,6 +181,32 @@ export default function AccountsServers() {
           )}
           <div style={{ "margin-top": "4px", "font-size": "11px" }}>
             <a href="https://www.omdbapi.com/apikey.aspx" target="_blank" rel="noreferrer" style={{ "color": "var(--text-muted)" }}>
+              Get a free key →
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label for="tmdbKey">TMDB API key</label>
+        <div class="settings-control">
+          <input
+            id="tmdbKey"
+            type="password"
+            placeholder="32-char hex key (powers Play Trailer button)"
+            value={tmdbKey()}
+            onInput={(e) => setTmdbKey(e.currentTarget.value)}
+            onBlur={validateAndSaveTMDB}
+            aria-invalid={tmdbError() !== ""}
+            aria-describedby={tmdbError() ? "tmdbError" : undefined}
+          />
+          {tmdbError() && (
+            <div id="tmdbError" role="alert" style={{ "margin-top": "4px", "color": "#f07878", "font-size": "12px" }}>
+              {tmdbError()}
+            </div>
+          )}
+          <div style={{ "margin-top": "4px", "font-size": "11px" }}>
+            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noreferrer" style={{ "color": "var(--text-muted)" }}>
               Get a free key →
             </a>
           </div>
