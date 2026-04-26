@@ -1,5 +1,5 @@
 import { useParams, A } from "@solidjs/router";
-import { createResource, createSignal, For, Show } from "solid-js";
+import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
@@ -7,6 +7,7 @@ import Episodes from "../components/Episodes";
 import ResumeRestartModal from "../components/Modal/ResumeRestartModal";
 import TrailerModal from "../components/Modal/TrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { extractPlexTvRatingKey } from "../util/plexGuid";
 import "./ItemDetail.css";
 
 export default function ItemDetail() {
@@ -38,6 +39,39 @@ export default function ItemDetail() {
 
   const [resumeOpen, setResumeOpen] = createSignal(false);
   const [trailerOpen, setTrailerOpen] = createSignal(false);
+
+  // Optimistic — flips immediately on click, reverts if the API call fails.
+  // Plex propagates Watchlist add/remove cross-device after a brief lag.
+  const [inWatchlistOverride, setInWatchlistOverride] = createSignal<boolean | null>(null);
+  const [watchlist] = createResource(() => api.watchlist().catch(() => []));
+  const isInWatchlist = createMemo(() => {
+    const override = inWatchlistOverride();
+    if (override !== null) return override;
+    const rk = extractPlexTvRatingKey(item()?.guid);
+    if (!rk) return false;
+    return (watchlist() ?? []).some((w) => w.ratingKey === rk);
+  });
+
+  async function toggleWatchlist() {
+    const it = item();
+    if (!it) return;
+    const rk = extractPlexTvRatingKey(it.guid);
+    if (!rk) {
+      alert("This item doesn't have a plex.tv GUID — can't toggle watchlist.");
+      return;
+    }
+    const wasIn = isInWatchlist();
+    setInWatchlistOverride(!wasIn);
+    try {
+      if (wasIn) await api.watchlistRemove(rk); else await api.watchlistAdd(rk);
+      // Brief Plex propagation delay before broadcasting invalidation so
+      // any focus-refetched resources see fresh state.
+      setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
+    } catch (e) {
+      setInWatchlistOverride(wasIn);
+      alert(`Watchlist toggle failed: ${(e as Error).message}`);
+    }
+  }
 
   async function handlePlay() {
     const it = item();
@@ -151,7 +185,18 @@ export default function ItemDetail() {
                 {((it() as Item).viewCount ?? 0) > 0 ? "✓ Watched" : "Mark as Watched"}
               </button>
               <button class="btn" onClick={handleMarkUnwatched}>Mark as Unwatched</button>
-              <button class="btn" disabled title="Session 5">Add to Watchlist</button>
+              <button
+                class="btn"
+                disabled={!extractPlexTvRatingKey((it() as Item).guid)}
+                onClick={toggleWatchlist}
+                title={
+                  extractPlexTvRatingKey((it() as Item).guid)
+                    ? (isInWatchlist() ? "Remove from Watchlist" : "Add to Watchlist")
+                    : "No plex.tv GUID — Watchlist unavailable for this item"
+                }
+              >
+                {isInWatchlist() ? "Remove from Watchlist" : "Add to Watchlist"}
+              </button>
             </nav>
             <Show when={(it() as Item).viewOffset && (it() as Item).viewOffset! > 0 && (it() as Item).duration && (it() as Item).duration! > 0}>
               <div class="resume-subtitle">

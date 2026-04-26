@@ -40,6 +40,25 @@ export const api = {
 
   watchlist: () => getJSON<import("./types").WatchlistItem[]>("/api/watchlist"),
 
+  watchlistAdd: async (plexTvRatingKey: string) => {
+    const res = await fetch("/api/watchlist/add", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ratingKey: plexTvRatingKey }),
+    });
+    if (!res.ok) throw new Error(`${res.status} POST /api/watchlist/add: ${await res.text()}`);
+    return res.json();
+  },
+  watchlistRemove: async (plexTvRatingKey: string) => {
+    const res = await fetch("/api/watchlist/remove", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ratingKey: plexTvRatingKey }),
+    });
+    if (!res.ok) throw new Error(`${res.status} POST /api/watchlist/remove: ${await res.text()}`);
+    return res.json();
+  },
+
   availability: (guid: string) =>
     getJSON<Match[]>(`/api/availability?guid=${encodeURIComponent(guid)}`),
 
