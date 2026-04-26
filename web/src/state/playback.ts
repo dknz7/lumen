@@ -63,6 +63,13 @@ function createPlaybackStore() {
 
     es.addEventListener("stopped", () => {
       setState({ active: false, position: 0, duration: 0, state: "stopped" });
+      // Plex's /library/metadata/<key> cache lags ~100-300ms after the final
+      // ReportTimeline POST that Manager.Stop() fires. Wait before broadcasting
+      // invalidation so subscribers (ItemDetail, Episodes, etc.) refetch fresh
+      // data instead of stale viewOffset/viewCount.
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("lumen:data-invalidated"));
+      }, 500);
     });
 
     es.onerror = (e) => {

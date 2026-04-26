@@ -71,7 +71,9 @@ export default function ItemDetail() {
       // server-side cache propagation (~100-300ms). Wait before refetching to
       // avoid getting stale viewCount/viewOffset.
       await new Promise((r) => setTimeout(r, 350));
-      refetchItem();
+      // Single dispatch triggers all refetchOnFocus subscribers including
+      // ItemDetail's own refetchItem and any mounted Episodes resources.
+      window.dispatchEvent(new CustomEvent("lumen:data-invalidated"));
     } catch (e) {
       alert(`Mark watched failed: ${(e as Error).message}`);
     }
@@ -99,7 +101,9 @@ export default function ItemDetail() {
       await api.unscrobble(params.serverID!, it.ratingKey);
       // Same Plex metadata-cache propagation race as handleMarkWatched.
       await new Promise((r) => setTimeout(r, 350));
-      refetchItem();
+      // Single dispatch triggers all refetchOnFocus subscribers including
+      // ItemDetail's own refetchItem and any mounted Episodes resources.
+      window.dispatchEvent(new CustomEvent("lumen:data-invalidated"));
     } catch (e) {
       alert(`Mark unwatched failed: ${(e as Error).message}`);
     }

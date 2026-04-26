@@ -1,14 +1,16 @@
 import { onCleanup, onMount } from "solid-js";
 
 /**
- * Run the given refetch function whenever the browser window regains focus
- * or the page becomes visible. Used to keep Lumen's data fresh after the
- * user switches to Plex Web / Plex Desktop / etc. and changes state there.
+ * Run the given refetch function whenever the browser window regains focus,
+ * the page becomes visible, OR a global lumen:data-invalidated event fires.
  *
- * Both `focus` and `visibilitychange` are listened to because:
- *  - `focus` fires when the browser window regains focus (alt-tab).
- *  - `visibilitychange` fires when the tab itself becomes visible (Chrome's
- *    background-tab throttling can suppress focus on tab switch).
+ * - focus / visibilitychange: cross-tab sync (user changed state in Plex Web,
+ *   came back to Lumen tab → refetch).
+ * - lumen:data-invalidated: within-Lumen mutation sync (user clicked Mark
+ *   Watched, Pot Player closed, etc. → refetch all subscribers).
+ *
+ * Mutation paths dispatch the event via:
+ *   window.dispatchEvent(new CustomEvent('lumen:data-invalidated'));
  */
 export function refetchOnFocus(refetch: () => void) {
   onMount(() => {
@@ -16,11 +18,16 @@ export function refetchOnFocus(refetch: () => void) {
     const onVisible = () => {
       if (document.visibilityState === "visible") refetch();
     };
+    const onInvalidated = () => refetch();
+
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("lumen:data-invalidated", onInvalidated);
+
     onCleanup(() => {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("lumen:data-invalidated", onInvalidated);
     });
   });
 }

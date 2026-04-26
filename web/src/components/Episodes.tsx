@@ -3,6 +3,7 @@ import { A } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Item, Season } from "../api/types";
 import Skeleton from "./Skeleton";
+import { refetchOnFocus } from "../util/focusRefetch";
 import "./Episodes.css";
 
 export default function Episodes(props: {
@@ -10,7 +11,7 @@ export default function Episodes(props: {
   showRatingKey: string;
   initialSeasonIndex?: number;
 }) {
-  const [seasons] = createResource(
+  const [seasons, { refetch: refetchSeasons }] = createResource(
     () => props.showRatingKey,
     (k) => api.seasons(props.serverID, k)
   );
@@ -30,10 +31,18 @@ export default function Episodes(props: {
     setActiveKey(list[0].ratingKey);
   });
 
-  const [episodes] = createResource(
+  const [episodes, { refetch: refetchEpisodes }] = createResource(
     () => activeKey(),
     (key) => (key ? api.seasonEpisodes(props.serverID, key) : Promise.resolve([] as Item[]))
   );
+
+  // Pick up viewCount changes from within-Lumen mutations (Mark Watched on a
+  // parent show, Pot Player close, etc.) so the teal episode-watched tick
+  // updates without a manual refresh.
+  refetchOnFocus(() => {
+    refetchSeasons();
+    refetchEpisodes();
+  });
 
   return (
     <section class="episodes">
