@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 // mediaContainer is the envelope Plex wraps all library responses in.
@@ -52,6 +53,30 @@ type metadataWire struct {
 	ViewCount             int     `json:"viewCount"`
 	OriginallyAvailableAt string  `json:"originallyAvailableAt"`
 	Media                 []Media `json:"Media"`
+	Role []struct {
+		ID    int    `json:"id"`
+		Tag   string `json:"tag"`
+		Role  string `json:"role"`
+		Thumb string `json:"thumb"`
+	} `json:"Role"`
+	Director []struct {
+		ID    int    `json:"id"`
+		Tag   string `json:"tag"`
+		Thumb string `json:"thumb"`
+	} `json:"Director"`
+	Writer []struct {
+		ID    int    `json:"id"`
+		Tag   string `json:"tag"`
+		Thumb string `json:"thumb"`
+	} `json:"Writer"`
+	Extras struct {
+		Metadata []struct {
+			ExtraType int     `json:"extraType"` // 1 = trailer
+			Title     string  `json:"title"`
+			GUID      string  `json:"guid"` // e.g. "youtube://abc123"
+			Media     []Media `json:"Media"`
+		} `json:"Metadata"`
+	} `json:"Extras"`
 }
 
 // GetLibraries returns all top-level library sections on the server.
@@ -167,6 +192,81 @@ func (c *Client) serverGet(s *Server, path string, extraHeaders http.Header) (*m
 	return &mc, nil
 }
 
+// extractIMDBId picks the imdb:// id (e.g. "tt0111161") out of Plex's
+// capital-Guid array. Returns empty string when no imdb entry is present.
+func extractIMDBId(arr []struct{ ID string }) string {
+	for _, g := range arr {
+		if strings.HasPrefix(g.ID, "imdb://") {
+			return strings.TrimPrefix(g.ID, "imdb://")
+		}
+	}
+	return ""
+}
+
+func personsFromRole(in []struct {
+	ID    int    `json:"id"`
+	Tag   string `json:"tag"`
+	Role  string `json:"role"`
+	Thumb string `json:"thumb"`
+}) []Person {
+	out := make([]Person, 0, len(in))
+	for _, p := range in {
+		out = append(out, Person{ID: p.ID, Name: p.Tag, Tag: p.Role, Thumb: p.Thumb})
+	}
+	return out
+}
+
+func personsFromCrew(in []struct {
+	ID    int    `json:"id"`
+	Tag   string `json:"tag"`
+	Thumb string `json:"thumb"`
+}) []Person {
+	out := make([]Person, 0, len(in))
+	for _, p := range in {
+		out = append(out, Person{ID: p.ID, Name: p.Tag, Thumb: p.Thumb})
+	}
+	return out
+}
+
+// trailerFromExtras returns the first trailer (extraType == 1) Plex
+// reports for the item, normalising youtube:// guids and plex-hosted
+// part keys into TrailerInfo. Returns nil when no trailer is present.
+func trailerFromExtras(in []struct {
+	ExtraType int     `json:"extraType"`
+	Title     string  `json:"title"`
+	GUID      string  `json:"guid"`
+	Media     []Media `json:"Media"`
+}) *TrailerInfo {
+	for _, e := range in {
+		if e.ExtraType != 1 {
+			continue
+		}
+		ti := &TrailerInfo{Title: e.Title}
+		if strings.HasPrefix(e.GUID, "youtube://") {
+			ti.YouTubeID = strings.TrimPrefix(e.GUID, "youtube://")
+			return ti
+		}
+		if len(e.Media) > 0 && len(e.Media[0].Part) > 0 {
+			ti.PlexKey = e.Media[0].Part[0].Key
+			return ti
+		}
+	}
+	return nil
+}
+
+// toIDOnly strips json tags so extractIMDBId's tag-less parameter type
+// can accept the result. Same semantic content; just a different
+// anonymous-struct shape.
+func toIDOnly(in []struct {
+	ID string `json:"id"`
+}) []struct{ ID string } {
+	out := make([]struct{ ID string }, 0, len(in))
+	for _, g := range in {
+		out = append(out, struct{ ID string }{ID: g.ID})
+	}
+	return out
+}
+
 func metadataSliceToItems(mw []metadataWire) []Item {
 	out := make([]Item, 0, len(mw))
 	for _, m := range mw {
@@ -194,6 +294,11 @@ func metadataSliceToItems(mw []metadataWire) []Item {
 			ViewCount:             m.ViewCount,
 			OriginallyAvailableAt: m.OriginallyAvailableAt,
 			Media:                 m.Media,
+			IMDBId:                extractIMDBId(toIDOnly(m.GuidArray)),
+			Roles:                 personsFromRole(m.Role),
+			Directors:             personsFromCrew(m.Director),
+			Writers:               personsFromCrew(m.Writer),
+			Trailer:               trailerFromExtras(m.Extras.Metadata),
 		})
 	}
 	return out

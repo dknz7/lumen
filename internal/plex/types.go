@@ -57,6 +57,11 @@ type Item struct {
 	ViewCount             int     `json:"viewCount,omitempty"`             // 0 = unwatched, ≥1 = watched (Plex semantics)
 	OriginallyAvailableAt string  `json:"originallyAvailableAt,omitempty"` // air date "YYYY-MM-DD"
 	Media                 []Media `json:"Media,omitempty"`
+	IMDBId                string       `json:"imdbId,omitempty"`
+	Roles                 []Person     `json:"roles,omitempty"`
+	Directors             []Person     `json:"directors,omitempty"`
+	Writers               []Person     `json:"writers,omitempty"`
+	Trailer               *TrailerInfo `json:"trailer,omitempty"`
 }
 
 // Media is one quality variant of an Item — Plex returns one entry per
@@ -97,4 +102,22 @@ type ItemQuery struct {
 	Filters map[string]string
 	Start   int
 	Size    int
+}
+
+// Person is a single cast or crew member for an Item. Tag is the role —
+// character name for actors, role name for crew.
+type Person struct {
+	ID    int    `json:"id"`
+	Name  string `json:"name"`
+	Tag   string `json:"tag,omitempty"`   // character name (Role) or role name (Director/Writer)
+	Thumb string `json:"thumb,omitempty"` // server-relative path; pass through image-proxy
+}
+
+// TrailerInfo carries a single Plex Extras-sourced trailer reference.
+// PlexKey is set when the trailer is a Plex-hosted file; YouTubeID is set
+// when the Extra resolves to a `youtube://...` GUID. Exactly one is non-empty.
+type TrailerInfo struct {
+	Title     string `json:"title,omitempty"`
+	PlexKey   string `json:"plexKey,omitempty"`   // /library/parts/.../file.flv
+	YouTubeID string `json:"youtubeID,omitempty"` // 11-char YouTube ID
 }

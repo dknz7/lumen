@@ -98,3 +98,24 @@ func TestSearch(t *testing.T) {
 		t.Fatalf("got %+v", items)
 	}
 }
+
+func TestExtractIMDBId(t *testing.T) {
+	cases := []struct {
+		name     string
+		guidArr  []struct{ ID string }
+		expected string
+	}{
+		{"empty", nil, ""},
+		{"only tmdb", []struct{ ID string }{{ID: "tmdb://12345"}}, ""},
+		{"imdb present", []struct{ ID string }{{ID: "tmdb://12345"}, {ID: "imdb://tt0111161"}}, "tt0111161"},
+		{"imdb only", []struct{ ID string }{{ID: "imdb://tt0068646"}}, "tt0068646"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := extractIMDBId(tc.guidArr)
+			if got != tc.expected {
+				t.Errorf("got %q, want %q", got, tc.expected)
+			}
+		})
+	}
+}
