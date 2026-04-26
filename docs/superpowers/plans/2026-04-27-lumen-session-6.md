@@ -1718,6 +1718,126 @@ will be wired into card hover state in a follow-up polish pass."
 
 ---
 
+## Phase 4.4 — Watchlist card hover actions (parity with Continue Watching)
+
+The Session 5 Watchlist page renders cards as static link-only tiles. Byron's smoke revealed the Watchlist needs the same hover affordances the Continue Watching cards on Home already have:
+
+- Play button (centred overlay, fades in on hover) — for plex.tv watchlist items, click should resolve to the local server copy if available (via `availability` lookup) and trigger `api.play()`. If not available locally, fall back to the click-through to DiscoverItem detail page.
+- Remove from Watchlist (top-right action button on hover).
+- Mark as Watched (top-right action button on hover) — only meaningful when the item is available on a local server (otherwise greyed out).
+
+Pattern reference: `web/src/components/Card.tsx` already has the `card-play-overlay`, `card-remove-btn`, `card-mark-watched-btn` shapes from Session 4.5. We refactor `WatchlistCard` to share those visual patterns (or, cleaner, refactor `Card.tsx` to accept watchlist mode as a prop variant).
+
+### Task 11.5: Watchlist card hover actions
+
+**Files:**
+- Modify: `web/src/pages/Watchlist.tsx`
+- Modify: `web/src/pages/Watchlist.css`
+- (Possibly) Modify: `web/src/components/Card.tsx` — add a `watchlistMode?: boolean` prop variant.
+
+> **Implementer note:** read `web/src/components/Card.tsx` first to understand the existing CW hover-action implementation. The two paths to choose between:
+>
+> 1. **Reuse Card.tsx with a watchlistMode flag** — Card already has hover-overlay + action-button shapes. Add a `watchlistMode` prop that swaps the actions (Play resolves via availability; Remove calls api.watchlistRemove; Mark Watched only enabled when locally available). Cleaner long-term.
+> 2. **Build dedicated WatchlistCard with copied patterns** — duplicates CSS but isolates concerns. Less risk of regressing Home's CW cards.
+>
+> Choose based on Card.tsx's current prop surface and whether the existing logic generalises cleanly. Stop and ask if path 1 looks invasive.
+
+- [ ] **Step 1: Decide path 1 vs 2 after reading Card.tsx.**
+
+- [ ] **Step 2: Wire Play button — availability-aware.**
+
+For each watchlist card, fetch `api.availability(item.guid)` to check local server availability. If available:
+
+```tsx
+async function handlePlay(item: WatchlistItem) {
+  const matches = await api.availability(item.guid ?? "");
+  if (matches.length === 0) {
+    // No local copy — fall through to DiscoverItem detail.
+    window.location.href = `/discover-item/${encodeURIComponent(item.ratingKey)}`;
+    return;
+  }
+  const m = matches[0]; // first match — pick by preference if multiple
+  await api.play(m.machineIdentifier, m.ratingKey);
+}
+```
+
+- [ ] **Step 3: Wire Remove from Watchlist (uses existing api.watchlistRemove).**
+
+```tsx
+async function handleRemove(item: WatchlistItem) {
+  try {
+    await api.watchlistRemove(item.ratingKey);
+    setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
+  } catch (e) {
+    alert(`Remove failed: ${(e as Error).message}`);
+  }
+}
+```
+
+- [ ] **Step 4: Wire Mark as Watched — gated on local availability.**
+
+```tsx
+async function handleMarkWatched(item: WatchlistItem) {
+  const matches = await api.availability(item.guid ?? "");
+  if (matches.length === 0) {
+    // No local copy — Mark Watched not applicable to plex.tv-only items.
+    return;
+  }
+  const m = matches[0];
+  await api.scrobble(m.machineIdentifier, m.ratingKey);
+  setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
+}
+```
+
+- [ ] **Step 5: CSS for the action overlay (mirror Home's CW pattern).**
+
+Append to `web/src/pages/Watchlist.css` (or share the existing card-overlay CSS if path 1 is chosen):
+
+```css
+.watchlist-card { position: relative; }
+.watchlist-card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  z-index: 4;
+}
+.watchlist-card:hover .watchlist-card-actions {
+  opacity: 1;
+}
+.watchlist-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.watchlist-card:hover .watchlist-card-play {
+  opacity: 1;
+}
+```
+
+- [ ] **Step 6: Verify + commit.**
+
+```bash
+cd web && npx tsc --noEmit && npm run build && cd .. && go build -o lumen.exe ./cmd/lumen
+git add web/src/pages/Watchlist.tsx web/src/pages/Watchlist.css web/src/components/Card.tsx
+git commit -m "feat(watchlist): hover actions (Play / Remove / Mark Watched)
+
+Parity with Continue Watching cards on Home (Session 4.5 pattern). Play
+resolves via availability lookup — local server copy plays directly,
+plex.tv-only items fall through to DiscoverItem detail. Remove calls
+api.watchlistRemove with optimistic UI flip. Mark Watched gates on
+local availability (greyed out for plex.tv-only items)."
+```
+
+---
+
 ## Phase 4.5 — plex.tv Discover Item Detail page
 
 When a user clicks a card on Recommended or Discover (or the click-through `/watchlist/<rk>` from Session 5's Watchlist page), they currently land on a 404 stub. These items are plex.tv-source — they're not in any local server library, so `/item/<server>/<rk>` doesn't apply. Instead we need a **discover-namespace** Item Detail variant that:
