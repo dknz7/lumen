@@ -12,10 +12,13 @@ func TestGetWatchlistHeaderOnlyAuthAndShape(t *testing.T) {
 			http.Error(w, "missing token header", http.StatusUnauthorized)
 			return
 		}
-		if r.URL.RawQuery != "" {
-			// The endpoint takes no query params; ensure we don't drift back to
-			// query-string auth.
-			http.Error(w, "unexpected query string", http.StatusBadRequest)
+		// Pagination params required by Plex Discover; reject token in query.
+		if r.URL.Query().Get("X-Plex-Token") != "" {
+			http.Error(w, "token must be header-only", http.StatusBadRequest)
+			return
+		}
+		if r.URL.Query().Get("X-Plex-Container-Size") == "" {
+			http.Error(w, "expected X-Plex-Container-Size", http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -31,7 +34,7 @@ func TestGetWatchlistHeaderOnlyAuthAndShape(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient("client-id", "test")
-	c.metadataBase = srv.URL
+	c.discoverBase = srv.URL
 	items, err := c.GetWatchlist("tok")
 	if err != nil {
 		t.Fatalf("GetWatchlist: %v", err)

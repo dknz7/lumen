@@ -15,7 +15,6 @@ type Client struct {
 	plexTVBase       string        // override for tests; default set in NewClient
 	pinPollInterval  time.Duration // override for tests; default 2 s
 	discoverBase     string        // overridable for tests
-	metadataBase     string        // overridable for tests; default https://metadata.provider.plex.tv
 }
 
 // NewClient builds a Plex-aware HTTP client. clientIdentifier should be the stable
@@ -30,7 +29,6 @@ func NewClient(clientIdentifier, version string) *Client {
 		plexTVBase:       "https://plex.tv",
 		pinPollInterval:  2 * time.Second,
 		discoverBase:     "https://discover.provider.plex.tv",
-		metadataBase:     "https://metadata.provider.plex.tv",
 	}
 	return c
 }

@@ -39,10 +39,16 @@ type watchlistWire struct {
 }
 
 // GetWatchlist returns the user's plex.tv watchlist (account-wide).
-// Endpoint: GET https://metadata.provider.plex.tv/library/sections/watchlist/all
+// Endpoint: GET https://discover.provider.plex.tv/library/sections/watchlist/all
 // Authentication: X-Plex-Token header (account token).
+//
+// Endpoint host confirmed via Plex Web DevTools capture in Session 5
+// post-smoke (originally targeted metadata.provider.plex.tv per the
+// design spec, which 502'd — Plex consolidated watchlist read paths
+// onto discover.provider). Container size 500 covers the largest
+// observed user library (471 items in one capture).
 func (c *Client) GetWatchlist(accountToken string) ([]WatchlistItem, error) {
-	u := c.metadataBase + "/library/sections/watchlist/all"
+	u := c.discoverBase + "/library/sections/watchlist/all?X-Plex-Container-Start=0&X-Plex-Container-Size=500"
 	req, err := c.NewRequest("GET", u, nil)
 	if err != nil {
 		return nil, err
