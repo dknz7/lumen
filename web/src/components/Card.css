@@ -64,7 +64,9 @@
 
 /* Continue Watching action buttons — overlay only appears on card hover.
    Tick (mark watched) sits at top-right; bin (remove) sits below it when
-   both are present. z-index:2 keeps them above the card's dim overlay. */
+   both are present. z-index:4 keeps them above the card's dim overlay AND
+   the centered hover play button (z-index:3) so they remain clickable on
+   Continue Watching cards. */
 .card-mark-watched-btn,
 .card-remove-btn {
   position: absolute;
@@ -81,7 +83,7 @@
   line-height: 1;
   opacity: 0;
   transition: opacity 0.15s ease, background 0.15s ease;
-  z-index: 2;
+  z-index: 4;
 }
 
 .card-mark-watched-btn {
@@ -112,6 +114,48 @@
   background: rgba(200, 40, 40, 0.85);
 }
 
+/* Hover-to-play overlay — centered circular button that fades in on card hover.
+   Click bypasses the Item Detail page and the Resume modal: fires api.play
+   directly with the resume offset (if any). z-index:3 sits above the dim
+   overlay (z-index:1) but below the CW action buttons (z-index:4) so the
+   tick/bin remain clickable on Continue Watching cards. */
+.card-play-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  z-index: 3;
+  /* Optical-centre nudge: a solid play triangle's visual centre sits to the
+     right of its geometric centre, so shift content slightly right. */
+  padding-left: 4px;
+}
+
+.card:hover .card-play-btn {
+  opacity: 1;
+}
+
+.card-play-btn:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.card-play-btn:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+}
+
 /* Progress bar across the bottom of the poster — matches Plex's in-progress treatment.
    z-index:2 so it stays visible above the dim hover overlay. */
 .card-progress-track {
@@ -130,13 +174,14 @@
   transition: width 0.3s ease;
 }
 
-/* WATCHED ribbon — 45° banner pinned to the top-right corner of the poster.
+/* WATCHED ribbon — 45° banner pinned to the top-LEFT corner of the poster.
+   Lives top-left so it doesn't overlap the CW action buttons (top-right).
    Gated by viewCount > 0 so unwatched cards have no DOM node, no layout shift.
    Sits above the dim hover overlay (z-index:2) and above the progress bar. */
 .card-watched-ribbon {
   position: absolute;
   top: 14px;
-  right: -32px;
+  left: -32px;
   width: 120px;
   padding: 3px 0;
   background: var(--led-teal);
@@ -147,7 +192,7 @@
   letter-spacing: 1px;
   text-align: center;
   text-transform: uppercase;
-  transform: rotate(45deg);
+  transform: rotate(-45deg);
   transform-origin: center;
   pointer-events: none;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);

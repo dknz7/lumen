@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
-import { CircleCheck, ImageOff, Trash2 } from "./icons";
+import { CircleCheck, ImageOff, Play, Trash2 } from "./icons";
 import { formatAddedTimestamp } from "../util/date";
 import "./Card.css";
 
@@ -52,6 +52,23 @@ export default function Card(props: CardProps) {
     const p = (off / dur) * 100;
     return Math.max(0, Math.min(100, p));
   };
+
+  async function handlePlayClick(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const offset = props.item.viewOffset ?? 0;
+      if (offset > 0) {
+        await api.play(props.serverID, props.item.ratingKey, offset);
+      } else {
+        await api.play(props.serverID, props.item.ratingKey);
+      }
+    } catch (err) {
+      console.error("card play failed:", err);
+      alert(`Play failed: ${(err as Error).message}`);
+    }
+  }
+
   return (
     <A class="card" href={`/item/${props.serverID}/${d().linkKey}`}>
       <div class="card-poster">
@@ -67,6 +84,14 @@ export default function Card(props: CardProps) {
             onError={() => setImgFailed(true)}
           />
         )}
+        <button
+          class="card-play-btn"
+          title="Play"
+          aria-label="Play"
+          onClick={handlePlayClick}
+        >
+          <Play size={36} fill="currentColor" />
+        </button>
         {props.onMarkWatched && (
           <button
             class="card-mark-watched-btn"
