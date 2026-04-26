@@ -2,7 +2,6 @@ package playback
 
 import (
 	"context"
-	"log"
 	"time"
 )
 
@@ -56,7 +55,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 
 		pos, err := c.PotPlayer.GetPosition()
 		if err != nil {
-			log.Printf("playback: GetPosition: %v", err)
+			m.logd.Logf("GetPosition", "playback: GetPosition: %v", err)
 			continue
 		}
 		state, _ := c.PotPlayer.GetState()
@@ -104,7 +103,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 				default:
 				}
 				if err := m.plex.Scrobble(c.Server, c.RatingKey); err != nil {
-					log.Printf("playback: Scrobble: %v", err)
+					m.logd.Logf("Scrobble", "playback: Scrobble: %v", err)
 				} else {
 					scrobbled = true
 				}
@@ -130,7 +129,7 @@ func (m *Manager) fireEnded(c *Context) {
 	}
 	next, err := m.plex.NextEpisode(c.Server, c.ShowRatingKey, c.RatingKey)
 	if err != nil {
-		log.Printf("playback: NextEpisode: %v", err)
+		m.logd.Logf("NextEpisode", "playback: NextEpisode: %v", err)
 		m.broadcast(Event{Type: EventEnded})
 		return
 	}

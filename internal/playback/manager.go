@@ -21,6 +21,7 @@ type Manager struct {
 	live   liveState
 	cancel context.CancelFunc
 	subs   map[chan Event]struct{}
+	logd   *logDedup
 }
 
 // NewManager wires a Manager to a Plex client and a Pot Player path resolver.
@@ -31,6 +32,7 @@ func NewManager(c *plex.Client, potPath func() string) *Manager {
 		plex:    c,
 		potPath: potPath,
 		subs:    make(map[chan Event]struct{}),
+		logd:    newLogDedup(logDedupWindow),
 	}
 }
 

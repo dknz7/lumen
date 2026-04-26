@@ -3,7 +3,6 @@ package playback
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/url"
 	"time"
 )
@@ -36,7 +35,7 @@ func (m *Manager) runTranscodeKeepAlive(ctx context.Context) {
 		u := fmt.Sprintf("%s/video/:/transcode/universal/ping?%s", c.Server.BaseURL, q.Encode())
 		req, err := m.plex.NewRequest("POST", u, nil)
 		if err != nil {
-			log.Printf("playback: keepalive build: %v", err)
+			m.logd.Logf("keepalive-build", "playback: keepalive build: %v", err)
 			continue
 		}
 		m.plex.SetToken(req, c.Server.AccessToken)
@@ -52,11 +51,11 @@ func (m *Manager) runTranscodeKeepAlive(ctx context.Context) {
 
 		resp, err := m.plex.Do(req)
 		if err != nil {
-			log.Printf("playback: keepalive request: %v", err)
+			m.logd.Logf("keepalive-request", "playback: keepalive request: %v", err)
 			continue
 		}
 		if resp.StatusCode >= 400 {
-			log.Printf("playback: keepalive status %d (session=%s)", resp.StatusCode, c.TranscodeSession)
+			m.logd.Logf("keepalive-status", "playback: keepalive status %d (session=%s)", resp.StatusCode, c.TranscodeSession)
 		}
 		// Explicit close — defer would accumulate inside the for-loop and leak fds.
 		_ = resp.Body.Close()

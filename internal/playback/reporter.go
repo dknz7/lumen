@@ -2,7 +2,6 @@ package playback
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"lumen/internal/plex"
@@ -61,7 +60,7 @@ func (m *Manager) runReporter(ctx context.Context) {
 			Duration:  duration,
 		})
 		if err != nil {
-			log.Printf("playback: ReportTimeline: %v", err)
+			m.logd.Logf("ReportTimeline", "playback: ReportTimeline: %v", err)
 		}
 	}
 }
