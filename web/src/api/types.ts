@@ -135,3 +135,12 @@ export interface OMDBRating {
   imdbRating?: string;
   imdbVotes?: string;
 }
+
+export interface WatchlistItem {
+  ratingKey: string;
+  guid?: string;
+  title: string;
+  type: string;
+  year?: number;
+  thumb?: string;
+}

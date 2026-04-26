@@ -38,6 +38,8 @@ export const api = {
   hub: (namespace: "home" | "watchlist", slug: string) =>
     getJSON<HubItem[]>(`/api/hubs/${namespace}/${encodeURIComponent(slug)}`),
 
+  watchlist: () => getJSON<import("./types").WatchlistItem[]>("/api/watchlist"),
+
   availability: (guid: string) =>
     getJSON<Match[]>(`/api/availability?guid=${encodeURIComponent(guid)}`),
 
