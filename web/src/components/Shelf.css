@@ -150,3 +150,12 @@
   background: rgba(15, 23, 41, 1);
   border-color: var(--stroke);
 }
+
+/* Empty-state stub rendered by Shelf consumers (Home, Recommended, Discover)
+   when a hub returns no items. Lives here (not in a page-scoped stylesheet)
+   so it's available wherever Shelf.css is loaded. */
+.shelf-stub {
+  padding: 10px 4px;
+  color: var(--text-muted);
+  font-style: italic;
+}

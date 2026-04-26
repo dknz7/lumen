@@ -142,8 +142,26 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     navigate(href());
   }
 
+  // Browsers don't auto-translate keyboard events into clicks for ARIA
+  // role="link" on a non-native element, so without this handler keyboard /
+  // screen-reader users could focus the tile but not activate it. The
+  // action-button skip-check from handleBodyClick is mouse-only (focus on a
+  // child <button> consumes Enter/Space itself), so we just navigate directly.
+  function handleBodyKeyDown(e: KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      navigate(href());
+    }
+  }
+
   return (
-    <div class="discover-tile" onClick={handleBodyClick} role="link" tabindex="0">
+    <div
+      class="discover-tile"
+      onClick={handleBodyClick}
+      onKeyDown={handleBodyKeyDown}
+      role="link"
+      tabindex="0"
+    >
       <div class="discover-tile-poster">
         <div class="discover-tile-poster-placeholder" aria-hidden="true">
           <ImageOff size={32} strokeWidth={1.5} />

@@ -2,7 +2,7 @@
   /* fills the content area; no fixed cap so shelves use full viewport width */
 }
 
-.shelf-stub, .group-missing, .shelf-loading {
+.group-missing, .shelf-loading {
   padding: 10px 4px;
   color: var(--text-muted);
   font-style: italic;
