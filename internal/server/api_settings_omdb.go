@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 // handleSettingsOMDB updates the OMDB API key in config. Top-level field, not
@@ -12,6 +13,7 @@ func (s *Server) handleSettingsOMDB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "PUT required")
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
 	var body struct {
 		Key string `json:"key"`
 	}
@@ -19,7 +21,7 @@ func (s *Server) handleSettingsOMDB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	s.cfg.OMDBKey = body.Key
+	s.cfg.OMDBKey = strings.TrimSpace(body.Key)
 	if err := s.cfg.Save(); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

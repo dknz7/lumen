@@ -93,3 +93,34 @@
   border-color: #c83c3c;
   color: #f07878;
 }
+
+/* Inline Save button for API-key inputs (OMDB / TMDB). Sits below the input
+ * within the .settings-control column. Green by default, flips to a black
+ * "Saved" state on success; reverts the moment the user types again. */
+.settings-key-save {
+  margin-top: 8px;
+  padding: 6px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  background: var(--led-teal, #2dd4bf);
+  color: #000;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.settings-key-save:hover {
+  filter: brightness(1.08);
+}
+
+.settings-key-save--saved {
+  background: #000;
+  color: #fff;
+  cursor: default;
+}
+
+.settings-key-save--saved:hover {
+  filter: none;
+}

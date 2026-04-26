@@ -19,8 +19,10 @@ export default function AccountsServers() {
   const [refreshStatus, setRefreshStatus] = createSignal("");
   const [omdbKey, setOmdbKey] = createSignal("");
   const [omdbError, setOmdbError] = createSignal("");
+  const [omdbSaved, setOmdbSaved] = createSignal(false);
   const [tmdbKey, setTmdbKey] = createSignal("");
   const [tmdbError, setTmdbError] = createSignal("");
+  const [tmdbSaved, setTmdbSaved] = createSignal(false);
   const [reAuthOpen, setReAuthOpen] = createSignal(false);
 
   async function renameServer(machineID: string, newName: string) {
@@ -48,12 +50,23 @@ export default function AccountsServers() {
     }
   }
 
-  function saveOMDB() {
-    fetch("/api/settings/omdb", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: omdbKey() }),
-    });
+  async function saveOMDB() {
+    try {
+      const res = await fetch("/api/settings/omdb", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: omdbKey() }),
+      });
+      if (!res.ok) {
+        setOmdbError("Couldn't save — try again");
+        return;
+      }
+      setOmdbError("");
+      setOmdbKey("");
+      setOmdbSaved(true);
+    } catch (e) {
+      setOmdbError("Couldn't save — try again");
+    }
   }
 
   function validateAndSaveOMDB() {
@@ -72,12 +85,23 @@ export default function AccountsServers() {
     saveOMDB();
   }
 
-  function saveTMDB() {
-    fetch("/api/settings/tmdb", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: tmdbKey() }),
-    });
+  async function saveTMDB() {
+    try {
+      const res = await fetch("/api/settings/tmdb", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: tmdbKey() }),
+      });
+      if (!res.ok) {
+        setTmdbError("Couldn't save — try again");
+        return;
+      }
+      setTmdbError("");
+      setTmdbKey("");
+      setTmdbSaved(true);
+    } catch (e) {
+      setTmdbError("Couldn't save — try again");
+    }
   }
 
   function validateAndSaveTMDB() {
@@ -169,11 +193,18 @@ export default function AccountsServers() {
             type="password"
             placeholder="8-char hex key (powers IMDB ratings on Item Detail)"
             value={omdbKey()}
-            onInput={(e) => setOmdbKey(e.currentTarget.value)}
-            onBlur={validateAndSaveOMDB}
+            onInput={(e) => { setOmdbKey(e.currentTarget.value); setOmdbSaved(false); }}
             aria-invalid={omdbError() !== ""}
             aria-describedby={omdbError() ? "omdbError" : undefined}
           />
+          <button
+            type="button"
+            class={omdbSaved() ? "settings-key-save settings-key-save--saved" : "settings-key-save"}
+            onClick={validateAndSaveOMDB}
+            aria-live="polite"
+          >
+            {omdbSaved() ? "Saved" : "Save"}
+          </button>
           {omdbError() && (
             <div id="omdbError" role="alert" style={{ "margin-top": "4px", "color": "#f07878", "font-size": "12px" }}>
               {omdbError()}
@@ -195,11 +226,18 @@ export default function AccountsServers() {
             type="password"
             placeholder="32-char hex key (powers Play Trailer button)"
             value={tmdbKey()}
-            onInput={(e) => setTmdbKey(e.currentTarget.value)}
-            onBlur={validateAndSaveTMDB}
+            onInput={(e) => { setTmdbKey(e.currentTarget.value); setTmdbSaved(false); }}
             aria-invalid={tmdbError() !== ""}
             aria-describedby={tmdbError() ? "tmdbError" : undefined}
           />
+          <button
+            type="button"
+            class={tmdbSaved() ? "settings-key-save settings-key-save--saved" : "settings-key-save"}
+            onClick={validateAndSaveTMDB}
+            aria-live="polite"
+          >
+            {tmdbSaved() ? "Saved" : "Save"}
+          </button>
           {tmdbError() && (
             <div id="tmdbError" role="alert" style={{ "margin-top": "4px", "color": "#f07878", "font-size": "12px" }}>
               {tmdbError()}

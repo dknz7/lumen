@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 )
 
 // handleSettingsTMDB updates the TMDB API key in config. Mirrors the OMDB
@@ -13,6 +14,7 @@ func (s *Server) handleSettingsTMDB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "PUT required")
 		return
 	}
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<10)
 	var body struct {
 		Key string `json:"key"`
 	}
@@ -20,7 +22,7 @@ func (s *Server) handleSettingsTMDB(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	s.cfg.TMDBKey = body.Key
+	s.cfg.TMDBKey = strings.TrimSpace(body.Key)
 	if err := s.cfg.Save(); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
