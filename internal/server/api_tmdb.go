@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -49,7 +50,12 @@ func (s *Server) handleTMDBTrailer(w http.ResponseWriter, r *http.Request) {
 	client := plex.NewTMDBClient(s.cfg.TMDBKey)
 	yt, err := client.LookupTrailerByIMDBID(id, mediaType)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		// Scrub: Go's *url.Error.Error() includes the full request URL on
+		// transport failures (DNS/TCP/TLS), and TMDB's v3 api key rides in
+		// the URL query string — so err.Error() leaks the key. Log the
+		// detail server-side; respond with a generic message.
+		log.Printf("tmdb lookup failed for %s/%s: %v", id, mediaType, err)
+		writeError(w, http.StatusBadGateway, "tmdb lookup failed")
 		return
 	}
 	if yt == "" {

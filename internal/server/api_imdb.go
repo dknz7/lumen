@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -40,7 +41,12 @@ func (s *Server) handleIMDB(w http.ResponseWriter, r *http.Request) {
 	client := plex.NewOMDBClient(s.cfg.OMDBKey)
 	rating, err := client.LookupByIMDBId(id)
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err.Error())
+		// Scrub: OMDB's api key rides in the URL query string, and Go's
+		// *url.Error.Error() includes the full request URL on transport
+		// failures (DNS/TCP/TLS) — so err.Error() leaks the key. Log the
+		// detail server-side; respond with a generic message.
+		log.Printf("omdb lookup failed for %s: %v", id, err)
+		writeError(w, http.StatusBadGateway, "omdb lookup failed")
 		return
 	}
 	if rating == nil {
