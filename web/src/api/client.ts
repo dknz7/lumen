@@ -70,6 +70,14 @@ export const api = {
     return res.json();
   },
 
+  tmdbTrailer: async (imdbID: string, mediaType: "movie" | "show"): Promise<string | null> => {
+    const res = await fetch(`/api/tmdb/trailer/${encodeURIComponent(imdbID)}?type=${mediaType}`);
+    if (res.status === 404 || res.status === 503) return null;
+    if (!res.ok) throw new Error(`${res.status} GET /api/tmdb/trailer/${imdbID}`);
+    const body = await res.json();
+    return body.youtubeID || null;
+  },
+
   onDeck: (serverID: string) =>
     getJSON<Item[]>(`/api/servers/${encodeURIComponent(serverID)}/ondeck`),
 

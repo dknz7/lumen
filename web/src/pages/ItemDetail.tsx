@@ -67,6 +67,34 @@ export default function ItemDetail() {
   const [resumeOpen, setResumeOpen] = createSignal(false);
   const [trailerOpen, setTrailerOpen] = createSignal(false);
 
+  // TMDB-first: try /api/tmdb/trailer first, fall back to Plex's Extras
+  // youtubeID. Returns null when neither has a trailer; the button is then
+  // disabled with explanatory tooltip. Uses effectiveImdbId so episode pages
+  // resolve via their parent show's IMDB id (Task 4.5).
+  const [resolvedTrailer] = createResource<
+    string | null,
+    { imdbId: string; mediaType: "movie" | "show"; plexFallback: string | null }
+  >(
+    () => {
+      const cur = item();
+      if (!cur) return null;
+      const imdb = effectiveImdbId();
+      if (!imdb) return null;
+      const mediaType: "movie" | "show" =
+        cur.type === "show" || cur.type === "episode" || cur.type === "season" ? "show" : "movie";
+      return { imdbId: imdb, mediaType, plexFallback: cur.trailer?.youtubeID ?? null };
+    },
+    async (src) => {
+      try {
+        const tmdb = await api.tmdbTrailer(src.imdbId, src.mediaType);
+        if (tmdb) return tmdb;
+      } catch (e) {
+        console.warn("tmdb trailer lookup failed; falling back to Plex Extras", e);
+      }
+      return src.plexFallback;
+    }
+  );
+
   // Optimistic — flips immediately on click, reverts if the API call fails.
   // Plex propagates Watchlist add/remove cross-device after a brief lag.
   const [inWatchlistOverride, setInWatchlistOverride] = createSignal<boolean | null>(null);
@@ -196,13 +224,13 @@ export default function ItemDetail() {
               </button>
               <button
                 class="btn"
-                disabled={!(it() as Item).trailer?.youtubeID}
+                disabled={!resolvedTrailer()}
                 title={
-                  (it() as Item).trailer?.youtubeID
+                  resolvedTrailer()
                     ? "Play trailer"
-                    : (it() as Item).trailer?.plexKey
-                      ? "Plex-hosted trailer (not supported in v1.0)"
-                      : "No trailer available"
+                    : effectiveImdbId()
+                      ? "No trailer available (TMDB + Plex Extras both empty)"
+                      : "No IMDB id — Trailer unavailable for this item"
                 }
                 onClick={() => setTrailerOpen(true)}
               >
@@ -286,7 +314,7 @@ export default function ItemDetail() {
       <TrailerModal
         open={trailerOpen()}
         onClose={() => setTrailerOpen(false)}
-        youtubeID={item()?.trailer?.youtubeID}
+        youtubeID={resolvedTrailer() ?? undefined}
         title={`${item()?.title ?? ""} — Trailer`}
       />
     </div>
