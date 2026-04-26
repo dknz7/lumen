@@ -59,6 +59,7 @@ export interface HubItem {
   title: string;
   type: string;
   year?: number;
+  thumb?: string; // absolute URL — render direct <img>, no proxy
 }
 
 export interface Match {

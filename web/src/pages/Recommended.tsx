@@ -42,7 +42,12 @@ function RecommendedShelf(props: { title: string; slug: string }) {
               {(it) => (
                 <li class="recommended-card">
                   <A href={`/discover-item/${encodeURIComponent(it.ratingKey)}`} class="recommended-card-link">
-                    <div class="recommended-poster" />
+                    <div class="recommended-poster">
+                      <Show when={it.thumb}>
+                        <img src={it.thumb!} alt={it.title} referrerpolicy="no-referrer"
+                             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      </Show>
+                    </div>
                     <div class="recommended-card-meta">
                       <div class="recommended-card-title">{it.title}</div>
                       <Show when={it.year}>

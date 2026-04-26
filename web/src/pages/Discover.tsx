@@ -43,7 +43,12 @@ function DiscoverShelf(props: { title: string; slug: string }) {
               {(it) => (
                 <li class="discover-card">
                   <A href={`/discover-item/${encodeURIComponent(it.ratingKey)}`} class="discover-card-link">
-                    <div class="discover-poster" />
+                    <div class="discover-poster">
+                      <Show when={it.thumb}>
+                        <img src={it.thumb!} alt={it.title} referrerpolicy="no-referrer"
+                             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      </Show>
+                    </div>
                     <div class="discover-card-meta">
                       <div class="discover-card-title">{it.title}</div>
                       <Show when={it.year}>
