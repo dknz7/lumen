@@ -24,6 +24,7 @@ func TestGetWatchlistHeaderOnlyAuthAndShape(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{
 			"MediaContainer": {
+				"totalSize": 2,
 				"Metadata": [
 					{"ratingKey":"5d77","title":"Dune","type":"movie","year":2021,"guid":"plex://movie/abc"},
 					{"ratingKey":"7e88","title":"Severance","type":"show","year":2022,"guid":"plex://show/xyz"}

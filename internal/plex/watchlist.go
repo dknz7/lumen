@@ -20,7 +20,8 @@ type WatchlistItem struct {
 
 type watchlistWire struct {
 	MediaContainer struct {
-		Metadata []struct {
+		TotalSize int `json:"totalSize"`
+		Metadata  []struct {
 			RatingKey string `json:"ratingKey"`
 			GUID      string `json:"guid"`
 			// GuidArray absorbs Plex's capital-"Guid" array of external IDs
@@ -42,29 +43,51 @@ type watchlistWire struct {
 // Endpoint: GET https://discover.provider.plex.tv/library/sections/watchlist/all
 // Authentication: X-Plex-Token header (account token).
 //
-// Endpoint host confirmed via Plex Web DevTools capture in Session 5
-// post-smoke (originally targeted metadata.provider.plex.tv per the
-// design spec, which 502'd — Plex consolidated watchlist read paths
-// onto discover.provider). Container size 500 covers the largest
-// observed user library (471 items in one capture).
+// Endpoint host + request shape confirmed via Plex Web DevTools capture
+// (Session 5 post-smoke). Plex Web pages 50→100→100→…; sizes above ~100
+// are rejected with 400. We page in 100-item chunks until totalSize is
+// reached or we've collected 1000 items (a generous cap that covers
+// almost any user; Byron's 471 fits comfortably).
 func (c *Client) GetWatchlist(accountToken string) ([]WatchlistItem, error) {
-	u := c.discoverBase + "/library/sections/watchlist/all?X-Plex-Container-Start=0&X-Plex-Container-Size=500"
+	const pageSize = 100
+	const maxItems = 1000
+	var all []WatchlistItem
+	for start := 0; start < maxItems; start += pageSize {
+		page, total, err := c.getWatchlistPage(accountToken, start, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page...)
+		if len(page) < pageSize || start+pageSize >= total {
+			break
+		}
+	}
+	return all, nil
+}
+
+// getWatchlistPage returns one page of the watchlist along with the total
+// container size reported by Plex (used by the caller to terminate paging).
+func (c *Client) getWatchlistPage(accountToken string, start, size int) ([]WatchlistItem, int, error) {
+	u := fmt.Sprintf(
+		"%s/library/sections/watchlist/all?includeMeta=1&X-Plex-Container-Start=%d&X-Plex-Container-Size=%d",
+		c.discoverBase, start, size,
+	)
 	req, err := c.NewRequest("GET", u, nil)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	c.SetToken(req, accountToken)
 	resp, err := c.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("watchlist: status %d", resp.StatusCode)
+		return nil, 0, fmt.Errorf("watchlist: status %d", resp.StatusCode)
 	}
 	var w watchlistWire
 	if err := json.NewDecoder(resp.Body).Decode(&w); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	out := make([]WatchlistItem, 0, len(w.MediaContainer.Metadata))
 	for _, m := range w.MediaContainer.Metadata {
@@ -77,7 +100,7 @@ func (c *Client) GetWatchlist(accountToken string) ([]WatchlistItem, error) {
 			Thumb:     m.Thumb,
 		})
 	}
-	return out, nil
+	return out, w.MediaContainer.TotalSize, nil
 }
 
 // AddToWatchlist adds a Discover-namespace ratingKey to the user's
