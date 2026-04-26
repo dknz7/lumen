@@ -58,6 +58,7 @@ type ShelfPref struct {
 type Config struct {
 	ClientIdentifier string     `json:"clientIdentifier"` // stable X-Plex-Client-Identifier
 	OMDBKey          string     `json:"omdbKey,omitempty"`
+	TMDBKey          string     `json:"tmdbKey,omitempty"`
 	Plex             PlexConfig `json:"plex"`
 	UI               UIConfig   `json:"ui"`
 }
@@ -79,6 +80,7 @@ type Server struct {
 type wireConfig struct {
 	ClientIdentifier string         `json:"clientIdentifier"`
 	OMDBKey          string         `json:"omdbKey,omitempty"`
+	TMDBKey          string         `json:"tmdbKey,omitempty"`
 	Plex             wirePlexConfig `json:"plex"`
 	UI               UIConfig       `json:"ui"`
 }
@@ -118,6 +120,7 @@ func Load() (*Config, error) {
 	c := &Config{
 		ClientIdentifier: w.ClientIdentifier,
 		OMDBKey:          w.OMDBKey,
+		TMDBKey:          w.TMDBKey,
 		UI:               w.UI,
 	}
 	if c.ClientIdentifier == "" {
@@ -197,6 +200,7 @@ func (c *Config) Save() error {
 	w := wireConfig{
 		ClientIdentifier: c.ClientIdentifier,
 		OMDBKey:          c.OMDBKey,
+		TMDBKey:          c.TMDBKey,
 		UI:               c.UI,
 	}
 	at, err := encryptField(c.Plex.AccountToken)
