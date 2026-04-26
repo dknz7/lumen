@@ -41,6 +41,13 @@ export const api = {
   availability: (guid: string) =>
     getJSON<Match[]>(`/api/availability?guid=${encodeURIComponent(guid)}`),
 
+  imdb: async (id: string): Promise<import("./types").OMDBRating | null> => {
+    const res = await fetch(`/api/imdb/${encodeURIComponent(id)}`);
+    if (res.status === 404 || res.status === 503) return null;
+    if (!res.ok) throw new Error(`${res.status} GET /api/imdb/${id}`);
+    return res.json();
+  },
+
   onDeck: (serverID: string) =>
     getJSON<Item[]>(`/api/servers/${encodeURIComponent(serverID)}/ondeck`),
 

@@ -37,6 +37,11 @@ export interface Item {
   grandparentRatingKey?: string;
   viewCount?: number;          // 0 / undefined = unwatched, ≥1 = watched
   originallyAvailableAt?: string; // air date "YYYY-MM-DD"
+  imdbId?: string;
+  roles?: Person[];
+  directors?: Person[];
+  writers?: Person[];
+  trailer?: TrailerInfo;
 }
 
 export interface Season {
@@ -108,3 +113,25 @@ export type PlaybackEvent =
   | { type: "next-episode-prompt"; payload: NextEpisodeInfo }
   | { type: "transcode-prompt"; payload: TranscodePromptInfo }
   | { type: "stopped" };
+
+export interface Person {
+  id: number;
+  name: string;
+  tag?: string;
+  thumb?: string;
+}
+
+export interface TrailerInfo {
+  title?: string;
+  plexKey?: string;
+  youtubeID?: string;
+}
+
+export interface OMDBRating {
+  imdbID: string;
+  title?: string;
+  year?: string;
+  rated?: string;
+  imdbRating?: string;
+  imdbVotes?: string;
+}

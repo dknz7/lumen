@@ -243,7 +243,7 @@ function Hero(props: { item: Item; serverID: string }) {
         <div class="meta-pills">
           {props.item.year && <span class="pill">{props.item.year}</span>}
           {props.item.type && <span class="pill">{props.item.type}</span>}
-          {/* IMDB rating pill lands Session 5 with OMDB integration */}
+          <IMDBPill imdbId={props.item.imdbId} />
         </div>
       </div>
     </header>
@@ -257,4 +257,19 @@ function formatBytes(n: number): string {
   let v = n;
   while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
   return `${v.toFixed(1)} ${units[u]}`;
+}
+
+function IMDBPill(props: { imdbId?: string }) {
+  const [rating] = createResource(
+    () => props.imdbId,
+    async (id) => (id ? api.imdb(id) : null)
+  );
+  return (
+    <span class="pill pill-imdb">
+      <span class="pill-imdb-label">IMDB</span>
+      <Show when={rating()} fallback={<span class="pill-imdb-value">—</span>}>
+        {(r) => <span class="pill-imdb-value">{(r() as import("../api/types").OMDBRating).imdbRating ?? "—"}</span>}
+      </Show>
+    </span>
+  );
 }

@@ -230,3 +230,21 @@
   display: flex;
   gap: 8px;
 }
+
+.pill-imdb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #f5c518; /* IMDB brand yellow */
+  color: #000;
+  font-weight: 600;
+}
+.pill-imdb-label {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.pill-imdb-value {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
