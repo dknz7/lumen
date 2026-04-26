@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -95,45 +96,13 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	// Strip the default HTTPS port so our URL matches Plex Web's format.
 	base := strings.TrimSuffix(srv.LastGoodConnection, ":443")
 
-	// Token selection: Plex Web uses the account-level token for transcode image
-	// requests (observed against DKNZPLEX's CDN — per-server token returns 404
-	// on /photo/:/transcode). Fall back to per-server token only if no account
-	// token is configured.
-	tokenRaw := s.cfg.Plex.AccountToken
-	if tokenRaw == "" {
-		tokenRaw = srv.AccessToken
-	}
-	token := url.QueryEscape(tokenRaw)
-
-	// Manual query-string build — preserves raw slashes in `url=` param and
-	// places X-Plex-Token both inside the inner url AND as an outer param.
-	target := fmt.Sprintf(
-		"%s/photo/:/transcode?width=%d&height=%d&minSize=1&upscale=1&url=%s?X-Plex-Token=%s&X-Plex-Token=%s",
-		base,
-		width,
-		height,
-		path, // raw — not url-encoded so / stays as /
-		token,
-		token,
-	)
-
-	req, err := http.NewRequestWithContext(r.Context(), "GET", target, nil)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-	// Match Plex Web's exact image-request header signature. Empirically the
-	// Level 3 CDN in front of DKNZPLEX rejects requests with an Origin header
-	// (CORS-style WAF check) and with X-Plex-* headers (may signal "API client
-	// not browser"). Keep only what a browser naturally sends for an <img>.
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0")
-	req.Header.Set("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
-	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
-	req.Header.Set("Referer", "https://app.plex.tv/")
-	req.Header.Set("Sec-Fetch-Dest", "image")
-	req.Header.Set("Sec-Fetch-Mode", "no-cors")
-	req.Header.Set("Sec-Fetch-Site", "cross-site")
-	resp, err := http.DefaultClient.Do(req)
+	// Token try-with-fallback: Plex Web uses the per-server token for some
+	// servers (Stargaze observed Session 5 post-smoke) and the account token
+	// for others (DKNZPLEX, Session 2). 404 from one is the signal to retry
+	// with the other. The handler caches whichever works for next time would
+	// be ideal but for v1.0 we just try both per request — the disk cache
+	// hit rate makes the cost negligible.
+	resp, used, err := s.fetchImageProxyWithFallback(r.Context(), base, path, width, height, srv.AccessToken)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
@@ -145,7 +114,7 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		if b, _ := io.ReadAll(io.LimitReader(resp.Body, 512)); len(b) > 0 {
 			snippet = b
 		}
-		writeError(w, http.StatusBadGateway, fmt.Sprintf("upstream %s for %s — body: %q", resp.Status, target, snippet))
+		writeError(w, http.StatusBadGateway, fmt.Sprintf("upstream %s for %s/%s [token=%s] — body: %q", resp.Status, base, path, used, snippet))
 		return
 	}
 
@@ -172,4 +141,52 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Lumen-Cache", "miss")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
+}
+
+// fetchImageProxyWithFallback attempts the /photo/:/transcode request with the
+// account token first, then retries with the per-server token if the first
+// attempt returns 404 (the symptom we see on Stargaze movie thumbs but not
+// DKNZPLEX). Returns the response, the token kind that worked ("account" or
+// "server"), or an error that already carries enough context for diagnosis.
+func (s *Server) fetchImageProxyWithFallback(ctx context.Context, base, path string, width, height int, serverToken string) (*http.Response, string, error) {
+	tryToken := func(tokenRaw, kind string) (*http.Response, string, error) {
+		if tokenRaw == "" {
+			return nil, kind, fmt.Errorf("no %s token available", kind)
+		}
+		token := url.QueryEscape(tokenRaw)
+		target := fmt.Sprintf(
+			"%s/photo/:/transcode?width=%d&height=%d&minSize=1&upscale=1&url=%s?X-Plex-Token=%s&X-Plex-Token=%s",
+			base, width, height, path, token, token,
+		)
+		req, err := http.NewRequestWithContext(ctx, "GET", target, nil)
+		if err != nil {
+			return nil, kind, err
+		}
+		// Match Plex Web's image-request header signature (Session 2 finding —
+		// CDN rejects API-style headers). Keep what a browser naturally sends.
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0")
+		req.Header.Set("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")
+		req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+		req.Header.Set("Referer", "https://app.plex.tv/")
+		req.Header.Set("Sec-Fetch-Dest", "image")
+		req.Header.Set("Sec-Fetch-Mode", "no-cors")
+		req.Header.Set("Sec-Fetch-Site", "cross-site")
+		resp, err := http.DefaultClient.Do(req)
+		return resp, kind, err
+	}
+
+	resp, kind, err := tryToken(s.cfg.Plex.AccountToken, "account")
+	if err == nil && resp.StatusCode == http.StatusOK {
+		return resp, kind, nil
+	}
+	// Account token failed (network err, 404, or other non-200). Drain + close
+	// before retrying so the connection returns to the pool cleanly.
+	if resp != nil {
+		_ = resp.Body.Close()
+	}
+	resp2, kind2, err2 := tryToken(serverToken, "server")
+	if err2 != nil {
+		return nil, kind2, err2
+	}
+	return resp2, kind2, nil
 }
