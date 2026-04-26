@@ -185,6 +185,7 @@ export default function ItemDetail() {
                 )}
               </Show>
             </section>
+            <CastCrew item={it() as Item} serverID={params.serverID!} />
           </>
         )}
       </Show>
@@ -271,5 +272,55 @@ function IMDBPill(props: { imdbId?: string }) {
         {(r) => <span class="pill-imdb-value">{(r() as import("../api/types").OMDBRating).imdbRating ?? "—"}</span>}
       </Show>
     </span>
+  );
+}
+
+function CastCrew(props: { item: Item; serverID: string }) {
+  const cast = () => props.item.roles ?? [];
+  const directors = () => props.item.directors ?? [];
+  const writers = () => props.item.writers ?? [];
+  const hasCrew = () => directors().length > 0 || writers().length > 0;
+  return (
+    <Show when={cast().length > 0 || hasCrew()}>
+      <section class="cast-crew">
+        <Show when={cast().length > 0}>
+          <h3>Cast</h3>
+          <ul class="people-grid">
+            <For each={cast()}>
+              {(p) => <PersonCard person={p} serverID={props.serverID} />}
+            </For>
+          </ul>
+        </Show>
+        <Show when={hasCrew()}>
+          <h3>Crew</h3>
+          <ul class="people-grid">
+            <For each={directors()}>
+              {(p) => <PersonCard person={{ ...p, tag: p.tag || "Director" }} serverID={props.serverID} />}
+            </For>
+            <For each={writers()}>
+              {(p) => <PersonCard person={{ ...p, tag: p.tag || "Writer" }} serverID={props.serverID} />}
+            </For>
+          </ul>
+        </Show>
+      </section>
+    </Show>
+  );
+}
+
+function PersonCard(props: { person: import("../api/types").Person; serverID: string }) {
+  const fallbackThumb = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNjY2IiBzdHJva2Utd2lkdGg9IjEuNSI+PGNpcmNsZSBjeD0iMTIiIGN5PSI4IiByPSI0Ii8+PHBhdGggZD0iTTQgMjBjMC00IDQtNyA4LTdzOCAzIDggNyIvPjwvc3ZnPg==";
+  const src = () =>
+    props.person.thumb
+      ? `/api/image-proxy?server=${encodeURIComponent(props.serverID)}&path=${encodeURIComponent(props.person.thumb!)}`
+      : fallbackThumb;
+  return (
+    <li class="person-card">
+      <img src={src()} alt={props.person.name} class="person-thumb"
+           onError={(e) => { (e.currentTarget as HTMLImageElement).src = fallbackThumb; }} />
+      <div class="person-name">{props.person.name}</div>
+      <Show when={props.person.tag}>
+        <div class="person-tag">{props.person.tag}</div>
+      </Show>
+    </li>
   );
 }
