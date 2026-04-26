@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
@@ -64,4 +65,63 @@ func (s *Server) handleWatchlist(w http.ResponseWriter, r *http.Request) {
 	}
 	s.watchlist.set(s.cfg.Plex.AccountToken, items)
 	writeJSON(w, items)
+}
+
+// handleWatchlistAdd takes JSON {"ratingKey": "<plexTvRatingKey>"} and
+// PUTs the addToWatchlist action through. Invalidates the local
+// watchlist cache on success so the SPA's next refetch sees fresh data.
+func (s *Server) handleWatchlistAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	if s.cfg.Plex.AccountToken == "" {
+		writeError(w, http.StatusUnauthorized, "no account token")
+		return
+	}
+	var body struct {
+		RatingKey string `json:"ratingKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if body.RatingKey == "" {
+		writeError(w, http.StatusBadRequest, "ratingKey required")
+		return
+	}
+	if err := s.plex.AddToWatchlist(s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	s.watchlist.invalidate()
+	writeJSON(w, map[string]string{"status": "added"})
+}
+
+func (s *Server) handleWatchlistRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	if s.cfg.Plex.AccountToken == "" {
+		writeError(w, http.StatusUnauthorized, "no account token")
+		return
+	}
+	var body struct {
+		RatingKey string `json:"ratingKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if body.RatingKey == "" {
+		writeError(w, http.StatusBadRequest, "ratingKey required")
+		return
+	}
+	if err := s.plex.RemoveFromWatchlist(s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+		writeError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	s.watchlist.invalidate()
+	writeJSON(w, map[string]string{"status": "removed"})
 }

@@ -82,6 +82,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/items/", s.handleItem)
 	s.mux.HandleFunc("/api/hubs/", s.handleHub)
 	s.mux.HandleFunc("/api/watchlist", s.handleWatchlist)
+	s.mux.HandleFunc("/api/watchlist/add", s.handleWatchlistAdd)
+	s.mux.HandleFunc("/api/watchlist/remove", s.handleWatchlistRemove)
 	s.mux.HandleFunc("/api/availability", s.handleAvailability)
 	s.mux.HandleFunc("/api/image-proxy", s.handleImageProxy)
 	s.mux.HandleFunc("/api/play", s.handlePlay)
