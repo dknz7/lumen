@@ -5,6 +5,7 @@ import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
 import Episodes from "../components/Episodes";
 import ResumeRestartModal from "../components/Modal/ResumeRestartModal";
+import TrailerModal from "../components/Modal/TrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./ItemDetail.css";
 
@@ -36,6 +37,7 @@ export default function ItemDetail() {
   refetchOnFocus(() => refetchItem());
 
   const [resumeOpen, setResumeOpen] = createSignal(false);
+  const [trailerOpen, setTrailerOpen] = createSignal(false);
 
   async function handlePlay() {
     const it = item();
@@ -131,7 +133,20 @@ export default function ItemDetail() {
               <button class="btn-primary" onClick={handlePlay}>
                 ▶ {(it() as Item).viewOffset && (it() as Item).viewOffset! > 0 ? "Resume" : "Play"}
               </button>
-              <button class="btn" disabled title="Session 5">Play Trailer</button>
+              <button
+                class="btn"
+                disabled={!(it() as Item).trailer?.youtubeID}
+                title={
+                  (it() as Item).trailer?.youtubeID
+                    ? "Play trailer"
+                    : (it() as Item).trailer?.plexKey
+                      ? "Plex-hosted trailer (not supported in v1.0)"
+                      : "No trailer available"
+                }
+                onClick={() => setTrailerOpen(true)}
+              >
+                Play Trailer
+              </button>
               <button class="btn" onClick={handleMarkWatched}>
                 {((it() as Item).viewCount ?? 0) > 0 ? "✓ Watched" : "Mark as Watched"}
               </button>
@@ -195,6 +210,12 @@ export default function ItemDetail() {
         onResume={() => { setResumeOpen(false); playResume(); }}
         onRestart={() => { setResumeOpen(false); playFromStart(); }}
         onCancel={() => setResumeOpen(false)}
+      />
+      <TrailerModal
+        open={trailerOpen()}
+        onClose={() => setTrailerOpen(false)}
+        youtubeID={item()?.trailer?.youtubeID}
+        title={`${item()?.title ?? ""} — Trailer`}
       />
     </div>
   );
