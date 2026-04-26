@@ -14,6 +14,10 @@ func writeJSON(w http.ResponseWriter, v any) {
 
 func writeJSONStatus(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
+	// no-store keeps browsers from serving stale JSON state (e.g. /api/items/...)
+	// after the user changes things in Plex Web and switches back to Lumen.
+	// The image proxy sets its own long-lived cache headers and is unaffected.
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }

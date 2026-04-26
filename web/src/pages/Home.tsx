@@ -8,6 +8,7 @@ import Card from "../components/Card";
 import Skeleton from "../components/Skeleton";
 import { Cat, Film, Flame, Play, Server as ServerIcon, Star, Tv } from "../components/icons";
 import { store as settingsStore } from "../state/settings";
+import { refetchOnFocus } from "../util/focusRefetch";
 import "./Home.css";
 
 // Icon dispatch for Home shelves + groups. Keyed off shelf id / group name so
@@ -113,7 +114,7 @@ type CWItem = Item & { serverID: string };
 function ContinueWatching(props: { servers: Server[] }) {
   const machineIDs = props.servers.map((s) => s.machineIdentifier);
 
-  const [decksData] = createResource(
+  const [decksData, { refetch: refetchDecks }] = createResource(
     () => machineIDs.join(","),
     async () => {
       const results = await Promise.all(machineIDs.map(async (id) => {
@@ -143,6 +144,14 @@ function ContinueWatching(props: { servers: Server[] }) {
 
   const [localItems, setLocalItems] = createSignal<CWItem[] | null>(null);
   const visibleItems = () => localItems() ?? (decksData() ?? []);
+
+  // When the user comes back from Plex Web/Desktop, pick up any state
+  // changes made there. Clear localItems so the freshly fetched server
+  // data wins over any optimistic-removed entries from earlier.
+  refetchOnFocus(() => {
+    setLocalItems(null);
+    refetchDecks();
+  });
 
   // Tick (mark watched) and bin (remove from CW) share the same optimistic-
   // remove + rollback-on-error flow; they only differ in which Plex endpoint
@@ -301,7 +310,7 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
 
   // Fetch recentlyAdded only when we have a non-hidden library. Resource
   // re-runs whenever lib() changes (different libKey) or hidden state flips.
-  const [items] = createResource(
+  const [items, { refetch: refetchItems }] = createResource(
     () => {
       const l = lib();
       if (!l || isHidden()) return null;
@@ -309,6 +318,10 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
     },
     (libKey) => api.recentlyAdded(props.server.machineIdentifier, libKey, 20)
   );
+
+  // Refresh recently-added on focus so newly added items in Plex show up
+  // when the user switches back to the Lumen tab.
+  refetchOnFocus(() => refetchItems());
 
   // Items array is only passed to Shelf when fully loaded; otherwise the
   // children handle stub/skeleton states.

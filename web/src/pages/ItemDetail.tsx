@@ -5,6 +5,7 @@ import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
 import Episodes from "../components/Episodes";
 import ResumeRestartModal from "../components/Modal/ResumeRestartModal";
+import { refetchOnFocus } from "../util/focusRefetch";
 import "./ItemDetail.css";
 
 export default function ItemDetail() {
@@ -17,6 +18,10 @@ export default function ItemDetail() {
     () => item()?.guid,
     (guid) => (guid ? api.availability(guid) : Promise.resolve([] as Match[]))
   );
+
+  // Pick up viewCount/viewOffset changes made elsewhere (Plex Web, Plex Desktop)
+  // when the user switches back to the Lumen tab.
+  refetchOnFocus(() => refetchItem());
 
   const [resumeOpen, setResumeOpen] = createSignal(false);
 
@@ -62,6 +67,10 @@ export default function ItemDetail() {
     if (!it) return;
     try {
       await api.scrobble(params.serverID!, it.ratingKey);
+      // Plex's /library/metadata/<key> reflects the scrobble after a brief
+      // server-side cache propagation (~100-300ms). Wait before refetching to
+      // avoid getting stale viewCount/viewOffset.
+      await new Promise((r) => setTimeout(r, 350));
       refetchItem();
     } catch (e) {
       alert(`Mark watched failed: ${(e as Error).message}`);
@@ -88,6 +97,8 @@ export default function ItemDetail() {
     if (!it) return;
     try {
       await api.unscrobble(params.serverID!, it.ratingKey);
+      // Same Plex metadata-cache propagation race as handleMarkWatched.
+      await new Promise((r) => setTimeout(r, 350));
       refetchItem();
     } catch (e) {
       alert(`Mark unwatched failed: ${(e as Error).message}`);

@@ -5,6 +5,7 @@ import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
 import Skeleton from "../components/Skeleton";
 import { store as settingsStore } from "../state/settings";
+import { refetchOnFocus } from "../util/focusRefetch";
 import "./Library.css";
 
 const SORT_OPTIONS = [
@@ -46,7 +47,7 @@ export default function Library() {
   );
   const [page, setPage] = createSignal(0);
 
-  const [allLibs] = createResource(
+  const [allLibs, { refetch: refetchAllLibs }] = createResource(
     () => params.serverID,
     (serverID) => api.libraries(serverID)
   );
@@ -81,7 +82,7 @@ export default function Library() {
     setPage(0);
   });
 
-  const [items] = createResource(
+  const [items, { refetch: refetchItems }] = createResource(
     () => ({ server: params.serverID!, lib: params.libraryID!, sort: sort(), page: page(), type: viewMode(), isTV: isTVLibrary() }),
     ({ server, lib, sort, page, type, isTV }) => {
       const opts: { sort: string; start: number; size: number; filters?: Record<string, string> } = {
@@ -100,6 +101,14 @@ export default function Library() {
     return all.slice(0, PAGE_SIZE);
   };
   const hasNextPage = () => ((items() ?? []) as Item[]).length > PAGE_SIZE;
+
+  // Refresh both lib list (in case a library was added/removed) and the
+  // current page of items (in case watched state or items list changed
+  // while the user was over in Plex Web).
+  refetchOnFocus(() => {
+    refetchAllLibs();
+    refetchItems();
+  });
 
   return (
     <div class="library-page">
