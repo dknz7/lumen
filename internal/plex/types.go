@@ -46,17 +46,17 @@ type Item struct {
 	AddedAt      int64  `json:"addedAt,omitempty"`      // epoch seconds when added to library
 	LastViewedAt int64  `json:"lastViewedAt,omitempty"` // epoch seconds of most recent view
 	// Episode-specific fields — empty for non-episodes.
-	Index                 int     `json:"index,omitempty"`                 // episode number within season
-	ParentIndex           int     `json:"parentIndex,omitempty"`           // season number
-	ParentTitle           string  `json:"parentTitle,omitempty"`           // e.g. "Season 1"
-	ParentThumb           string  `json:"parentThumb,omitempty"`           // season poster
-	GrandparentTitle      string  `json:"grandparentTitle,omitempty"`      // show name
-	GrandparentThumb      string  `json:"grandparentThumb,omitempty"`      // show poster (portrait)
-	GrandparentArt        string  `json:"grandparentArt,omitempty"`        // show backdrop (landscape)
-	GrandparentRatingKey  string  `json:"grandparentRatingKey,omitempty"`  // show's ratingKey
-	ViewCount             int     `json:"viewCount,omitempty"`             // 0 = unwatched, ≥1 = watched (Plex semantics)
-	OriginallyAvailableAt string  `json:"originallyAvailableAt,omitempty"` // air date "YYYY-MM-DD"
-	Media                 []Media `json:"Media,omitempty"`
+	Index                 int          `json:"index,omitempty"`                 // episode number within season
+	ParentIndex           int          `json:"parentIndex,omitempty"`           // season number
+	ParentTitle           string       `json:"parentTitle,omitempty"`           // e.g. "Season 1"
+	ParentThumb           string       `json:"parentThumb,omitempty"`           // season poster
+	GrandparentTitle      string       `json:"grandparentTitle,omitempty"`      // show name
+	GrandparentThumb      string       `json:"grandparentThumb,omitempty"`      // show poster (portrait)
+	GrandparentArt        string       `json:"grandparentArt,omitempty"`        // show backdrop (landscape)
+	GrandparentRatingKey  string       `json:"grandparentRatingKey,omitempty"`  // show's ratingKey
+	ViewCount             int          `json:"viewCount,omitempty"`             // 0 = unwatched, ≥1 = watched (Plex semantics)
+	OriginallyAvailableAt string       `json:"originallyAvailableAt,omitempty"` // air date "YYYY-MM-DD"
+	Media                 []Media      `json:"Media,omitempty"`
 	IMDBId                string       `json:"imdbId,omitempty"`
 	Roles                 []Person     `json:"roles,omitempty"`
 	Directors             []Person     `json:"directors,omitempty"`

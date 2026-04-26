@@ -53,7 +53,7 @@ type metadataWire struct {
 	ViewCount             int     `json:"viewCount"`
 	OriginallyAvailableAt string  `json:"originallyAvailableAt"`
 	Media                 []Media `json:"Media"`
-	Role []struct {
+	Role                  []struct {
 		ID    int    `json:"id"`
 		Tag   string `json:"tag"`
 		Role  string `json:"role"`
