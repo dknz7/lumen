@@ -127,9 +127,9 @@ func probeServerOnDeck(c *plex.Client, s config.Server) {
 		MediaContainer struct {
 			Size     int `json:"size"`
 			Metadata []struct {
-				RatingKey string `json:"ratingKey"`
-				Title     string `json:"title"`
-				Type      string `json:"type"`
+				RatingKey        string `json:"ratingKey"`
+				Title            string `json:"title"`
+				Type             string `json:"type"`
 				GrandparentTitle string `json:"grandparentTitle"`
 			} `json:"Metadata"`
 		} `json:"MediaContainer"`

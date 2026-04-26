@@ -67,7 +67,7 @@ func (b *byteBuffer) Read(p []byte) (int, error) {
 func newResponseRecorder() *responseRecorder {
 	return &responseRecorder{status: 200, body: &byteBuffer{}, headers: http.Header{}}
 }
-func (r *responseRecorder) Header() http.Header        { return r.headers }
+func (r *responseRecorder) Header() http.Header         { return r.headers }
 func (r *responseRecorder) Write(p []byte) (int, error) { return r.body.Write(p) }
 func (r *responseRecorder) WriteHeader(s int)           { r.status = s }
 

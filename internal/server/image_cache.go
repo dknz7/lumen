@@ -15,8 +15,9 @@ import (
 
 // imageCache stores proxied images on disk at %APPDATA%\Lumen\cache\images\.
 // Two files per entry:
-//   <hash>      the raw image bytes
-//   <hash>.ct   the stored Content-Type as plain text
+//
+//	<hash>      the raw image bytes
+//	<hash>.ct   the stored Content-Type as plain text
 //
 // Cache is write-through: fetch from Plex → write to disk → serve. Subsequent
 // requests for the same key read straight from disk without hitting Plex.

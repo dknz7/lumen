@@ -41,10 +41,10 @@ type PlaybackUIConfig struct {
 
 // PageShelfState stores per-page shelf/group order + visibility + collapse.
 type PageShelfState struct {
-	GroupOrder     []string              `json:"groupOrder,omitempty"`     // order of groups on pages that have groups (Home)
-	GroupCollapsed map[string]bool       `json:"groupCollapsed,omitempty"` // group ID → collapsed?
-	ShelfOrder     map[string][]string   `json:"shelfOrder,omitempty"`     // group ID (or "" for ungrouped) → ordered shelf IDs
-	ShelfPrefs     map[string]ShelfPref  `json:"shelfPrefs,omitempty"`     // shelf ID → pref
+	GroupOrder     []string             `json:"groupOrder,omitempty"`     // order of groups on pages that have groups (Home)
+	GroupCollapsed map[string]bool      `json:"groupCollapsed,omitempty"` // group ID → collapsed?
+	ShelfOrder     map[string][]string  `json:"shelfOrder,omitempty"`     // group ID (or "" for ungrouped) → ordered shelf IDs
+	ShelfPrefs     map[string]ShelfPref `json:"shelfPrefs,omitempty"`     // shelf ID → pref
 }
 
 // ShelfPref is per-shelf visibility/collapse state.

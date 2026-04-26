@@ -105,6 +105,7 @@ func step4FindHWND() {
 	hwnd := findPotPlayerHWND()
 	log.Printf("HWND=0x%x (pid=%d)", hwnd, cmd.Process.Pid)
 }
+
 var (
 	user32         = windows.NewLazySystemDLL("user32.dll")
 	procFindWindow = user32.NewProc("FindWindowW")
@@ -209,6 +210,7 @@ func step7ReadState() {
 		time.Sleep(1 * time.Second)
 	}
 }
+
 const (
 	WM_COMMAND = 0x0111
 
@@ -218,8 +220,8 @@ const (
 )
 
 const (
-	WM_APPCOMMAND              = 0x0319
-	APPCOMMAND_MEDIA_STOP      = 13
+	WM_APPCOMMAND               = 0x0319
+	APPCOMMAND_MEDIA_STOP       = 13
 	APPCOMMAND_MEDIA_PLAY_PAUSE = 14
 )
 
