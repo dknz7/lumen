@@ -19,6 +19,18 @@ export default function ItemDetail() {
     (guid) => (guid ? api.availability(guid) : Promise.resolve([] as Match[]))
   );
 
+  // Local servers list — used to resolve the SPA's display-name override
+  // (set via `lumen rename` or Settings → Accounts & Servers) for the
+  // MORE WAYS TO WATCH rows. Plex's wire `serverName` is empty for some
+  // shared-to-you servers (e.g. Stargaze — Session 1 finding).
+  const [servers] = createResource(() => api.servers());
+  const displayName = (machineID: string): string => {
+    const list = servers();
+    if (!list) return "";
+    const found = list.find((s) => s.machineIdentifier === machineID);
+    return found?.displayName ?? "";
+  };
+
   // Pick up viewCount/viewOffset changes made elsewhere (Plex Web, Plex Desktop)
   // when the user switches back to the Lumen tab.
   refetchOnFocus(() => refetchItem());
@@ -158,7 +170,7 @@ export default function ItemDetail() {
                         <li class="availability-row">
                           <A href={`/item/${m.machineIdentifier}/${m.ratingKey}`} class="availability-link">
                             <span class="availability-server">
-                              <strong>{m.serverName || m.machineIdentifier}</strong>
+                              <strong>{displayName(m.machineIdentifier) || m.serverName || m.machineIdentifier}</strong>
                               <Show when={m.machineIdentifier === params.serverID && m.ratingKey === params.ratingKey}>
                                 <span class="availability-current-led" title="Currently viewing" aria-label="Currently viewing" />
                               </Show>
