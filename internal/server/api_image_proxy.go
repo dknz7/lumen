@@ -98,10 +98,11 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 
 	// Token try-with-fallback: Plex Web uses the per-server token for some
 	// servers (Stargaze observed Session 5 post-smoke) and the account token
-	// for others (DKNZPLEX, Session 2). 404 from one is the signal to retry
-	// with the other. The handler caches whichever works for next time would
-	// be ideal but for v1.0 we just try both per request — the disk cache
-	// hit rate makes the cost negligible.
+	// for others (DKNZPLEX, Session 2). Any non-200 (404 is the common case;
+	// 401/403 also possible) is the signal to retry with the other. The
+	// handler caching whichever worked for next time would be ideal but for
+	// v1.0 we just try both per request — the disk cache hit rate makes the
+	// cost negligible.
 	resp, used, err := s.fetchImageProxyWithFallback(r.Context(), base, path, width, height, srv.AccessToken)
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
@@ -144,10 +145,11 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 }
 
 // fetchImageProxyWithFallback attempts the /photo/:/transcode request with the
-// account token first, then retries with the per-server token if the first
-// attempt returns 404 (the symptom we see on Stargaze movie thumbs but not
-// DKNZPLEX). Returns the response, the token kind that worked ("account" or
-// "server"), or an error that already carries enough context for diagnosis.
+// account token first, then retries with the per-server token on any non-200
+// or transport error (404 is the common case for Stargaze movie thumbs;
+// 401/403 also possible per CDN policy). Returns the response, the token
+// kind that worked ("account" or "server"), or an error that already
+// carries enough context for diagnosis.
 func (s *Server) fetchImageProxyWithFallback(ctx context.Context, base, path string, width, height int, serverToken string) (*http.Response, string, error) {
 	tryToken := func(tokenRaw, kind string) (*http.Response, string, error) {
 		if tokenRaw == "" {
@@ -186,6 +188,9 @@ func (s *Server) fetchImageProxyWithFallback(ctx context.Context, base, path str
 	}
 	resp2, kind2, err2 := tryToken(serverToken, "server")
 	if err2 != nil {
+		if resp2 != nil {
+			_ = resp2.Body.Close()
+		}
 		return nil, kind2, err2
 	}
 	return resp2, kind2, nil
