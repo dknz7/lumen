@@ -77,17 +77,30 @@ type Media struct {
 	Part            []Part `json:"Part,omitempty"`
 }
 
-// Part is a single file backing a Media. Most items have exactly one Part.
+// PartID handles Plex's mixed id representations across surfaces:
+// server-local responses use numeric ids (e.g. 12345); plex.tv Discover
+// hub items use composite UUID-shaped strings (e.g.
+// "691648f137d5bdeaa81f55b1-6918087fc7abb5aa29a67b10"). Both shapes
+// must decode cleanly into the same Go type.
 //
-// ID is intentionally string: server-local Plex returns numeric ids
-// (e.g. "12345") but plex.tv Discover hub items return UUID-shaped
-// composite ids (e.g. "691648f137d5bdeaa81f55b1-6918087fc7abb5aa29a67b10").
-// Typing as string accepts both shapes. Discovered Session 5 post-smoke
-// when home/trending-trailers responses started failing to unmarshal
-// after we added includeMeta=1 (which surfaces full Media→Part chains
-// on hub items).
+// Underlying string — callers convert to plain string with `string(p)`.
+type PartID string
+
+// UnmarshalJSON accepts either a JSON string or a JSON number. Numbers
+// are preserved verbatim (Go marshals them back as numbers if needed,
+// but practically every consumer treats id as opaque text).
+func (p *PartID) UnmarshalJSON(data []byte) error {
+	if len(data) >= 2 && data[0] == '"' && data[len(data)-1] == '"' {
+		*p = PartID(data[1 : len(data)-1])
+		return nil
+	}
+	*p = PartID(data)
+	return nil
+}
+
+// Part is a single file backing a Media. Most items have exactly one Part.
 type Part struct {
-	ID        string `json:"id"`
+	ID        PartID `json:"id"`
 	Key       string `json:"key,omitempty"` // e.g. "/library/parts/123/file.mkv"
 	Size      int64  `json:"size,omitempty"`
 	Duration  int64  `json:"duration,omitempty"`
