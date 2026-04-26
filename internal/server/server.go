@@ -24,6 +24,7 @@ type Server struct {
 	ln       net.Listener
 	hubs     *hubCache
 	images   *imageCache
+	auth     *authState
 	quit     chan struct{}
 	playback *playback.Manager
 }
@@ -45,6 +46,7 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 		},
 		hubs:   newHubCache(),
 		images: newImageCache(),
+		auth:   newAuthState(),
 		// Buffered so handleQuit's send never blocks even if main isn't yet
 		// selecting on the channel.
 		quit: make(chan struct{}, 1),
@@ -90,6 +92,8 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/user", s.handleUser)
 	s.mux.HandleFunc("/api/servers/refresh", s.handleServersRefresh)
 	s.mux.HandleFunc("/api/settings/omdb", s.handleSettingsOMDB)
+	s.mux.HandleFunc("/api/auth/start", s.handleAuthStart)
+	s.mux.HandleFunc("/api/auth/poll", s.handleAuthPoll)
 	s.mux.HandleFunc("/api/imdb/", s.handleIMDB)
 	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
 	s.mux.HandleFunc("/api/quit", s.handleQuit)
