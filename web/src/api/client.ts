@@ -114,6 +114,18 @@ export const api = {
   // Lumen" confirmation in the top bar. The server flushes a 200 then exits
   // ~150 ms later, so the returned promise may reject on the network tear-down
   // — callers should `.catch(() => {})` rather than awaiting strictly.
+  authStart: async (): Promise<{ pinId: number; code: string; linkURL: string }> => {
+    const res = await fetch("/api/auth/start", { method: "POST" });
+    if (!res.ok) throw new Error(`${res.status} POST /api/auth/start`);
+    return res.json();
+  },
+  authPoll: async (): Promise<{ status: "none" | "pending" | "linked" | "expired" }> => {
+    const res = await fetch("/api/auth/poll", { method: "POST" });
+    if (res.status === 410) return { status: "expired" };
+    if (!res.ok) throw new Error(`${res.status} POST /api/auth/poll`);
+    return res.json();
+  },
+
   quit: async () => {
     const res = await fetch("/api/quit", { method: "POST" });
     if (!res.ok) {

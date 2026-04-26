@@ -1,6 +1,7 @@
 import { createResource, createSignal, For, Show } from "solid-js";
 import Section from "./Section";
 import { api } from "../../api/client";
+import ReAuthModal from "../Modal/ReAuthModal";
 
 interface Account {
   username: string;
@@ -18,6 +19,7 @@ export default function AccountsServers() {
   const [refreshStatus, setRefreshStatus] = createSignal("");
   const [omdbKey, setOmdbKey] = createSignal("");
   const [omdbError, setOmdbError] = createSignal("");
+  const [reAuthOpen, setReAuthOpen] = createSignal(false);
 
   async function renameServer(machineID: string, newName: string) {
     const res = await fetch(`/api/servers/${encodeURIComponent(machineID)}/rename`, {
@@ -87,12 +89,14 @@ export default function AccountsServers() {
       <div class="settings-row">
         <label>Re-authenticate</label>
         <div class="settings-control">
-          <button
-            class="settings-btn"
-            onClick={() => alert("To re-authenticate, run `lumen auth` in a terminal. UI flow lands in Session 5.")}
-          >
+          <button class="settings-btn" onClick={() => setReAuthOpen(true)}>
             Re-authenticate
           </button>
+          <ReAuthModal
+            open={reAuthOpen()}
+            onClose={() => setReAuthOpen(false)}
+            onLinked={() => { /* token persisted server-side; nothing more to do */ }}
+          />
         </div>
       </div>
 
