@@ -90,6 +90,10 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 		s.handleLibraryItems(w, r, srv, parts[2])
 	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "recentlyAdded":
 		s.handleLibraryRecentlyAdded(w, r, srv, parts[2])
+	case len(parts) == 4 && parts[1] == "libraries" && parts[3] == "collections":
+		s.handleLibraryCollections(w, r, srv, parts[2])
+	case len(parts) == 4 && parts[1] == "collections" && parts[3] == "items":
+		s.handleCollectionItems(w, r, srv, parts[2])
 	case len(parts) == 3 && parts[1] == "seasons":
 		s.handleSeasons(w, r, srv, parts[2])
 	case len(parts) == 4 && parts[1] == "seasons" && parts[3] == "episodes":

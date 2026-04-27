@@ -13,6 +13,15 @@ export interface Library {
   type: string;
 }
 
+// Collection is one curated list inside a Plex library section. Used by
+// Home.tsx's "server-collection" shelf to resolve a collection by title
+// (e.g. Stargaze's "Trending Movies" / "Trending Shows" custom collections).
+export interface Collection {
+  ratingKey: string;
+  title: string;
+  type: string;
+}
+
 export interface Item {
   ratingKey: string;
   guid?: string;

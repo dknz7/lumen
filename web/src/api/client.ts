@@ -1,4 +1,4 @@
-import type { Server, Library, Item, HubItem, Match, DiscoverItem } from "./types";
+import type { Server, Library, Collection, Item, HubItem, Match, DiscoverItem } from "./types";
 import { imageDims, type ImageDimPreset } from "../util/imageDims";
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -118,6 +118,21 @@ export const api = {
   recentlyAdded: (serverID: string, libraryID: string, size = 20) =>
     getJSON<Item[]>(
       `/api/servers/${encodeURIComponent(serverID)}/libraries/${encodeURIComponent(libraryID)}/recentlyAdded?size=${size}`
+    ),
+
+  // Lists collections in a library section (Plex's
+  // /library/sections/<id>/collections). Used by Home.tsx's
+  // "server-collection" shelf to resolve a collection by title.
+  collections: (serverID: string, libraryID: string) =>
+    getJSON<Collection[]>(
+      `/api/servers/${encodeURIComponent(serverID)}/libraries/${encodeURIComponent(libraryID)}/collections`
+    ),
+
+  // Lists items inside a collection (Plex's /library/collections/<rk>/children).
+  // size caps the result count.
+  collectionItems: (serverID: string, collectionRatingKey: string, size = 20) =>
+    getJSON<Item[]>(
+      `/api/servers/${encodeURIComponent(serverID)}/collections/${encodeURIComponent(collectionRatingKey)}/items?size=${size}`
     ),
 
   // Marks an item as fully watched on its Plex server (viewCount=1, advances

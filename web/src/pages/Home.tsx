@@ -1,7 +1,7 @@
 import { createMemo, createResource, createSignal, For, JSX, Show } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { api } from "../api/client";
-import type { Item, Library, Server } from "../api/types";
+import type { Collection, Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
 import Shelf from "../components/Shelf";
 import Card from "../components/Card";
@@ -27,16 +27,21 @@ function iconForGroup(logicalName: string): JSX.Element {
 }
 
 // Shelf definitions — one entry per shelf on the Home page (spec §12.1).
+// "server-collection" resolves a Plex Collection by title within a library
+// (admin-rename tolerant). title is Lumen's display label; collectionTitle
+// is the lookup key on Plex — they may differ (e.g. Plex's "Trending Shows"
+// vs Lumen's "Trending TV Shows").
 type ShelfDef =
   | { kind: "ondeck-merged"; id: string; title: string }
   | { kind: "server-recent"; id: string; title: string; serverName: string; libraryName: string }
+  | { kind: "server-collection"; id: string; title: string; serverName: string; libraryName: string; collectionTitle: string }
   | { kind: "stub"; id: string; title: string; reason: string };
 
 const STARGAZE_SHELVES: ShelfDef[] = [
-  { kind: "stub", id: "stargaze-trending-movies", title: "Trending Movies", reason: "Plex Collections — deferred to a later session" },
+  { kind: "server-collection", id: "stargaze-trending-movies", title: "Trending Movies", serverName: "Stargaze", libraryName: "Movies", collectionTitle: "Trending Movies" },
   { kind: "server-recent", id: "stargaze-recent-movies", title: "Recently Released Movies", serverName: "Stargaze", libraryName: "Movies" },
   { kind: "server-recent", id: "stargaze-recent-movies-4k", title: "Recently Released Movies (4K)", serverName: "Stargaze", libraryName: "Movies - 4K" },
-  { kind: "stub", id: "stargaze-trending-tv", title: "Trending TV Shows", reason: "Plex Collections — deferred to a later session" },
+  { kind: "server-collection", id: "stargaze-trending-tv", title: "Trending TV Shows", serverName: "Stargaze", libraryName: "TV Shows", collectionTitle: "Trending Shows" },
   { kind: "server-recent", id: "stargaze-recent-episodes", title: "Recently Released Episodes", serverName: "Stargaze", libraryName: "TV Shows" },
   { kind: "server-recent", id: "stargaze-recent-episodes-4k", title: "Recently Released Episodes (4K)", serverName: "Stargaze", libraryName: "TV Shows - 4K" },
   { kind: "server-recent", id: "stargaze-recent-anime", title: "Recently Released Anime Episodes", serverName: "Stargaze", libraryName: "Anime" },
@@ -271,31 +276,44 @@ function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: stri
   );
 }
 
+// ShelfLoader dispatches to the right loader by kind. Each per-kind component
+// has its own Solid hook scope so createResource lifecycles aren't shared
+// across mixed shelf types within a single function body.
 function ShelfLoader(props: { server: Server; def: ShelfDef }) {
   if (props.def.kind === "stub") {
+    const def = props.def;
     return (
       <Shelf
-        id={props.def.id}
-        title={props.def.title}
+        id={def.id}
+        title={def.title}
         initialCollapsed
         rowsPerPage={2}
-        icon={iconForShelf(props.def.id)}
+        icon={iconForShelf(def.id)}
       >
-        <div class="shelf-stub">({props.def.reason})</div>
+        <div class="shelf-stub">({def.reason})</div>
       </Shelf>
     );
   }
   if (props.def.kind === "ondeck-merged") {
     return null;
   }
-  // server-recent. Capture the narrowed def into a const so TypeScript's
-  // discriminant narrowing persists across the inner closures below.
+  if (props.def.kind === "server-collection") {
+    return <CollectionShelf server={props.server} def={props.def} />;
+  }
+  return <RecentShelf server={props.server} def={props.def} />;
+}
+
+// RecentShelf renders a "Recently Released" Home shelf — Plex's native
+// /library/sections/<id>/recentlyAdded feed. Resolves the named library on
+// the server, then fetches its recently-added items.
+function RecentShelf(props: {
+  server: Server;
+  def: { kind: "server-recent"; id: string; title: string; serverName: string; libraryName: string };
+}) {
   const def = props.def;
   const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
   const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
 
-  // Resolve the named library on this server. Null if the library list hasn't
-  // loaded yet OR the named library doesn't exist on this server.
   const lib = createMemo(() => {
     const list = libs();
     if (!list) return null;
@@ -308,8 +326,6 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
     return hiddenSet().has(`${props.server.machineIdentifier}:${l.key}`);
   });
 
-  // Fetch recentlyAdded only when we have a non-hidden library. Resource
-  // re-runs whenever lib() changes (different libKey) or hidden state flips.
   const [items, { refetch: refetchItems }] = createResource(
     () => {
       const l = lib();
@@ -319,12 +335,8 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
     (libKey) => api.recentlyAdded(props.server.machineIdentifier, libKey, 20)
   );
 
-  // Refresh recently-added on focus so newly added items in Plex show up
-  // when the user switches back to the Lumen tab.
   refetchOnFocus(() => refetchItems());
 
-  // Items array is only passed to Shelf when fully loaded; otherwise the
-  // children handle stub/skeleton states.
   const itemList = () => {
     const list = items();
     return list ? (list as Item[]) : undefined;
@@ -351,6 +363,102 @@ function ShelfLoader(props: { server: Server; def: ShelfDef }) {
         <div class="shelf-stub">(library hidden — toggle in left menu)</div>
       </Show>
       <Show when={lib() && !isHidden() && !items()}>
+        <Skeleton kind="card" count={6} />
+      </Show>
+    </Shelf>
+  );
+}
+
+// CollectionShelf renders a custom Plex Collection as a Home shelf
+// (e.g. Stargaze's "Trending Movies" / "Trending Shows" admin-curated lists).
+// Resolution chain: library by title → collection by title within library →
+// fetch collection items. Lookup-by-title keeps the wiring stable across
+// admin rebuilds that change collection ratingKeys.
+function CollectionShelf(props: {
+  server: Server;
+  def: {
+    kind: "server-collection";
+    id: string;
+    title: string;
+    serverName: string;
+    libraryName: string;
+    collectionTitle: string;
+  };
+}) {
+  const def = props.def;
+  const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
+  const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
+
+  const lib = createMemo(() => {
+    const list = libs();
+    if (!list) return null;
+    return (list as Library[]).find((l) => l.title === def.libraryName) ?? null;
+  });
+
+  const isHidden = createMemo(() => {
+    const l = lib();
+    if (!l) return false;
+    return hiddenSet().has(`${props.server.machineIdentifier}:${l.key}`);
+  });
+
+  // Fetch the collections list for the resolved library, then find the one
+  // whose title matches def.collectionTitle. Resource re-runs whenever
+  // lib().key or hidden state flips.
+  const [cols] = createResource(
+    () => {
+      const l = lib();
+      if (!l || isHidden()) return null;
+      return l.key;
+    },
+    (libKey) => api.collections(props.server.machineIdentifier, libKey)
+  );
+
+  const collection = createMemo(() => {
+    const list = cols();
+    if (!list) return null;
+    return (list as Collection[]).find((c) => c.title === def.collectionTitle) ?? null;
+  });
+
+  const [items, { refetch: refetchItems }] = createResource(
+    () => {
+      const c = collection();
+      if (!c) return null;
+      return c.ratingKey;
+    },
+    (rk) => api.collectionItems(props.server.machineIdentifier, rk, 20)
+  );
+
+  refetchOnFocus(() => refetchItems());
+
+  const itemList = () => {
+    const list = items();
+    return list ? (list as Item[]) : undefined;
+  };
+
+  return (
+    <Shelf
+      id={def.id}
+      title={def.title}
+      rowsPerPage={2}
+      icon={iconForShelf(def.id)}
+      items={itemList()}
+      renderItem={(it: Item) => (
+        <Card item={it} serverID={props.server.machineIdentifier} />
+      )}
+    >
+      <Show when={!libs()}>
+        <Skeleton kind="card" count={6} />
+      </Show>
+      <Show when={libs() && !lib()}>
+        <div class="shelf-stub">(library "{def.libraryName}" not found on {props.server.displayName})</div>
+      </Show>
+      <Show when={lib() && isHidden()}>
+        <div class="shelf-stub">(library hidden — toggle in left menu)</div>
+      </Show>
+      <Show when={lib() && !isHidden() && cols() && !collection()}>
+        <div class="shelf-stub">(collection "{def.collectionTitle}" not found in {def.libraryName})</div>
+      </Show>
+      <Show when={lib() && !isHidden() && (!cols() || (collection() && !items()))}>
         <Skeleton kind="card" count={6} />
       </Show>
     </Shelf>
