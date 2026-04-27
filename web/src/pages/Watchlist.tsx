@@ -82,7 +82,10 @@ function WatchlistCard(props: { item: WatchlistItem }) {
 
   async function handlePlay() {
     try {
-      const matches = await api.availability(props.item.guid ?? "");
+      // Defensive `?? []`: api.availability is typed Promise<Match[]> but the
+      // backend returns null (not []) for the empty case, which would make
+      // matches.length crash. Belt-and-braces guard at the call site.
+      const matches = (await api.availability(props.item.guid ?? "")) ?? [];
       if (matches.length === 0) {
         // No local copy — navigate to the watchlist item detail page so the
         // user can decide (remove, wait for availability, click through).
@@ -117,7 +120,7 @@ function WatchlistCard(props: { item: WatchlistItem }) {
     // no local copy. Eager per-card availability calls would mean N parallel
     // round-trips per page render — out of scope for v1.0.
     try {
-      const matches = await api.availability(props.item.guid ?? "");
+      const matches = (await api.availability(props.item.guid ?? "")) ?? [];
       if (matches.length === 0) {
         alert("This title isn't on any of your servers — can't mark watched.");
         return;
