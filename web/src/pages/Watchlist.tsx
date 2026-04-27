@@ -1,14 +1,29 @@
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import type { WatchlistItem } from "../api/types";
+import type { Match, WatchlistItem } from "../api/types";
 import { api } from "../api/client";
 import Skeleton from "../components/Skeleton";
+import TrailerModal from "../components/Modal/TrailerModal";
 import { CircleCheck, Play, Trash2 } from "../components/icons";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Watchlist.css";
 
 function isAbsoluteURL(s: string): boolean {
   return /^https?:\/\//i.test(s);
+}
+
+// parseRes maps a Plex resolution string to a sortable numeric height. Plex
+// surfaces these as "sd", "480", "720", "1080", "4k" (and rarely the bare
+// pixel-height strings like "576" for PAL DVD rips). Anything we don't
+// recognise sorts last (0). Higher number wins in the bestMatch sort.
+function parseRes(r: string | undefined): number {
+  if (!r) return 0;
+  const lower = r.toLowerCase().trim();
+  if (lower === "sd") return 480;
+  if (lower === "4k" || lower === "uhd" || lower === "2160") return 2160;
+  if (lower === "1440" || lower === "qhd") return 1440;
+  const n = parseInt(lower, 10);
+  return isNaN(n) ? 0 : n;
 }
 
 type TypeFilter = "all" | "movie" | "show";
@@ -20,6 +35,19 @@ export default function Watchlist() {
 
   const [typeFilter, setTypeFilter] = createSignal<TypeFilter>("all");
   const [sortKey, setSortKey] = createSignal<SortKey>("addedAt");
+
+  // Page-level TrailerModal state. Cards trigger via the prop-drilled
+  // openTrailer callback below. Prop-drill (not context) chosen because
+  // Watchlist is a flat list — one parent, direct children — so a context
+  // provider would be ceremony for no reuse benefit.
+  const [trailerOpen, setTrailerOpen] = createSignal(false);
+  const [trailerYouTubeID, setTrailerYouTubeID] = createSignal<string | undefined>();
+  const [trailerTitle, setTrailerTitle] = createSignal("");
+  const openTrailer = (id: string, title: string) => {
+    setTrailerYouTubeID(id);
+    setTrailerTitle(title);
+    setTrailerOpen(true);
+  };
 
   const visible = createMemo<WatchlistItem[]>(() => {
     const all = items() ?? [];
@@ -65,37 +93,92 @@ export default function Watchlist() {
       <Show when={items()} fallback={<div class="watchlist-grid"><Skeleton kind="card" count={12} /></div>}>
         <ul class="watchlist-grid">
           <For each={visible()}>
-            {(it) => <WatchlistCard item={it} />}
+            {(it) => <WatchlistCard item={it} openTrailer={openTrailer} />}
           </For>
         </ul>
         <Show when={visible().length === 0}>
           <div class="watchlist-empty">Your Watchlist is empty.</div>
         </Show>
       </Show>
+      <TrailerModal
+        open={trailerOpen()}
+        onClose={() => setTrailerOpen(false)}
+        youtubeID={trailerYouTubeID()}
+        title={trailerTitle()}
+      />
     </div>
   );
 }
 
-function WatchlistCard(props: { item: WatchlistItem }) {
+function WatchlistCard(props: {
+  item: WatchlistItem;
+  openTrailer: (youtubeID: string, title: string) => void;
+}) {
   const navigate = useNavigate();
-  const detailHref = () => `/watchlist/${encodeURIComponent(props.item.ratingKey)}`;
+
+  // Eager per-card availability fetch on mount. Byron explicitly accepted
+  // the N-parallel-call cost (Lumen runs on his desktop, watchlist tops
+  // out around 100 items). Defensive `?? []`: backend returns null for the
+  // empty case which would crash downstream `.length` reads.
+  const [availability] = createResource(
+    () => props.item.guid ?? null,
+    async (guid: string) => {
+      try {
+        const result = await api.availability(guid);
+        return Array.isArray(result) ? result : [];
+      } catch {
+        return [];
+      }
+    },
+  );
+
+  // Best local match: highest resolution wins, tiebreak alphabetically by
+  // server display name. For Pineapple Express on Stargaze 1080p in Byron's
+  // library this naturally selects the Stargaze copy.
+  const bestMatch = createMemo<Match | null>(() => {
+    const list = availability() ?? [];
+    if (list.length === 0) return null;
+    const sorted = [...list].sort((a, b) => {
+      const ra = parseRes(a.resolution);
+      const rb = parseRes(b.resolution);
+      if (rb !== ra) return rb - ra;
+      return (a.serverName ?? "").localeCompare(b.serverName ?? "");
+    });
+    return sorted[0];
+  });
 
   async function handlePlay() {
+    const m = bestMatch();
+    if (m) {
+      // In library — play best available local copy.
+      try {
+        await api.play(m.machineIdentifier, m.ratingKey);
+      } catch (e) {
+        alert(`Play failed: ${(e as Error).message}`);
+      }
+      return;
+    }
+    // Not in library — resolve a trailer via the same cascade DiscoverTile
+    // uses (discoverItem → imdbId → tmdbTrailer → YouTube id) and open the
+    // page-level TrailerModal.
     try {
-      // Defensive `?? []`: api.availability is typed Promise<Match[]> but the
-      // backend returns null (not []) for the empty case, which would make
-      // matches.length crash. Belt-and-braces guard at the call site.
-      const matches = (await api.availability(props.item.guid ?? "")) ?? [];
-      if (matches.length === 0) {
-        // No local copy — navigate to the watchlist item detail page so the
-        // user can decide (remove, wait for availability, click through).
-        navigate(detailHref());
+      const detail = await api.discoverItem(props.item.ratingKey);
+      if (!detail.imdbId) {
+        alert("No trailer available — this title has no IMDB id on Plex Discover.");
         return;
       }
-      const m = matches[0];
-      await api.play(m.machineIdentifier, m.ratingKey);
+      const mediaType: "movie" | "show" =
+        detail.type === "show" || detail.type === "season" || detail.type === "episode"
+          ? "show"
+          : "movie";
+      const youtubeID = await api.tmdbTrailer(detail.imdbId, mediaType);
+      if (!youtubeID) {
+        alert("No trailer available.");
+        return;
+      }
+      props.openTrailer(youtubeID, detail.title);
     } catch (e) {
-      alert(`Play failed: ${(e as Error).message}`);
+      alert(`Could not load trailer: ${(e as Error).message}`);
     }
   }
 
@@ -117,8 +200,9 @@ function WatchlistCard(props: { item: WatchlistItem }) {
   async function handleMarkWatched() {
     // Lazy availability check (Option B from spec): the button is always
     // visually enabled; we resolve availability on click and alert if there's
-    // no local copy. Eager per-card availability calls would mean N parallel
-    // round-trips per page render — out of scope for v1.0.
+    // no local copy. Kept lazy here even though Play uses eager — Mark Watched
+    // is rarely the first interaction on a watchlist card, and the existing
+    // null-guard pattern from b7f3430 stays unchanged per the smoke spec.
     try {
       const matches = (await api.availability(props.item.guid ?? "")) ?? [];
       if (matches.length === 0) {
@@ -136,10 +220,11 @@ function WatchlistCard(props: { item: WatchlistItem }) {
     }
   }
 
-  // Click anywhere on the body navigates to the detail page. Using
-  // onClick + navigate (not wrapping the card in <A>) so the absolute-positioned
-  // action buttons can stop propagation without nested-anchor warnings.
-  // Mirrors DiscoverTile's pattern.
+  // Click anywhere on the body navigates. In-library lands on the server-local
+  // Item Detail page (so the user is on the playable copy). Not-in-library OR
+  // availability-still-loading falls back to the Discover Item Detail page,
+  // which surfaces MORE WAYS TO WATCH so a late-arriving server-local match
+  // is still reachable.
   function handleBodyClick(e: MouseEvent) {
     const t = e.target as HTMLElement;
     if (
@@ -148,13 +233,23 @@ function WatchlistCard(props: { item: WatchlistItem }) {
     ) {
       return;
     }
-    navigate(detailHref());
+    const m = bestMatch();
+    if (m) {
+      navigate(`/item/${encodeURIComponent(m.machineIdentifier)}/${encodeURIComponent(m.ratingKey)}`);
+    } else {
+      navigate(`/watchlist/${encodeURIComponent(props.item.ratingKey)}`);
+    }
   }
 
   function handleBodyKeyDown(e: KeyboardEvent) {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      navigate(detailHref());
+      const m = bestMatch();
+      if (m) {
+        navigate(`/item/${encodeURIComponent(m.machineIdentifier)}/${encodeURIComponent(m.ratingKey)}`);
+      } else {
+        navigate(`/watchlist/${encodeURIComponent(props.item.ratingKey)}`);
+      }
     }
   }
 
