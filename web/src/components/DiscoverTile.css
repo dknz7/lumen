@@ -67,8 +67,57 @@
   display: block;
 }
 
+/* Hover-to-play overlay (clip variant only) — centered circular button that
+   fades in on tile hover. Mirrors Card.css's .card-play-btn pattern from
+   Session 4.5 so trailer cards match Continue Watching's hover-to-play UX.
+   z-index:3 sits above the dim overlay (z-index:1) but below the top-right
+   action cluster (z-index:4) so the watchlist button stays clickable. */
+.discover-tile-play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  z-index: 3;
+  /* Optical-centre nudge — solid play triangle's visual centre sits to the
+     right of its geometric centre, so shift content slightly right. */
+  padding-left: 4px;
+}
+
+.discover-tile:hover .discover-tile-play-overlay,
+.discover-tile:focus-within .discover-tile-play-overlay {
+  opacity: 1;
+}
+
+.discover-tile-play-overlay:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.discover-tile-play-overlay:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+}
+
+.discover-tile-play-overlay:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
 /* Action cluster (clip variant only) — top-right, fades in on hover. Same
-   button dimensions as Card.css's CW action buttons for visual continuity. */
+   button dimensions as Card.css's CW action buttons for visual continuity.
+   Now houses the Watchlist toggle only (Play Trailer moved to centre overlay). */
 .discover-tile-actions {
   position: absolute;
   top: 6px;

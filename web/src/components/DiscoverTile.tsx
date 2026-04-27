@@ -138,7 +138,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     // Don't navigate if the click landed on an action button (their handlers
     // already preventDefault + stopPropagation, but belt-and-braces).
     const t = e.target as HTMLElement;
-    if (t.closest(".discover-tile-action-btn")) return;
+    if (t.closest(".discover-tile-action-btn") || t.closest(".discover-tile-play-overlay")) return;
     navigate(href());
   }
 
@@ -177,17 +177,20 @@ export default function DiscoverTile(props: DiscoverTileProps) {
           />
         )}
         <Show when={isClip()}>
+          {/* Centered Play Trailer overlay — large, fades in on hover. Mirrors
+              Card.tsx's hover-to-play pattern (Session 4.5). */}
+          <button
+            type="button"
+            class="discover-tile-play-overlay"
+            title="Play trailer"
+            aria-label="Play trailer"
+            disabled={trailerBusy()}
+            onClick={handleTrailerClick}
+          >
+            <Play size={28} fill="currentColor" />
+          </button>
+          {/* Top-right corner — Watchlist toggle only now. */}
           <div class="discover-tile-actions">
-            <button
-              type="button"
-              class="discover-tile-action-btn"
-              title="Play trailer"
-              aria-label="Play trailer"
-              disabled={trailerBusy()}
-              onClick={handleTrailerClick}
-            >
-              <Play size={14} fill="currentColor" />
-            </button>
             <button
               type="button"
               class="discover-tile-action-btn"
