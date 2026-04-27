@@ -2,7 +2,7 @@ import { A } from "@solidjs/router";
 import { createSignal } from "solid-js";
 import { api } from "../api/client";
 import type { Item } from "../api/types";
-import { CircleCheck, ImageOff, Play, Trash2 } from "./icons";
+import { CircleCheck, ImageOff, Play, Plus, Trash2 } from "./icons";
 import { formatAddedTimestamp } from "../util/date";
 import "./Card.css";
 
@@ -14,6 +14,11 @@ export interface CardProps {
   /** If provided, a tick icon appears above the bin; click fires the callback.
    *  Used by Continue Watching cards for "Mark as Watched". */
   onMarkWatched?: () => void;
+  /** If true, a Plus icon appears top-right; click adds the item to the
+   *  watchlist (TV episodes/seasons roll up to the parent show server-side).
+   *  Used by Library cards. After successful add the icon swaps to a
+   *  CircleCheck for the rest of the session. */
+  enableWatchlistAdd?: boolean;
 }
 
 function derive(item: Item) {
@@ -52,6 +57,31 @@ export default function Card(props: CardProps) {
     const p = (off / dur) * 100;
     return Math.max(0, Math.min(100, p));
   };
+
+  // Watchlist-add UX state — once successfully added, the button stays as
+  // CircleCheck for the session (matches DiscoverTile + Watchlist patterns
+  // per Byron's design call). Optimistic flip on click, revert on error.
+  const [watchlistAdded, setWatchlistAdded] = createSignal(false);
+  const [watchlistBusy, setWatchlistBusy] = createSignal(false);
+
+  async function handleAddToWatchlist(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (watchlistAdded() || watchlistBusy()) return;
+    setWatchlistBusy(true);
+    setWatchlistAdded(true); // optimistic
+    try {
+      await api.watchlistAddFromItem(props.serverID, props.item.ratingKey);
+      // Brief Plex propagation delay before broadcasting invalidation so the
+      // watchlist resource on other pages picks up the change.
+      setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
+    } catch (err) {
+      setWatchlistAdded(false);
+      alert(`Add to Watchlist failed: ${(err as Error).message}`);
+    } finally {
+      setWatchlistBusy(false);
+    }
+  }
 
   async function handlePlayClick(e: MouseEvent) {
     e.preventDefault();
@@ -92,6 +122,18 @@ export default function Card(props: CardProps) {
         >
           <Play size={36} fill="currentColor" />
         </button>
+        {props.enableWatchlistAdd && (
+          <button
+            class="card-watchlist-btn"
+            classList={{ "is-on": watchlistAdded() }}
+            title={watchlistAdded() ? "Added to Watchlist" : "Add to Watchlist"}
+            aria-label={watchlistAdded() ? "Added to Watchlist" : "Add to Watchlist"}
+            disabled={watchlistBusy() || watchlistAdded()}
+            onClick={handleAddToWatchlist}
+          >
+            {watchlistAdded() ? <CircleCheck size={14} /> : <Plus size={14} />}
+          </button>
+        )}
         {props.onMarkWatched && (
           <button
             class="card-mark-watched-btn"

@@ -161,7 +161,7 @@ export default function Library() {
       <div class="library-grid">
         <Show when={items()} fallback={<Skeleton kind="card" count={12} />}>
           <For each={currentPageItems()}>
-            {(it) => <Card item={it} serverID={params.serverID!} />}
+            {(it) => <Card item={it} serverID={params.serverID!} enableWatchlistAdd />}
           </For>
         </Show>
       </div>

@@ -40,10 +40,13 @@ export interface Item {
   parentIndex?: number;        // season number
   parentTitle?: string;
   parentThumb?: string;
+  parentRatingKey?: string;
+  parentGuid?: string;         // season's plex.tv GUID on episode items; show's on season items
   grandparentTitle?: string;   // show name
   grandparentThumb?: string;   // show poster
   grandparentArt?: string;     // show backdrop
   grandparentRatingKey?: string;
+  grandparentGuid?: string;    // show's plex.tv GUID on episode items
   viewCount?: number;          // 0 / undefined = unwatched, ≥1 = watched
   originallyAvailableAt?: string; // air date "YYYY-MM-DD"
   imdbId?: string;

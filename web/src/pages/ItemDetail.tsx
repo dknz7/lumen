@@ -99,10 +99,23 @@ export default function ItemDetail() {
   // Plex propagates Watchlist add/remove cross-device after a brief lag.
   const [inWatchlistOverride, setInWatchlistOverride] = createSignal<boolean | null>(null);
   const [watchlist] = createResource(() => api.watchlist().catch(() => []));
+
+  // Plex's watchlist is keyed at the show level — for episode/season detail
+  // pages we have to compare against the SHOW's plex.tv ratingKey, not the
+  // episode/season's own. effectiveWatchlistGuid picks the right GUID per
+  // type; without this, isInWatchlist would always return false for
+  // episode/season detail pages and the toggle would silently misfire.
+  function effectiveWatchlistGuid(it: Item | undefined): string | undefined {
+    if (!it) return undefined;
+    if (it.type === "episode") return it.grandparentGuid;
+    if (it.type === "season") return it.parentGuid;
+    return it.guid;
+  }
+
   const isInWatchlist = createMemo(() => {
     const override = inWatchlistOverride();
     if (override !== null) return override;
-    const rk = extractPlexTvRatingKey(item()?.guid);
+    const rk = extractPlexTvRatingKey(effectiveWatchlistGuid(item()));
     if (!rk) return false;
     return (watchlist() ?? []).some((w) => w.ratingKey === rk);
   });
@@ -110,15 +123,17 @@ export default function ItemDetail() {
   async function toggleWatchlist() {
     const it = item();
     if (!it) return;
-    const rk = extractPlexTvRatingKey(it.guid);
-    if (!rk) {
-      alert("This item doesn't have a plex.tv GUID — can't toggle watchlist.");
-      return;
-    }
     const wasIn = isInWatchlist();
     setInWatchlistOverride(!wasIn);
     try {
-      if (wasIn) await api.watchlistRemove(rk); else await api.watchlistAdd(rk);
+      // Use the from-item endpoints — backend rolls up episode/season to
+      // the parent show before hitting plex.tv. SPA passes the local
+      // ratingKey + serverID, doesn't need to know the resolution rules.
+      if (wasIn) {
+        await api.watchlistRemoveFromItem(params.serverID!, it.ratingKey);
+      } else {
+        await api.watchlistAddFromItem(params.serverID!, it.ratingKey);
+      }
       // Brief Plex propagation delay before broadcasting invalidation so
       // any focus-refetched resources see fresh state.
       setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);

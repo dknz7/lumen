@@ -47,10 +47,12 @@ type metadataWire struct {
 	ParentTitle          string `json:"parentTitle"`
 	ParentThumb          string `json:"parentThumb"`
 	ParentRatingKey      string `json:"parentRatingKey"`
+	ParentGuid           string `json:"parentGuid"`
 	GrandparentTitle     string `json:"grandparentTitle"`
 	GrandparentThumb     string `json:"grandparentThumb"`
 	GrandparentArt       string `json:"grandparentArt"`
 	GrandparentRatingKey string `json:"grandparentRatingKey"`
+	GrandparentGuid      string `json:"grandparentGuid"`
 	// PrimaryGuid is Plex's hub-clip pointer at the parent movie/show
 	// (e.g. "plex://show/6424..."). Hub clip items don't populate a literal
 	// parentRatingKey — hubs.go parses the trailing segment of this guid as
@@ -306,10 +308,13 @@ func metadataSliceToItems(mw []metadataWire) []Item {
 			ParentIndex:           m.ParentIndex,
 			ParentTitle:           m.ParentTitle,
 			ParentThumb:           m.ParentThumb,
+			ParentRatingKey:       m.ParentRatingKey,
+			ParentGuid:            m.ParentGuid,
 			GrandparentTitle:      m.GrandparentTitle,
 			GrandparentThumb:      m.GrandparentThumb,
 			GrandparentArt:        m.GrandparentArt,
 			GrandparentRatingKey:  m.GrandparentRatingKey,
+			GrandparentGuid:       m.GrandparentGuid,
 			ViewCount:             m.ViewCount,
 			OriginallyAvailableAt: m.OriginallyAvailableAt,
 			Media:                 m.Media,

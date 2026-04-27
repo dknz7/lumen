@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -96,6 +97,96 @@ func (s *Server) handleWatchlistAdd(w http.ResponseWriter, r *http.Request) {
 	}
 	s.watchlist.invalidate()
 	writeJSON(w, map[string]string{"status": "added"})
+}
+
+// handleWatchlistAddFromItem accepts {server, ratingKey} JSON identifying a
+// server-local item, resolves the right plex.tv catalog target (rolling up
+// episodes/seasons to the parent show), and adds it to the watchlist. Used
+// by the Library card's "Add to Watchlist" hover button — the SPA doesn't
+// need to know the resolution rules or surface parent GUIDs.
+func (s *Server) handleWatchlistAddFromItem(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	if s.cfg.Plex.AccountToken == "" {
+		writeError(w, http.StatusUnauthorized, "no account token")
+		return
+	}
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	var body struct {
+		Server    string `json:"server"`
+		RatingKey string `json:"ratingKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if body.Server == "" || body.RatingKey == "" {
+		writeError(w, http.StatusBadRequest, "server and ratingKey required")
+		return
+	}
+	srv := s.serverByID(body.Server)
+	if srv == nil {
+		writeError(w, http.StatusNotFound, "unknown server")
+		return
+	}
+	if err := s.plex.AddItemToWatchlist(toPlexServer(srv), s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+		// Boundary scrub — log full detail server-side, hand the SPA a
+		// generic message. Resolution failures (missing parent ratingKey,
+		// non-plex GUID) carry actionable hints for Byron in the operator log.
+		log.Printf("watchlist add-from-item server=%s rk=%s: %v", body.Server, body.RatingKey, err)
+		writeError(w, http.StatusBadGateway, "watchlist add failed")
+		return
+	}
+	s.watchlist.invalidate()
+	writeJSON(w, map[string]string{"status": "added"})
+}
+
+// handleWatchlistRemoveFromItem mirrors handleWatchlistAddFromItem for
+// removal — accepts {server, ratingKey} for a server-local item and walks
+// up to the parent show before calling removeFromWatchlist. Used by
+// ItemDetail's watchlist toggle so the same roll-up applies symmetrically.
+func (s *Server) handleWatchlistRemoveFromItem(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		writeError(w, http.StatusMethodNotAllowed, "POST required")
+		return
+	}
+	if s.cfg.Plex.AccountToken == "" {
+		writeError(w, http.StatusUnauthorized, "no account token")
+		return
+	}
+	if s.plex == nil {
+		writeError(w, http.StatusInternalServerError, "plex client not initialised")
+		return
+	}
+	var body struct {
+		Server    string `json:"server"`
+		RatingKey string `json:"ratingKey"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON")
+		return
+	}
+	if body.Server == "" || body.RatingKey == "" {
+		writeError(w, http.StatusBadRequest, "server and ratingKey required")
+		return
+	}
+	srv := s.serverByID(body.Server)
+	if srv == nil {
+		writeError(w, http.StatusNotFound, "unknown server")
+		return
+	}
+	if err := s.plex.RemoveItemFromWatchlist(toPlexServer(srv), s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+		log.Printf("watchlist remove-from-item server=%s rk=%s: %v", body.Server, body.RatingKey, err)
+		writeError(w, http.StatusBadGateway, "watchlist remove failed")
+		return
+	}
+	s.watchlist.invalidate()
+	writeJSON(w, map[string]string{"status": "removed"})
 }
 
 func (s *Server) handleWatchlistRemove(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // WatchlistItem is one entry on the user's plex.tv Watchlist. Distinct
@@ -121,6 +122,104 @@ func (c *Client) AddToWatchlist(accountToken, plexTvRatingKey string) error {
 // precedent).
 func (c *Client) RemoveFromWatchlist(accountToken, plexTvRatingKey string) error {
 	return c.watchlistAction(accountToken, plexTvRatingKey, "removeFromWatchlist")
+}
+
+// AddItemToWatchlist takes a server-local ratingKey and adds the corresponding
+// plex.tv catalog entry to the user's watchlist. For TV episodes/seasons it
+// rolls up to the parent show — Plex's watchlist is keyed at the show level,
+// not per-episode. Movies and shows pass through directly.
+//
+// Two-hop resolution for episode/season: fetch the item, walk up to the show
+// via parentRatingKey/grandparentRatingKey, fetch the show, extract the
+// plex.tv ratingKey from its `plex://show/<rk>` GUID, then PUT to the
+// addToWatchlist action.
+//
+// Returns an error if the resolved target item has no plex://-style GUID
+// (older library entries with com.plexapp.agents.* GUIDs aren't supported —
+// caller should refresh metadata to upgrade the agent).
+func (c *Client) AddItemToWatchlist(s *Server, accountToken, ratingKey string) error {
+	target, err := c.resolveWatchlistTarget(s, ratingKey)
+	if err != nil {
+		return err
+	}
+	plexTvRatingKey := extractPlexTvRatingKey(target.GUID)
+	if plexTvRatingKey == "" {
+		return fmt.Errorf("watchlist add: item %q has no plex.tv GUID (got %q) — refresh metadata in Plex to upgrade the agent", target.RatingKey, target.GUID)
+	}
+	return c.AddToWatchlist(accountToken, plexTvRatingKey)
+}
+
+// RemoveItemFromWatchlist mirrors AddItemToWatchlist for the remove path —
+// rolls up TV episodes/seasons to the parent show before removing, since
+// Plex's watchlist is keyed at the show level. Movies and shows pass through.
+func (c *Client) RemoveItemFromWatchlist(s *Server, accountToken, ratingKey string) error {
+	target, err := c.resolveWatchlistTarget(s, ratingKey)
+	if err != nil {
+		return err
+	}
+	plexTvRatingKey := extractPlexTvRatingKey(target.GUID)
+	if plexTvRatingKey == "" {
+		return fmt.Errorf("watchlist remove: item %q has no plex.tv GUID (got %q) — refresh metadata in Plex to upgrade the agent", target.RatingKey, target.GUID)
+	}
+	return c.RemoveFromWatchlist(accountToken, plexTvRatingKey)
+}
+
+// resolveWatchlistTarget fetches the item and, for episode/season types,
+// walks up to the parent show. Returns the show-level Item (or the original
+// item for movies/shows). Errors only on transport / decode failures —
+// missing parent ratingKey is left for the caller to detect via empty GUID.
+func (c *Client) resolveWatchlistTarget(s *Server, ratingKey string) (Item, error) {
+	item, err := c.GetItem(s, ratingKey)
+	if err != nil {
+		return Item{}, fmt.Errorf("watchlist add: fetch item %q: %w", ratingKey, err)
+	}
+	switch item.Type {
+	case "movie", "show":
+		return item, nil
+	case "season":
+		if item.ParentRatingKey == "" {
+			return Item{}, fmt.Errorf("watchlist add: season %q has no parent show ratingKey", ratingKey)
+		}
+		show, err := c.GetItem(s, item.ParentRatingKey)
+		if err != nil {
+			return Item{}, fmt.Errorf("watchlist add: fetch parent show %q: %w", item.ParentRatingKey, err)
+		}
+		return show, nil
+	case "episode":
+		if item.GrandparentRatingKey == "" {
+			return Item{}, fmt.Errorf("watchlist add: episode %q has no grandparent show ratingKey", ratingKey)
+		}
+		show, err := c.GetItem(s, item.GrandparentRatingKey)
+		if err != nil {
+			return Item{}, fmt.Errorf("watchlist add: fetch grandparent show %q: %w", item.GrandparentRatingKey, err)
+		}
+		return show, nil
+	default:
+		// Unknown types (clip, person, collection, etc.) fall through with
+		// the original item — caller's GUID extraction either works or
+		// errors out cleanly.
+		return item, nil
+	}
+}
+
+// extractPlexTvRatingKey pulls the trailing segment from a Plex GUID.
+// `plex://movie/abc123` → `abc123`. Returns empty string for non-plex://
+// GUIDs (com.plexapp.agents.imdb://, com.plexapp.agents.thetvdb://, etc.)
+// since those don't directly map to plex.tv catalog ratingKeys.
+func extractPlexTvRatingKey(guid string) string {
+	if !strings.HasPrefix(guid, "plex://") {
+		return ""
+	}
+	i := strings.LastIndex(guid, "/")
+	if i < 0 || i >= len(guid)-1 {
+		return ""
+	}
+	rk := guid[i+1:]
+	// Strip any query suffix (`plex://show/abc?lang=en` → `abc`).
+	if q := strings.IndexByte(rk, '?'); q >= 0 {
+		rk = rk[:q]
+	}
+	return rk
 }
 
 func (c *Client) watchlistAction(accountToken, plexTvRatingKey, action string) error {

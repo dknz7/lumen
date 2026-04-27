@@ -50,6 +50,9 @@ type Item struct {
 	ParentIndex           int          `json:"parentIndex,omitempty"`           // season number
 	ParentTitle           string       `json:"parentTitle,omitempty"`           // e.g. "Season 1"
 	ParentThumb           string       `json:"parentThumb,omitempty"`           // season poster
+	ParentRatingKey       string       `json:"parentRatingKey,omitempty"`       // season's ratingKey on episode items; show's ratingKey on season items
+	ParentGuid            string       `json:"parentGuid,omitempty"`            // season's plex.tv GUID on episode items; show's on season items
+	GrandparentGuid       string       `json:"grandparentGuid,omitempty"`       // show's plex.tv GUID on episode items
 	GrandparentTitle      string       `json:"grandparentTitle,omitempty"`      // show name
 	GrandparentThumb      string       `json:"grandparentThumb,omitempty"`      // show poster (portrait)
 	GrandparentArt        string       `json:"grandparentArt,omitempty"`        // show backdrop (landscape)

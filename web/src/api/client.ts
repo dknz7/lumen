@@ -49,6 +49,32 @@ export const api = {
 
   watchlist: () => getJSON<import("./types").WatchlistItem[]>("/api/watchlist"),
 
+  // Adds a server-local item to the watchlist. Backend rolls up TV
+  // episodes/seasons to the parent show before adding. The SPA doesn't
+  // need to know the resolution rules or surface parent GUIDs.
+  watchlistAddFromItem: async (serverID: string, ratingKey: string) => {
+    const res = await fetch("/api/watchlist/add-from-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ server: serverID, ratingKey }),
+    });
+    if (!res.ok) throw new Error(`${res.status} POST /api/watchlist/add-from-item: ${await res.text()}`);
+    return res.json();
+  },
+
+  // Removes a server-local item from the watchlist. Backend rolls up TV
+  // episodes/seasons to the parent show before removing — symmetric with
+  // watchlistAddFromItem.
+  watchlistRemoveFromItem: async (serverID: string, ratingKey: string) => {
+    const res = await fetch("/api/watchlist/remove-from-item", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ server: serverID, ratingKey }),
+    });
+    if (!res.ok) throw new Error(`${res.status} POST /api/watchlist/remove-from-item: ${await res.text()}`);
+    return res.json();
+  },
+
   watchlistAdd: async (plexTvRatingKey: string) => {
     const res = await fetch("/api/watchlist/add", {
       method: "POST",
