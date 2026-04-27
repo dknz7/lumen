@@ -1,4 +1,4 @@
-import type { Server, Library, Collection, Item, HubItem, Match, DiscoverItem } from "./types";
+import type { Server, Library, Collection, Item, HubItem, Match, DiscoverItem, SearchResponse } from "./types";
 import { imageDims, type ImageDimPreset } from "../util/imageDims";
 
 async function getJSON<T>(url: string): Promise<T> {
@@ -38,6 +38,14 @@ export const api = {
 
   hub: (namespace: "home" | "watchlist", slug: string) =>
     getJSON<HubItem[]>(`/api/hubs/${namespace}/${encodeURIComponent(slug)}`),
+
+  // Cross-source search — fans out to every connected Plex server's /search
+  // endpoint AND plex.tv's discover /library/search in parallel. Returns
+  // grouped results (one bucket per server + a discover bucket). Per-source
+  // failures degrade gracefully into empty buckets rather than failing
+  // the whole request — see api_search.go's boundary error scrub.
+  search: (query: string) =>
+    getJSON<SearchResponse>(`/api/search?q=${encodeURIComponent(query)}`),
 
   watchlist: () => getJSON<import("./types").WatchlistItem[]>("/api/watchlist"),
 

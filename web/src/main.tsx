@@ -18,6 +18,7 @@ import Placeholder from "./pages/Placeholder";
 import Watchlist from "./pages/Watchlist";
 import Recommended from "./pages/Recommended";
 import Discover from "./pages/Discover";
+import SearchResults from "./pages/SearchResults";
 import { store as settingsStore } from "./state/settings";
 import { playbackStore } from "./state/playback";
 import "./theme.css";
@@ -37,6 +38,7 @@ render(() => (
     <Route path="/watchlist" component={Watchlist} />
     <Route path="/recommended" component={Recommended} />
     <Route path="/discover" component={Discover} />
+    <Route path="/search" component={SearchResults} />
     <Route path="/settings"    component={() => <Placeholder name="Settings"    session="opens modal instead" />} />
   </Router>
 ), document.getElementById("root")!);

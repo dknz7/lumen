@@ -1,9 +1,10 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 import { useLocation, useNavigate } from "@solidjs/router";
 import { ArrowLeft, Home, Maximize2, Search, Sparkles, X } from "./icons";
 import { store as settingsStore } from "../state/settings";
 import { api } from "../api/client";
 import CloseConfirmModal from "./CloseConfirmModal";
+import SearchFlydown from "./SearchFlydown";
 import "./TopBar.css";
 
 export default function TopBar() {
@@ -11,6 +12,21 @@ export default function TopBar() {
   const location = useLocation();
   const [query, setQuery] = createSignal("");
   const [closeOpen, setCloseOpen] = createSignal(false);
+  const [flydownOpen, setFlydownOpen] = createSignal(false);
+  let searchFormRef: HTMLFormElement | undefined;
+
+  // Click-outside the search form closes the flydown. Listener attaches
+  // for the lifetime of TopBar (always mounted). Doesn't interfere with
+  // clicks INSIDE the form (input, flydown rows) — those propagate normally.
+  function onDocumentClick(e: MouseEvent) {
+    if (!flydownOpen()) return;
+    if (!searchFormRef) return;
+    if (!searchFormRef.contains(e.target as Node)) {
+      setFlydownOpen(false);
+    }
+  }
+  document.addEventListener("mousedown", onDocumentClick);
+  onCleanup(() => document.removeEventListener("mousedown", onDocumentClick));
 
   // Zoom is global (state/settings.ts sets --card-width on :root), so cards
   // across all pages respond to the slider. Top bar / left menu don't use
@@ -29,8 +45,23 @@ export default function TopBar() {
 
   function onSearch(e: SubmitEvent) {
     e.preventDefault();
-    // Stub — search lands in a later session.
-    console.log("search:", query());
+    const q = query().trim();
+    if (q.length < 2) return;
+    // Enter navigates to the full results page and closes the flydown.
+    setFlydownOpen(false);
+    navigate(`/search?q=${encodeURIComponent(q)}`);
+  }
+
+  function onSearchInput(e: InputEvent & { currentTarget: HTMLInputElement }) {
+    const val = e.currentTarget.value;
+    setQuery(val);
+    // Open the flydown as soon as the query crosses the min-length threshold.
+    // SearchFlydown handles its own debounce internally before firing XHRs.
+    setFlydownOpen(val.trim().length >= 2);
+  }
+
+  function onSearchFocus() {
+    if (query().trim().length >= 2) setFlydownOpen(true);
   }
 
   function applyZoom(v: number) {
@@ -63,14 +94,19 @@ export default function TopBar() {
           </button>
         </div>
         <div class="tb-divider" />
-        <form class="tb-search" onSubmit={onSearch}>
+        <form class="tb-search" onSubmit={onSearch} ref={searchFormRef}>
           <input
             type="search"
             placeholder="Search across servers and Discover..."
             value={query()}
-            onInput={(e) => setQuery(e.currentTarget.value)}
+            onInput={onSearchInput}
+            onFocus={onSearchFocus}
             aria-label="Search"
+            autocomplete="off"
           />
+          <Show when={flydownOpen()}>
+            <SearchFlydown query={query()} onClose={() => setFlydownOpen(false)} />
+          </Show>
         </form>
         <div class="tb-divider" />
         <div class="tb-group tb-kiosk">

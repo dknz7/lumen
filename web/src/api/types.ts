@@ -210,3 +210,19 @@ export interface WatchlistItem {
   year?: number;
   thumb?: string;
 }
+
+// SearchResponse mirrors /api/search — one bucket per connected server
+// (server-local /search results) plus a flat discover list (plex.tv-only
+// matches). Server items are routed directly to the server's item detail
+// page; discover items go through availability lookup before routing
+// (in-library → server item detail; not-in-library → discover item detail).
+export interface SearchResponse {
+  servers: SearchServerBucket[];
+  discover: Item[];
+}
+
+export interface SearchServerBucket {
+  machineIdentifier: string;
+  displayName: string;
+  items: Item[];
+}
