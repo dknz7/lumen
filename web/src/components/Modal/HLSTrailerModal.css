@@ -1,3 +1,16 @@
+/* When ModalShell wraps a trailer, we need the shell sized to the trailer
+   (~960px) instead of its small-dialog default (440px). The trailer-modal
+   div below brings its own panel chrome (bg, border, radius, shadow), so
+   strip ModalShell's default padding/width/background to avoid double-
+   decorating. */
+.modal-shell:has(.hls-trailer-modal) {
+  width: auto;
+  max-width: 90vw;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
 .hls-trailer-modal {
   width: min(960px, 90vw);
   background: var(--bg-menu);
