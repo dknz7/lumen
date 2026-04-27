@@ -3,6 +3,7 @@ package plex
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -102,6 +103,48 @@ func TestGetDiscoverItem_Decodes(t *testing.T) {
 	}
 	if len(item.Writers) != 1 || item.Writers[0].Name != "Matthew Fogel" {
 		t.Errorf("writers = %+v", item.Writers)
+	}
+}
+
+const summaryArrayFixture = `{
+  "MediaContainer": {
+    "identifier": "tv.plex.provider.discover",
+    "size": 1,
+    "Metadata": [{
+      "ratingKey": "fixture-array-summary",
+      "guid": "plex://show/fixture",
+      "title": "Test Show",
+      "type": "show",
+      "year": 2020,
+      "summary": ["Paragraph one.", "Paragraph two."],
+      "contentRating": "TV-14",
+      "rating": 7.5,
+      "Studio": [{"tag": "Test"}],
+      "Genre": [{"tag": "Drama"}],
+      "Guid": [{"id": "imdb://tt1111111"}],
+      "Rating": [{"image": "imdb://image.rating", "type": "audience", "value": 7.5}],
+      "Role": [],
+      "Director": [],
+      "Writer": []
+    }]
+  }
+}`
+
+func TestGetDiscoverItem_SummaryArray(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(summaryArrayFixture))
+	}))
+	defer srv.Close()
+
+	c := NewClient("client-id", "test")
+	c.discoverBase = srv.URL
+	item, err := c.GetDiscoverItem("tok", "fixture-array-summary")
+	if err != nil {
+		t.Fatalf("GetDiscoverItem: %v", err)
+	}
+	if !strings.Contains(item.Summary, "Paragraph one.") || !strings.Contains(item.Summary, "Paragraph two.") {
+		t.Errorf("Summary did not absorb array form: %q", item.Summary)
 	}
 }
 

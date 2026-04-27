@@ -1,9 +1,12 @@
 package plex
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"strings"
 )
 
 // DiscoverItem is the curated shape Lumen presents for a plex.tv-source item
@@ -45,23 +48,101 @@ type DiscoverRating struct {
 	Value float64 `json:"value"`
 }
 
+// summaryField accepts either a plain string ("summary": "...") OR an
+// array form ("summary": [...]) on Plex discover.provider.plex.tv
+// responses. Plex emits both shapes depending on the item — we don't
+// have a documented schema, so we try the most common shapes and
+// fall back to empty string on anything we don't recognise (the
+// boundary error log will dump the raw body so we can iterate).
+//
+// Known shapes that produce useful text:
+//   - string                       → use directly
+//   - []string                     → join with double newline
+//   - []struct{ Text string }      → join the .Text values
+//   - []struct{ Summary string }   → join the .Summary values
+//
+// Anything else: silently return empty. The page renders without a
+// summary rather than 502'ing — better degraded UX.
+type summaryField string
+
+func (s *summaryField) UnmarshalJSON(data []byte) error {
+	raw := bytes.TrimSpace(data)
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return nil
+	}
+	switch raw[0] {
+	case '"':
+		var str string
+		if err := json.Unmarshal(raw, &str); err != nil {
+			return err
+		}
+		*s = summaryField(str)
+		return nil
+	case '[':
+		// Try the most common array shapes in turn.
+		var asStrings []string
+		if err := json.Unmarshal(raw, &asStrings); err == nil && len(asStrings) > 0 {
+			*s = summaryField(strings.Join(asStrings, "\n\n"))
+			return nil
+		}
+		var asTextObjects []struct {
+			Text string `json:"text"`
+		}
+		if err := json.Unmarshal(raw, &asTextObjects); err == nil {
+			parts := make([]string, 0, len(asTextObjects))
+			for _, e := range asTextObjects {
+				if e.Text != "" {
+					parts = append(parts, e.Text)
+				}
+			}
+			if len(parts) > 0 {
+				*s = summaryField(strings.Join(parts, "\n\n"))
+				return nil
+			}
+		}
+		var asSummaryObjects []struct {
+			Summary string `json:"summary"`
+		}
+		if err := json.Unmarshal(raw, &asSummaryObjects); err == nil {
+			parts := make([]string, 0, len(asSummaryObjects))
+			for _, e := range asSummaryObjects {
+				if e.Summary != "" {
+					parts = append(parts, e.Summary)
+				}
+			}
+			if len(parts) > 0 {
+				*s = summaryField(strings.Join(parts, "\n\n"))
+				return nil
+			}
+		}
+		// Empty array, or array of an unknown shape. Log nothing here
+		// (we don't have logger context); rely on the boundary scrub +
+		// raw-body dump (Fix #2) for diagnosis. Return nil so the
+		// overall decode succeeds and the page renders.
+		return nil
+	default:
+		// Number, bool, object — unexpected. Same fallback: empty.
+		return nil
+	}
+}
+
 type discoverItemWire struct {
 	MediaContainer struct {
 		Metadata []struct {
-			RatingKey             string `json:"ratingKey"`
-			GUID                  string `json:"guid"`
-			Title                 string `json:"title"`
-			Type                  string `json:"type"`
-			Year                  int    `json:"year"`
-			Summary               string `json:"summary"`
-			Tagline               string `json:"tagline"`
-			ContentRating         string `json:"contentRating"`
-			OriginallyAvailableAt string `json:"originallyAvailableAt"`
-			Duration              int    `json:"duration"`
-			Thumb                 string `json:"thumb"`
-			Art                   string `json:"art"`
-			AddedAt               int64  `json:"addedAt"`
-			PublicPagesURL        string `json:"publicPagesURL"`
+			RatingKey             string       `json:"ratingKey"`
+			GUID                  string       `json:"guid"`
+			Title                 string       `json:"title"`
+			Type                  string       `json:"type"`
+			Year                  int          `json:"year"`
+			Summary               summaryField `json:"summary"`
+			Tagline               string       `json:"tagline"`
+			ContentRating         string       `json:"contentRating"`
+			OriginallyAvailableAt string       `json:"originallyAvailableAt"`
+			Duration              int          `json:"duration"`
+			Thumb                 string       `json:"thumb"`
+			Art                   string       `json:"art"`
+			AddedAt               int64        `json:"addedAt"`
+			PublicPagesURL        string       `json:"publicPagesURL"`
 
 			// Guid (capital) is the absorber array of external IDs (imdb/tmdb/tvdb).
 			// Plex also emits a lowercase "guid" string at the same level — Go's
@@ -146,9 +227,23 @@ func (c *Client) GetDiscoverItem(accountToken, plexTvRatingKey string) (*Discove
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("discover item %s: status %d", plexTvRatingKey, resp.StatusCode)
 	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20)) // 1 MiB safety cap
+	if err != nil {
+		return nil, fmt.Errorf("discover item %s: read body: %w", plexTvRatingKey, err)
+	}
 	var w discoverItemWire
-	if err := json.NewDecoder(resp.Body).Decode(&w); err != nil {
-		return nil, err
+	if err := json.Unmarshal(body, &w); err != nil {
+		// Surface the first 512 bytes of the upstream response in the error
+		// string so the boundary log scrub (handler) shows the wire shape
+		// that broke the decode. Plex's polymorphic fields keep surprising us;
+		// having the raw bytes in the log eliminates DevTools roundtrips
+		// when iterating on wire fixes.
+		snippet := body
+		if len(snippet) > 512 {
+			snippet = snippet[:512]
+		}
+		return nil, fmt.Errorf("discover item %s: decode failed: %w (body[0:%d]: %q)",
+			plexTvRatingKey, err, len(snippet), snippet)
 	}
 	if len(w.MediaContainer.Metadata) == 0 {
 		return nil, fmt.Errorf("discover item %s: no metadata", plexTvRatingKey)
@@ -212,7 +307,7 @@ func (c *Client) GetDiscoverItem(accountToken, plexTvRatingKey string) (*Discove
 		Title:                 m.Title,
 		Type:                  m.Type,
 		Year:                  m.Year,
-		Summary:               m.Summary,
+		Summary:               string(m.Summary),
 		Tagline:               m.Tagline,
 		ContentRating:         m.ContentRating,
 		Studios:               studios,
