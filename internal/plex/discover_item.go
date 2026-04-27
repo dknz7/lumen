@@ -87,6 +87,15 @@ type discoverItemWire struct {
 				Tag string `json:"tag"`
 			} `json:"Studio"`
 
+			// RatingScalar absorbs Plex's lowercase "rating" float
+			// (duplicates the Rotten Tomatoes critic value from
+			// Rating[]). Same Session 3 / 5 / 6 case-insensitive json
+			// absorber pattern as guid/Guid and studio/Studio: without
+			// this sink, Go's case-insensitive matcher slots the scalar
+			// into the Rating array below and the whole Metadata decode
+			// fails. We don't use the scalar — just absorb it.
+			RatingScalar float64 `json:"rating"`
+
 			Rating []struct {
 				Image string  `json:"image"`
 				Type  string  `json:"type"`

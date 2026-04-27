@@ -23,6 +23,7 @@ const marioDiscoverFixture = `{
       "summary": "Having thwarted Bowser's previous plot...",
       "tagline": "The galaxy awaits.",
       "contentRating": "PG",
+      "rating": 4.3,
       "originallyAvailableAt": "2026-04-01",
       "duration": 5880000,
       "thumb": "https://metadata-static.plex.tv/5/gracenote/x.jpg",
