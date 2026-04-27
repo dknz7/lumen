@@ -62,6 +62,12 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 				"originallyAvailableAt":"2026-04-01",
 				"Guid":[{"id":"imdb://tt12345"},{"id":"tmdb://999"}],
 				"Media":[{"id":1,"Part":[{"id":"abc-def","key":"/library/metadata/123/extras/456/parts/hls.m3u8"}]}]
+			},
+			{
+				"ratingKey":"fixture-clip-rk-2",
+				"title":"Trailer Without ParentRatingKey",
+				"type":"clip",
+				"primaryGuid":"plex://show/parent-show-rk-from-primaryguid"
 			}
 		]}}`))
 	}))
@@ -74,7 +80,7 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(items) != 1 {
+	if len(items) != 2 {
 		t.Fatalf("items: %+v", items)
 	}
 	got := items[0]
@@ -108,5 +114,14 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 	wantHLS := srv.URL + "/library/metadata/123/extras/456/parts/hls.m3u8?X-Plex-Token=acct-tok"
 	if got.HLSUrl != wantHLS {
 		t.Errorf("HLSUrl = %q, want %q", got.HLSUrl, wantHLS)
+	}
+
+	// Second fixture clip — no literal parentRatingKey, only primaryGuid.
+	// Locks the fallback path: hubs.go parses the trailing segment of
+	// "plex://show/parent-show-rk-from-primaryguid" into ParentRatingKey
+	// so DiscoverTile navigation resolves to the parent show's detail page.
+	got2 := items[1]
+	if got2.ParentRatingKey != "parent-show-rk-from-primaryguid" {
+		t.Errorf("ParentRatingKey (primaryGuid fallback) = %q, want parent-show-rk-from-primaryguid", got2.ParentRatingKey)
 	}
 }

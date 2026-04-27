@@ -67,6 +67,19 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 				hlsURL += sep + "X-Plex-Token=" + url.QueryEscape(accountToken)
 			}
 		}
+		// Plex's hub clip items (e.g. New Trailers / Trending Trailers) point
+		// at their parent movie/show via primaryGuid (e.g. "plex://show/6424...")
+		// rather than a literal parentRatingKey. Parse the trailing segment as
+		// a fallback so DiscoverTile's href() cascade lands on the parent's
+		// Discover Item Detail page instead of 404-ing on the clip's own rk.
+		// Server-local items and clips that DO populate parentRatingKey are
+		// unaffected — the fallback only fires when the field is empty.
+		parentRk := m.ParentRatingKey
+		if parentRk == "" && m.Type == "clip" && m.PrimaryGuid != "" {
+			if i := strings.LastIndex(m.PrimaryGuid, "/"); i >= 0 && i < len(m.PrimaryGuid)-1 {
+				parentRk = m.PrimaryGuid[i+1:]
+			}
+		}
 		out = append(out, HubItem{
 			GUID:                  m.GUID,
 			RatingKey:             m.RatingKey,
@@ -75,7 +88,7 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 			Year:                  m.Year,
 			Thumb:                 m.Thumb,
 			IMDBID:                imdbID,
-			ParentRatingKey:       m.ParentRatingKey,
+			ParentRatingKey:       parentRk,
 			GrandparentRatingKey:  m.GrandparentRatingKey,
 			ContentRating:         m.ContentRating,
 			Studio:                m.StudioString,

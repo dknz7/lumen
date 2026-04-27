@@ -32,25 +32,30 @@ type metadataWire struct {
 	GuidArray []struct {
 		ID string `json:"id"`
 	} `json:"Guid"`
-	Title                 string `json:"title"`
-	Type                  string `json:"type"`
-	Year                  int    `json:"year"`
-	Summary               string `json:"summary"`
-	Thumb                 string `json:"thumb"`
-	Art                   string `json:"art"`
-	Duration              int64  `json:"duration"`
-	ViewOffset            int64  `json:"viewOffset"`
-	AddedAt               int64  `json:"addedAt"`
-	LastViewedAt          int64  `json:"lastViewedAt"`
-	Index                 int    `json:"index"`
-	ParentIndex           int    `json:"parentIndex"`
-	ParentTitle           string `json:"parentTitle"`
-	ParentThumb           string `json:"parentThumb"`
-	ParentRatingKey       string `json:"parentRatingKey"`
-	GrandparentTitle      string `json:"grandparentTitle"`
-	GrandparentThumb      string `json:"grandparentThumb"`
-	GrandparentArt        string `json:"grandparentArt"`
-	GrandparentRatingKey  string `json:"grandparentRatingKey"`
+	Title                string `json:"title"`
+	Type                 string `json:"type"`
+	Year                 int    `json:"year"`
+	Summary              string `json:"summary"`
+	Thumb                string `json:"thumb"`
+	Art                  string `json:"art"`
+	Duration             int64  `json:"duration"`
+	ViewOffset           int64  `json:"viewOffset"`
+	AddedAt              int64  `json:"addedAt"`
+	LastViewedAt         int64  `json:"lastViewedAt"`
+	Index                int    `json:"index"`
+	ParentIndex          int    `json:"parentIndex"`
+	ParentTitle          string `json:"parentTitle"`
+	ParentThumb          string `json:"parentThumb"`
+	ParentRatingKey      string `json:"parentRatingKey"`
+	GrandparentTitle     string `json:"grandparentTitle"`
+	GrandparentThumb     string `json:"grandparentThumb"`
+	GrandparentArt       string `json:"grandparentArt"`
+	GrandparentRatingKey string `json:"grandparentRatingKey"`
+	// PrimaryGuid is Plex's hub-clip pointer at the parent movie/show
+	// (e.g. "plex://show/6424..."). Hub clip items don't populate a literal
+	// parentRatingKey — hubs.go parses the trailing segment of this guid as
+	// a fallback so DiscoverTile navigation lands on the parent's detail page.
+	PrimaryGuid           string `json:"primaryGuid,omitempty"`
 	ViewCount             int    `json:"viewCount"`
 	ContentRating         string `json:"contentRating"`
 	Tagline               string `json:"tagline"`
