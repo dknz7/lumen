@@ -1,0 +1,43 @@
+.hls-trailer-modal {
+  width: min(960px, 90vw);
+  background: var(--bg-menu);
+  border-radius: 8px;
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.hls-trailer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.hls-trailer-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+.hls-trailer-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 24px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0 4px;
+}
+.hls-trailer-close:hover { color: var(--text); }
+.hls-trailer-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: block;
+  background: #000;
+}
+.hls-trailer-empty {
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}

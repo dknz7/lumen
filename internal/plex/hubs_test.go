@@ -60,7 +60,8 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 				"tagline":"A tagline.",
 				"addedAt":1700000000,
 				"originallyAvailableAt":"2026-04-01",
-				"Guid":[{"id":"imdb://tt12345"},{"id":"tmdb://999"}]
+				"Guid":[{"id":"imdb://tt12345"},{"id":"tmdb://999"}],
+				"Media":[{"id":1,"Part":[{"id":"abc-def","key":"/library/metadata/123/extras/456/parts/hls.m3u8"}]}]
 			}
 		]}}`))
 	}))
@@ -100,5 +101,12 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 	}
 	if got.OriginallyAvailableAt != "2026-04-01" {
 		t.Errorf("OriginallyAvailableAt = %q, want 2026-04-01", got.OriginallyAvailableAt)
+	}
+	// HLS URL — Media[0].Part[0].key qualified to absolute URL with the
+	// account token applied. discoverBase points at the test server here, so
+	// the URL is built against srv.URL.
+	wantHLS := srv.URL + "/library/metadata/123/extras/456/parts/hls.m3u8?X-Plex-Token=acct-tok"
+	if got.HLSUrl != wantHLS {
+		t.Errorf("HLSUrl = %q, want %q", got.HLSUrl, wantHLS)
 	}
 }

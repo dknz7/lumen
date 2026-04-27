@@ -13,6 +13,10 @@ import "./DiscoverTile.css";
 export interface DiscoverTileContextValue {
   inWatchlistSet: () => Set<string>;
   openTrailer: (youtubeID: string, title: string) => void;
+  // openHLSTrailer is called for clip-type hub items that carry their own
+  // native HLS playback URL (Trending Trailers / New Trailers). Routed to
+  // a sibling page-level HLSTrailerModal instead of the YouTube modal.
+  openHLSTrailer: (hlsUrl: string, title: string) => void;
 }
 
 const DiscoverTileContext = createContext<DiscoverTileContextValue>();
@@ -37,6 +41,7 @@ function useDiscoverTile(): DiscoverTileContextValue {
     return {
       inWatchlistSet: () => new Set<string>(),
       openTrailer: () => {},
+      openHLSTrailer: () => {},
     };
   }
   return ctx;
@@ -87,9 +92,15 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     if (trailerBusy()) return;
     setTrailerBusy(true);
     try {
-      // Cascade: TMDB (via imdbId — Task 12 surfaced it on HubItem) →
-      // Plex Extras youtubeID (only present on Item, not HubItem; kept
-      // here as a defensive optional cast) → "no trailer".
+      // Cascade: native HLS (Trending Trailers carry their own
+      // Media[].Part[].key — Phase 4.6 Task 12.8) → TMDB (via imdbId
+      // — Task 12 surfaced it on HubItem) → Plex Extras youtubeID
+      // (only present on Item, not HubItem; kept here as a defensive
+      // optional cast) → "no trailer".
+      if (props.item.hlsUrl) {
+        ctx.openHLSTrailer(props.item.hlsUrl, props.item.title);
+        return;
+      }
       let youtubeID: string | null = null;
 
       if (props.item.imdbId) {

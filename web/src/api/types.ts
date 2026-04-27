@@ -68,6 +68,11 @@ export interface HubItem {
   tagline?: string;
   addedAt?: number;
   originallyAvailableAt?: string;
+  // For clip-type hub items only: native HLS playback URL extracted from
+  // Media[].Part[].key by the backend, qualified to an absolute URL with
+  // the account token applied. Hand directly to <video src> or
+  // hls.js loadSource(). Empty for non-clip items.
+  hlsUrl?: string;
 }
 
 export interface Match {

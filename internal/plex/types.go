@@ -130,6 +130,12 @@ type HubItem struct {
 	Tagline               string `json:"tagline,omitempty"`
 	AddedAt               int64  `json:"addedAt,omitempty"`
 	OriginallyAvailableAt string `json:"originallyAvailableAt,omitempty"`
+	// HLSUrl is the native HLS playback URL for clip-type hub items
+	// (Trending Trailers / New Trailers). Extracted from Media[].Part[].key
+	// in GetHub and qualified to an absolute URL with the account token
+	// applied so the SPA can hand it straight to <video>/hls.js. Empty for
+	// non-clip items and for clips that lack a Media/Part chain.
+	HLSUrl string `json:"hlsUrl,omitempty"`
 }
 
 // ItemQuery carries optional filter/sort parameters for GetItems.

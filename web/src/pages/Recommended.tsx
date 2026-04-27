@@ -6,6 +6,7 @@ import Shelf from "../components/Shelf";
 import Skeleton from "../components/Skeleton";
 import DiscoverTile, { DiscoverTileProvider } from "../components/DiscoverTile";
 import TrailerModal from "../components/Modal/TrailerModal";
+import HLSTrailerModal from "../components/Modal/HLSTrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Recommended.css";
 
@@ -43,8 +44,21 @@ export default function Recommended() {
     setTrailerOpen(true);
   }
 
+  // Page-level HLSTrailerModal — DiscoverTile's clip variant routes here
+  // when the hub item carries its own Media[].Part[].key HLS URL (Trending
+  // Trailers / New Trailers). Distinct from the YouTube modal above.
+  const [hlsOpen, setHlsOpen] = createSignal(false);
+  const [hlsUrl, setHlsUrl] = createSignal<string | undefined>(undefined);
+  const [hlsTitle, setHlsTitle] = createSignal<string>("");
+
+  function openHLSTrailer(url: string, title: string) {
+    setHlsUrl(url);
+    setHlsTitle(title);
+    setHlsOpen(true);
+  }
+
   return (
-    <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer }}>
+    <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer, openHLSTrailer }}>
       <div class="recommended-page">
         <For each={SHELVES}>
           {(s) => <RecommendedShelfHost id={s.id} title={s.title} slug={s.slug} />}
@@ -58,6 +72,15 @@ export default function Recommended() {
         }}
         youtubeID={trailerYouTubeID()}
         title={trailerTitle()}
+      />
+      <HLSTrailerModal
+        open={hlsOpen()}
+        onClose={() => {
+          setHlsOpen(false);
+          setHlsUrl(undefined);
+        }}
+        hlsUrl={hlsUrl()}
+        title={hlsTitle()}
       />
     </DiscoverTileProvider>
   );

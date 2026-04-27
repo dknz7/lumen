@@ -5,6 +5,7 @@ import Shelf from "../components/Shelf";
 import Skeleton from "../components/Skeleton";
 import DiscoverTile, { DiscoverTileProvider } from "../components/DiscoverTile";
 import TrailerModal from "../components/Modal/TrailerModal";
+import HLSTrailerModal from "../components/Modal/HLSTrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Discover.css";
 
@@ -43,8 +44,20 @@ export default function Discover() {
     setTrailerOpen(true);
   }
 
+  // Page-level HLSTrailerModal — clip items on Trending Trailers carry
+  // their own Media[].Part[].key HLS playback URL (Phase 4.6 Task 12.8).
+  const [hlsOpen, setHlsOpen] = createSignal(false);
+  const [hlsUrl, setHlsUrl] = createSignal<string | undefined>(undefined);
+  const [hlsTitle, setHlsTitle] = createSignal<string>("");
+
+  function openHLSTrailer(url: string, title: string) {
+    setHlsUrl(url);
+    setHlsTitle(title);
+    setHlsOpen(true);
+  }
+
   return (
-    <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer }}>
+    <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer, openHLSTrailer }}>
       <div class="discover-page">
         <For each={SHELVES}>
           {(s) => <DiscoverShelfHost id={s.id} title={s.title} slug={s.slug} />}
@@ -58,6 +71,15 @@ export default function Discover() {
         }}
         youtubeID={trailerYouTubeID()}
         title={trailerTitle()}
+      />
+      <HLSTrailerModal
+        open={hlsOpen()}
+        onClose={() => {
+          setHlsOpen(false);
+          setHlsUrl(undefined);
+        }}
+        hlsUrl={hlsUrl()}
+        title={hlsTitle()}
       />
     </DiscoverTileProvider>
   );

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 // GetHub calls the plex.tv Discover hubs endpoint for a given namespace + slug.
@@ -44,6 +45,28 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 		// IMDB id absorbed from the Guid[] array on each hub item. Same
 		// helper movies/shows + the discover-item endpoint use.
 		imdbID := extractIMDBId(toIDOnly(m.GuidArray))
+		// HLS URL — clip items on home/trending-trailers carry their own
+		// native HLS playback URL inside Media[0].Part[0].key (path-style,
+		// e.g. /library/metadata/.../extras/.../parts/hls.m3u8). Qualify
+		// against the Discover host and stamp the account token so the SPA
+		// receives a ready-to-play URL.
+		hlsURL := ""
+		if len(m.Media) > 0 && len(m.Media[0].Part) > 0 {
+			key := m.Media[0].Part[0].Key
+			if key != "" {
+				if strings.HasPrefix(key, "http://") || strings.HasPrefix(key, "https://") {
+					hlsURL = key
+				} else {
+					hlsURL = c.discoverBase + key
+				}
+				// Append the account token so <video>/hls.js requests authenticate.
+				sep := "?"
+				if strings.Contains(hlsURL, "?") {
+					sep = "&"
+				}
+				hlsURL += sep + "X-Plex-Token=" + url.QueryEscape(accountToken)
+			}
+		}
 		out = append(out, HubItem{
 			GUID:                  m.GUID,
 			RatingKey:             m.RatingKey,
@@ -59,6 +82,7 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 			Tagline:               m.Tagline,
 			AddedAt:               m.AddedAt,
 			OriginallyAvailableAt: m.OriginallyAvailableAt,
+			HLSUrl:                hlsURL,
 		})
 	}
 	return out, nil
