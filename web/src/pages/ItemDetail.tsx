@@ -400,29 +400,20 @@ function CastCrew(props: { item: Item; serverID: string }) {
   const cast = () => props.item.roles ?? [];
   const directors = () => props.item.directors ?? [];
   const writers = () => props.item.writers ?? [];
-  const hasCrew = () => directors().length > 0 || writers().length > 0;
+  const combined = () => [
+    ...cast(),
+    ...directors().map((p) => ({ ...p, tag: p.tag || "Director" })),
+    ...writers().map((p) => ({ ...p, tag: p.tag || "Writer" })),
+  ];
   return (
-    <Show when={cast().length > 0 || hasCrew()}>
+    <Show when={combined().length > 0}>
       <section class="cast-crew">
-        <Show when={cast().length > 0}>
-          <h3>Cast</h3>
-          <ul class="people-grid">
-            <For each={cast()}>
-              {(p) => <PersonCard person={p} serverID={props.serverID} />}
-            </For>
-          </ul>
-        </Show>
-        <Show when={hasCrew()}>
-          <h3>Crew</h3>
-          <ul class="people-grid">
-            <For each={directors()}>
-              {(p) => <PersonCard person={{ ...p, tag: p.tag || "Director" }} serverID={props.serverID} />}
-            </For>
-            <For each={writers()}>
-              {(p) => <PersonCard person={{ ...p, tag: p.tag || "Writer" }} serverID={props.serverID} />}
-            </For>
-          </ul>
-        </Show>
+        <h3>Cast & Crew</h3>
+        <ul class="people-grid">
+          <For each={combined()}>
+            {(p) => <PersonCard person={p} serverID={props.serverID} />}
+          </For>
+        </ul>
       </section>
     </Show>
   );
