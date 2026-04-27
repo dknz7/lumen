@@ -68,6 +68,13 @@ export interface HubItem {
   tagline?: string;
   addedAt?: number;
   originallyAvailableAt?: string;
+  // Per-type display fields — Plex Web's MediaContainer.Meta.DisplayFields
+  // varies by item type. Season tiles render parentTitle / title / date;
+  // episode tiles render grandparentTitle / S{parentIndex}E{index} / date.
+  parentTitle?: string;
+  parentIndex?: number;
+  index?: number;
+  grandparentTitle?: string;
   // For clip-type hub items only: native HLS playback URL extracted from
   // Media[].Part[].key by the backend, qualified to an absolute URL with
   // the account token applied. Hand directly to <video src> or

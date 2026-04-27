@@ -180,6 +180,41 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     }
   }
 
+  // Per-type render contract derived from Plex Web's
+  // MediaContainer.Meta.DisplayFields (Session 6.5 capture):
+  //   season  → parentTitle / title / date
+  //   episode → grandparentTitle / S{parentIndex}E{index} / date
+  //   show / movie / clip → title / — / (date or year)
+  // Date prefers a near-future originallyAvailableAt (Coming Soon use case);
+  // older originallyAvailableAt falls back to year so library/trending shelves
+  // don't render misleading first-air dates on long-running shows.
+  function primaryTitle(): string {
+    if (props.item.type === "season" && props.item.parentTitle) {
+      return props.item.parentTitle;
+    }
+    if (props.item.type === "episode" && props.item.grandparentTitle) {
+      return props.item.grandparentTitle;
+    }
+    return props.item.title;
+  }
+
+  function subtitle(): string {
+    if (props.item.type === "season") return props.item.title;
+    if (props.item.type === "episode") {
+      const s = props.item.parentIndex;
+      const e = props.item.index;
+      if (s !== undefined && e !== undefined) {
+        return `S${s} · E${e}` + (props.item.title ? ` · ${props.item.title}` : "");
+      }
+      return props.item.title;
+    }
+    return "";
+  }
+
+  function dateLine(): string {
+    return formatAirDate(props.item.originallyAvailableAt, props.item.year);
+  }
+
   return (
     <div
       class="discover-tile"
@@ -238,15 +273,33 @@ export default function DiscoverTile(props: DiscoverTileProps) {
           href={href()}
           onClick={(e) => e.stopPropagation()}
         >
-          <div class="discover-tile-title">{props.item.title}</div>
+          <div class="discover-tile-title">{primaryTitle()}</div>
         </A>
-        <Show when={props.item.year}>
-          <div class="discover-tile-year">{props.item.year}</div>
+        <Show when={subtitle()}>
+          <div class="discover-tile-subtitle">{subtitle()}</div>
         </Show>
-        <Show when={props.item.contentRating}>
-          <div class="discover-tile-rating">{props.item.contentRating}</div>
+        <Show when={dateLine()}>
+          <div class="discover-tile-year">{dateLine()}</div>
         </Show>
       </div>
     </div>
   );
+}
+
+// formatAirDate — "2026-05-10" → "May 10, 2026" when the date is in the
+// future (Coming Soon parity); falls back to the year string for items
+// already aired so non-Coming-Soon shelves don't show misleading
+// first-air dates. Empty string when neither input has data.
+function formatAirDate(iso: string | undefined, year: number | undefined): string {
+  if (iso) {
+    const d = new Date(iso + "T00:00:00");
+    if (!isNaN(d.getTime()) && d.getTime() > Date.now()) {
+      return d.toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    }
+  }
+  return year ? String(year) : "";
 }

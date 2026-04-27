@@ -125,3 +125,87 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 		t.Errorf("ParentRatingKey (primaryGuid fallback) = %q, want parent-show-rk-from-primaryguid", got2.ParentRatingKey)
 	}
 }
+
+// TestGetHubFiltersPlaceholdersAndSurfacesSeasonFields covers Session 6.5 —
+// Plex's Coming Soon hub injects "type":"placeholder" ad slots, and season
+// items carry parentTitle/parentIndex/index/grandparentTitle that
+// DiscoverTile needs to render parentTitle / title / date per Plex Web's
+// MediaContainer.Meta.DisplayFields directive. Confirmed against a real
+// home/coming-soon DevTools capture in Session 6.5.
+func TestGetHubFiltersPlaceholdersAndSurfacesSeasonFields(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"MediaContainer":{"Metadata":[
+			{"ratingKey":"ad-1","type":"placeholder","url":"https://example.com/ad/tile?slot=1"},
+			{
+				"ratingKey":"season-rk",
+				"guid":"plex://season/abc",
+				"title":"Season 9",
+				"type":"season",
+				"year":2026,
+				"index":9,
+				"originallyAvailableAt":"2026-05-24",
+				"parentTitle":"Rick and Morty",
+				"parentRatingKey":"show-rk",
+				"parentGuid":"plex://show/parent",
+				"parentThumb":"https://example.com/p.jpg"
+			},
+			{
+				"ratingKey":"episode-rk",
+				"guid":"plex://episode/xyz",
+				"title":"The One With Bottle Episodes",
+				"type":"episode",
+				"year":2026,
+				"index":5,
+				"parentIndex":2,
+				"originallyAvailableAt":"2026-06-01",
+				"grandparentTitle":"Show Name",
+				"grandparentRatingKey":"gp-rk"
+			},
+			{"ratingKey":"ad-2","type":"placeholder","url":"https://example.com/ad/tile?slot=2"}
+		]}}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("id", "1.0.0")
+	c.discoverBase = srv.URL
+
+	items, err := c.GetHub("home", "coming-soon", "acct-tok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two placeholders dropped, two real items remain.
+	if len(items) != 2 {
+		t.Fatalf("placeholder filter: got %d items, want 2: %+v", len(items), items)
+	}
+
+	season := items[0]
+	if season.Type != "season" {
+		t.Errorf("season.Type = %q, want season", season.Type)
+	}
+	if season.ParentTitle != "Rick and Morty" {
+		t.Errorf("season.ParentTitle = %q, want Rick and Morty", season.ParentTitle)
+	}
+	if season.Title != "Season 9" {
+		t.Errorf("season.Title = %q, want Season 9", season.Title)
+	}
+	if season.Index != 9 {
+		t.Errorf("season.Index = %d, want 9", season.Index)
+	}
+	if season.OriginallyAvailableAt != "2026-05-24" {
+		t.Errorf("season.OriginallyAvailableAt = %q, want 2026-05-24", season.OriginallyAvailableAt)
+	}
+
+	ep := items[1]
+	if ep.Type != "episode" {
+		t.Errorf("ep.Type = %q, want episode", ep.Type)
+	}
+	if ep.GrandparentTitle != "Show Name" {
+		t.Errorf("ep.GrandparentTitle = %q, want Show Name", ep.GrandparentTitle)
+	}
+	if ep.ParentIndex != 2 {
+		t.Errorf("ep.ParentIndex = %d, want 2", ep.ParentIndex)
+	}
+	if ep.Index != 5 {
+		t.Errorf("ep.Index = %d, want 5", ep.Index)
+	}
+}

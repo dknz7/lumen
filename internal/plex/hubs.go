@@ -42,6 +42,13 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 	}
 	out := make([]HubItem, 0, len(mc.MediaContainer.Metadata))
 	for _, m := range mc.MediaContainer.Metadata {
+		// Plex injects ad slots as "placeholder" items in some hubs (Coming
+		// Soon being the confirmed example — see Session 6.5 capture). They
+		// carry no title/thumb and only a stub "url" pointing at /ad/tile.
+		// Drop them so the SPA never tries to render an empty card.
+		if m.Type == "placeholder" {
+			continue
+		}
 		// IMDB id absorbed from the Guid[] array on each hub item. Same
 		// helper movies/shows + the discover-item endpoint use.
 		imdbID := extractIMDBId(toIDOnly(m.GuidArray))
@@ -95,6 +102,10 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 			Tagline:               m.Tagline,
 			AddedAt:               m.AddedAt,
 			OriginallyAvailableAt: m.OriginallyAvailableAt,
+			ParentTitle:           m.ParentTitle,
+			ParentIndex:           m.ParentIndex,
+			Index:                 m.Index,
+			GrandparentTitle:      m.GrandparentTitle,
 			HLSUrl:                hlsURL,
 		})
 	}

@@ -130,6 +130,15 @@ type HubItem struct {
 	Tagline               string `json:"tagline,omitempty"`
 	AddedAt               int64  `json:"addedAt,omitempty"`
 	OriginallyAvailableAt string `json:"originallyAvailableAt,omitempty"`
+	// Per-type display fields surfaced for DiscoverTile rendering parity
+	// with Plex Web's MediaContainer.Meta.DisplayFields directive
+	// (Session 6.5 Coming Soon capture). Season items render
+	// parentTitle / title / date; episode items render
+	// grandparentTitle / S{parentIndex}E{index} / date.
+	ParentTitle      string `json:"parentTitle,omitempty"`
+	ParentIndex      int    `json:"parentIndex,omitempty"`
+	Index            int    `json:"index,omitempty"`
+	GrandparentTitle string `json:"grandparentTitle,omitempty"`
 	// HLSUrl is the native HLS playback URL for clip-type hub items
 	// (Trending Trailers / New Trailers). Extracted from Media[].Part[].key
 	// in GetHub and qualified to an absolute URL with the account token
