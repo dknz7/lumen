@@ -6,6 +6,7 @@ import Card from "../components/Card";
 import Skeleton from "../components/Skeleton";
 import { store as settingsStore } from "../state/settings";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { stableArrayByKey } from "../util/stableArray";
 import "./Library.css";
 
 const SORT_OPTIONS = [
@@ -97,11 +98,16 @@ export default function Library() {
     }
   );
 
-  const currentPageItems = () => {
-    const all = (items() ?? []) as Item[];
-    return all.slice(0, PAGE_SIZE);
-  };
-  const hasNextPage = () => ((items() ?? []) as Item[]).length > PAGE_SIZE;
+  // Stabilise item refs across refetches so cards don't remount when
+  // the focus-refetch lands. Prevents click-lost flicker; also saves
+  // poster reflow for unchanged items.
+  const stableItems = stableArrayByKey<Item>(
+    () => (items() as Item[] | undefined) ?? [],
+    (it) => it.ratingKey,
+  );
+
+  const currentPageItems = () => stableItems().slice(0, PAGE_SIZE);
+  const hasNextPage = () => stableItems().length > PAGE_SIZE;
 
   // Refresh both lib list (in case a library was added/removed) and the
   // current page of items (in case watched state or items list changed

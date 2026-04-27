@@ -8,6 +8,7 @@ import DiscoverTile, { DiscoverTileProvider } from "../components/DiscoverTile";
 import TrailerModal from "../components/Modal/TrailerModal";
 import HLSTrailerModal from "../components/Modal/HLSTrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { stableArrayByKey } from "../util/stableArray";
 import "./Recommended.css";
 
 // Per spec — Phase 4 Task 10. New shelf order (Byron's call): Coming Soon
@@ -92,11 +93,14 @@ function RecommendedShelfHost(props: { id: string; title: string; slug: string }
   );
   refetchOnFocus(refetch);
 
-  // Items only handed to Shelf when loaded successfully and non-empty;
-  // otherwise children render the skeleton / empty stub (Home pattern).
+  const stable = stableArrayByKey(() => items() ?? [], (it) => it.ratingKey);
+
+  // Critical: do NOT short-circuit on items.loading — see Discover.tsx
+  // for the full explanation. Loading-true during refetch caused
+  // itemList → undefined → grid destroyed → click-loss on focus refetch.
   const itemList = () => {
-    if (items.loading || items.error) return undefined;
-    const list = items() ?? [];
+    if (items.error || !items()) return undefined;
+    const list = stable();
     return list.length > 0 ? list : undefined;
   };
 

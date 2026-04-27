@@ -9,6 +9,7 @@ import Skeleton from "../components/Skeleton";
 import { Cat, Film, Flame, Play, Server as ServerIcon, Star, Tv } from "../components/icons";
 import { store as settingsStore } from "../state/settings";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { stableArrayByKey } from "../util/stableArray";
 import "./Home.css";
 
 // Icon dispatch for Home shelves + groups. Keyed off shelf id / group name so
@@ -147,8 +148,15 @@ function ContinueWatching(props: { servers: Server[] }) {
     }
   );
 
+  // CWItem is per-server-scoped — same ratingKey can exist on both servers,
+  // so the stable key includes the serverID to keep items distinct.
+  const stableDecks = stableArrayByKey<CWItem>(
+    () => (decksData() ?? []) as CWItem[],
+    (it) => `${it.serverID}:${it.ratingKey}`,
+  );
+
   const [localItems, setLocalItems] = createSignal<CWItem[] | null>(null);
-  const visibleItems = () => localItems() ?? (decksData() ?? []);
+  const visibleItems = () => localItems() ?? stableDecks();
 
   // When the user comes back from Plex Web/Desktop, pick up any state
   // changes made there. Clear localItems so the freshly fetched server
@@ -180,10 +188,14 @@ function ContinueWatching(props: { servers: Server[] }) {
   const markWatched = (item: CWItem) => applyCWAction(item, api.scrobble, "mark as watched");
   const removeItem = (item: CWItem) => applyCWAction(item, api.removeFromCW, "remove from Continue Watching");
 
-  // Items are passed to Shelf only when loaded successfully and non-empty;
-  // otherwise children render the skeleton / error / empty stub instead.
+  // Critical: do NOT short-circuit on decksData.loading — that flag is
+  // true during refetch as well as initial fetch, and switching cwItems
+  // to undefined during refetch flips Shelf's isPaginated() false →
+  // grid destroyed and rebuilt → click-loss when window-focus refetch
+  // lands during a click (Session 6.5 round 2). decksData() preserves
+  // the previous value during refetch; we keep the grid visible.
   const cwItems = () => {
-    if (decksData.loading || decksData.error) return undefined;
+    if (decksData.error || !decksData()) return undefined;
     const items = visibleItems();
     return items.length > 0 ? (items as CWItem[]) : undefined;
   };
@@ -337,9 +349,15 @@ function RecentShelf(props: {
 
   refetchOnFocus(() => refetchItems());
 
+  const stable = stableArrayByKey<Item>(
+    () => (items() as Item[] | undefined) ?? [],
+    (it) => it.ratingKey,
+  );
+
   const itemList = () => {
-    const list = items();
-    return list ? (list as Item[]) : undefined;
+    if (!items()) return undefined;
+    const list = stable();
+    return list.length > 0 ? list : undefined;
   };
 
   return (
@@ -430,9 +448,15 @@ function CollectionShelf(props: {
 
   refetchOnFocus(() => refetchItems());
 
+  const stable = stableArrayByKey<Item>(
+    () => (items() as Item[] | undefined) ?? [],
+    (it) => it.ratingKey,
+  );
+
   const itemList = () => {
-    const list = items();
-    return list ? (list as Item[]) : undefined;
+    if (!items()) return undefined;
+    const list = stable();
+    return list.length > 0 ? list : undefined;
   };
 
   return (

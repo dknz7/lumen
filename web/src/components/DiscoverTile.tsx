@@ -1,4 +1,4 @@
-import { A, useNavigate } from "@solidjs/router";
+import { A } from "@solidjs/router";
 import { createMemo, createSignal, Show, createContext, useContext, JSX } from "solid-js";
 import type { HubItem } from "../api/types";
 import { api } from "../api/client";
@@ -53,7 +53,6 @@ export interface DiscoverTileProps {
 
 export default function DiscoverTile(props: DiscoverTileProps) {
   const ctx = useDiscoverTile();
-  const navigate = useNavigate();
   const isClip = () => props.item.type === "clip";
   const href = () => {
     // For clip items (trailer cards on Trending Trailers / New Trailers
@@ -75,12 +74,25 @@ export default function DiscoverTile(props: DiscoverTileProps) {
   const [imgFailed, setImgFailed] = createSignal(false);
   const hasImg = () => !!props.item.thumb && !imgFailed();
 
+  // Watchlist target — for clip-variant tiles (trailer cards), the watchlist
+  // should track the PARENT movie/show, not the clip's own ratingKey. Plex's
+  // catalog only accepts movie/show ratingKeys; the clip's ratingKey is the
+  // trailer's identifier and gets rejected with 400. parentRatingKey is
+  // populated by hubs.go (extracted from primaryGuid as plex://show|movie/<rk>),
+  // which IS a catalog ratingKey. Non-clip tiles use ratingKey directly.
+  const watchlistTargetRk = () => {
+    if (props.item.type === "clip") {
+      return props.item.parentRatingKey || props.item.grandparentRatingKey || props.item.ratingKey;
+    }
+    return props.item.ratingKey;
+  };
+
   // Watchlist toggle state — optimistic override mirrors ItemDetail's pattern.
   const [override, setOverride] = createSignal<boolean | null>(null);
   const isInWatchlist = createMemo(() => {
     const o = override();
     if (o !== null) return o;
-    return ctx.inWatchlistSet().has(props.item.ratingKey);
+    return ctx.inWatchlistSet().has(watchlistTargetRk());
   });
 
   // Trailer-button busy state so rapid clicks don't fire concurrent TMDB lookups.
@@ -138,12 +150,13 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     e.preventDefault();
     e.stopPropagation();
     const wasIn = isInWatchlist();
+    const targetRk = watchlistTargetRk();
     setOverride(!wasIn);
     try {
       if (wasIn) {
-        await api.watchlistRemove(props.item.ratingKey);
+        await api.watchlistRemove(targetRk);
       } else {
-        await api.watchlistAdd(props.item.ratingKey);
+        await api.watchlistAdd(targetRk);
       }
       // Brief Plex propagation delay before broadcasting invalidation so the
       // page-level watchlist resource refetches with fresh state.
@@ -157,34 +170,14 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     }
   }
 
-  // Click anywhere on the body navigates. Using onClick + navigate (not
-  // wrapping the whole tile in <A>) so the absolute-positioned action buttons
-  // can capture clicks via stopPropagation without nested-anchor warnings.
-  function handleBodyClick(e: MouseEvent) {
-    // Don't navigate if the click landed on an action button (their handlers
-    // already preventDefault + stopPropagation, but belt-and-braces).
-    const t = e.target as HTMLElement;
-    if (t.closest(".discover-tile-action-btn") || t.closest(".discover-tile-play-overlay")) return;
-    navigate(href());
-  }
-
-  // Browsers don't auto-translate keyboard events into clicks for ARIA
-  // role="link" on a non-native element, so without this handler keyboard /
-  // screen-reader users could focus the tile but not activate it. The
-  // action-button skip-check from handleBodyClick is mouse-only (focus on a
-  // child <button> consumes Enter/Space itself), so we just navigate directly.
-  function handleBodyKeyDown(e: KeyboardEvent) {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      navigate(href());
-    }
-  }
-
   // Per-type render contract derived from Plex Web's
   // MediaContainer.Meta.DisplayFields (Session 6.5 capture):
-  //   season  → parentTitle / title / date
-  //   episode → grandparentTitle / S{parentIndex}E{index} / date
-  //   show / movie / clip → title / — / (date or year)
+  //   season               → parentTitle / title / date
+  //   episode              → grandparentTitle / S{parentIndex}E{index} / date
+  //   clip with parentTitle → parentTitle / title / date  (TV-show season trailer:
+  //                          title is the season label e.g. "Season 9", "Miniseries",
+  //                          parentTitle is the show name)
+  //   show / movie / clip-without-parentTitle → title / — / (date or year)
   // Date prefers a near-future originallyAvailableAt (Coming Soon use case);
   // older originallyAvailableAt falls back to year so library/trending shelves
   // don't render misleading first-air dates on long-running shows.
@@ -194,6 +187,9 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     }
     if (props.item.type === "episode" && props.item.grandparentTitle) {
       return props.item.grandparentTitle;
+    }
+    if (props.item.type === "clip" && props.item.parentTitle) {
+      return props.item.parentTitle;
     }
     return props.item.title;
   }
@@ -208,6 +204,9 @@ export default function DiscoverTile(props: DiscoverTileProps) {
       }
       return props.item.title;
     }
+    if (props.item.type === "clip" && props.item.parentTitle) {
+      return props.item.title;
+    }
     return "";
   }
 
@@ -215,14 +214,14 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     return formatAirDate(props.item.originallyAvailableAt, props.item.year);
   }
 
+  // Whole-tile <A> wrap — Solid Router handles the click via its own
+  // listener on the <a> element. Robust against mid-click DOM remounts
+  // that previously dropped clicks when window-focus refetch fired during
+  // a click (Session 6.5 bug). Action buttons inside use preventDefault +
+  // stopPropagation to suppress navigation when toggling watchlist or
+  // playing trailers.
   return (
-    <div
-      class="discover-tile"
-      onClick={handleBodyClick}
-      onKeyDown={handleBodyKeyDown}
-      role="link"
-      tabindex="0"
-    >
+    <A class="discover-tile" href={href()}>
       <div class="discover-tile-poster">
         <div class="discover-tile-poster-placeholder" aria-hidden="true">
           <ImageOff size={32} strokeWidth={1.5} />
@@ -268,13 +267,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
         </Show>
       </div>
       <div class="discover-tile-meta">
-        <A
-          class="discover-tile-title-link"
-          href={href()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div class="discover-tile-title">{primaryTitle()}</div>
-        </A>
+        <div class="discover-tile-title">{primaryTitle()}</div>
         <Show when={subtitle()}>
           <div class="discover-tile-subtitle">{subtitle()}</div>
         </Show>
@@ -282,7 +275,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
           <div class="discover-tile-year">{dateLine()}</div>
         </Show>
       </div>
-    </div>
+    </A>
   );
 }
 

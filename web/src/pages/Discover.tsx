@@ -7,6 +7,7 @@ import DiscoverTile, { DiscoverTileProvider } from "../components/DiscoverTile";
 import TrailerModal from "../components/Modal/TrailerModal";
 import HLSTrailerModal from "../components/Modal/HLSTrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { stableArrayByKey } from "../util/stableArray";
 import "./Discover.css";
 
 // Per spec §12.4 — eight Byron-curated shelves from the home namespace.
@@ -91,9 +92,21 @@ function DiscoverShelfHost(props: { id: string; title: string; slug: string }) {
   );
   refetchOnFocus(refetch);
 
+  // Stabilise item refs across refetches so <For> doesn't remount tiles.
+  // See util/stableArray.ts.
+  const stable = stableArrayByKey(() => items() ?? [], (it) => it.ratingKey);
+
+  // Critical: do NOT short-circuit on items.loading. Solid's createResource
+  // preserves the previous value during refetch, and switching itemList to
+  // undefined causes Shelf's isPaginated() to flip false → grid is replaced
+  // with the skeleton fallback → the entire DOM is destroyed and rebuilt
+  // when the refetch resolves. That destruction is what was eating clicks
+  // during focus refetch. We keep the previous items visible while the
+  // refetch is in flight; only on the FIRST load (items() === undefined)
+  // does the fallback skeleton show.
   const itemList = () => {
-    if (items.loading || items.error) return undefined;
-    const list = items() ?? [];
+    if (items.error || !items()) return undefined;
+    const list = stable();
     return list.length > 0 ? list : undefined;
   };
 

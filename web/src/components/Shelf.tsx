@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, JSX, onCleanup, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Index, JSX, onCleanup, Show } from "solid-js";
 import { createSortable, useDragDropContext } from "@thisbeyond/solid-dnd";
 import { ChevronDown, ChevronLeft, ChevronRight, GripVertical } from "./icons";
 import { store as settingsStore } from "../state/settings";
@@ -180,7 +180,15 @@ export default function Shelf(props: ShelfProps) {
               class="shelf-cards paginated"
               onScroll={updateMetrics}
             >
-              <For each={pages()}>
+              {/* <Index> for the outer pages iteration — keys by INDEX so
+                  page-div slots stay mounted when pages() returns a new
+                  outer array (which it does on every refetch since slice()
+                  creates new arrays). The inner <For> still keys by item
+                  reference, reusing tile DOM across data updates. Without
+                  this, the outer For remounted page divs on every refetch,
+                  destroying tile DOM mid-click → "double-click required"
+                  bug (Session 6.5 round 2). */}
+              <Index each={pages()}>
                 {(pageItems) => (
                   <div
                     class="shelf-page"
@@ -189,12 +197,12 @@ export default function Shelf(props: ShelfProps) {
                       "grid-template-rows": `repeat(${props.rowsPerPage}, auto)`,
                     }}
                   >
-                    <For each={pageItems}>
+                    <For each={pageItems()}>
                       {(item, idx) => props.renderItem!(item, idx())}
                     </For>
                   </div>
                 )}
-              </For>
+              </Index>
             </div>
             <Show when={showLeft()}>
               <button

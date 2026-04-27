@@ -6,6 +6,7 @@ import Skeleton from "../components/Skeleton";
 import TrailerModal from "../components/Modal/TrailerModal";
 import { CircleCheck, Play, Trash2 } from "../components/icons";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { stableArrayByKey } from "../util/stableArray";
 import "./Watchlist.css";
 
 function isAbsoluteURL(s: string): boolean {
@@ -49,8 +50,14 @@ export default function Watchlist() {
     setTrailerOpen(true);
   };
 
+  // Stabilise item refs across refetches so cards don't remount on focus.
+  const stableItems = stableArrayByKey<WatchlistItem>(
+    () => items() ?? [],
+    (it) => it.ratingKey,
+  );
+
   const visible = createMemo<WatchlistItem[]>(() => {
-    const all = items() ?? [];
+    const all = stableItems();
     const filtered = typeFilter() === "all" ? all : all.filter((i) => i.type === typeFilter());
     const sorted = [...filtered];
     const key = sortKey();

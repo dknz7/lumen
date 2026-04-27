@@ -9,6 +9,8 @@
   cursor: pointer;
   transition: transform 0.15s ease, width 0.18s ease-out;
   color: inherit;
+  /* Native <a> defaults removed — tile is the link, not styled like one. */
+  text-decoration: none;
 }
 
 .discover-tile:hover {
@@ -170,11 +172,6 @@
   padding: 6px 2px;
 }
 
-.discover-tile-title-link {
-  text-decoration: none;
-  color: inherit;
-}
-
 .discover-tile-title {
   font-size: 13px;
   color: var(--text);
@@ -186,7 +183,7 @@
   -webkit-box-orient: vertical;
 }
 
-.discover-tile-title-link:hover .discover-tile-title {
+.discover-tile:hover .discover-tile-title {
   color: var(--led-teal);
 }
 
