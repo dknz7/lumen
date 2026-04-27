@@ -1,8 +1,9 @@
 import { createMemo, createResource, createSignal, For, Show } from "solid-js";
-import { A } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import type { WatchlistItem } from "../api/types";
 import { api } from "../api/client";
 import Skeleton from "../components/Skeleton";
+import { CircleCheck, Play, Trash2 } from "../components/icons";
 import { refetchOnFocus } from "../util/focusRefetch";
 import "./Watchlist.css";
 
@@ -76,18 +77,142 @@ export default function Watchlist() {
 }
 
 function WatchlistCard(props: { item: WatchlistItem }) {
-  // plex.tv ratingKeys aren't routable to a server-local item — the
-  // /watchlist/<ratingKey> link is currently a 404 stub. plex.tv-source
-  // Item Detail variant is post-1.0 polish (see session-5-findings.md
-  // "Known issues carried forward" #2).
+  const navigate = useNavigate();
+  const detailHref = () => `/watchlist/${encodeURIComponent(props.item.ratingKey)}`;
+
+  async function handlePlay() {
+    try {
+      const matches = await api.availability(props.item.guid ?? "");
+      if (matches.length === 0) {
+        // No local copy — navigate to the watchlist item detail page so the
+        // user can decide (remove, wait for availability, click through).
+        navigate(detailHref());
+        return;
+      }
+      const m = matches[0];
+      await api.play(m.machineIdentifier, m.ratingKey);
+    } catch (e) {
+      alert(`Play failed: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleRemove() {
+    try {
+      await api.watchlistRemove(props.item.ratingKey);
+      // Brief Plex propagation delay before broadcasting invalidation so the
+      // page-level watchlist resource refetches with fresh state and the
+      // card disappears from the grid (see refetchOnFocus subscription).
+      setTimeout(
+        () => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")),
+        350,
+      );
+    } catch (e) {
+      alert(`Remove from watchlist failed: ${(e as Error).message}`);
+    }
+  }
+
+  async function handleMarkWatched() {
+    // Lazy availability check (Option B from spec): the button is always
+    // visually enabled; we resolve availability on click and alert if there's
+    // no local copy. Eager per-card availability calls would mean N parallel
+    // round-trips per page render — out of scope for v1.0.
+    try {
+      const matches = await api.availability(props.item.guid ?? "");
+      if (matches.length === 0) {
+        alert("This title isn't on any of your servers — can't mark watched.");
+        return;
+      }
+      const m = matches[0];
+      await api.scrobble(m.machineIdentifier, m.ratingKey);
+      setTimeout(
+        () => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")),
+        350,
+      );
+    } catch (e) {
+      alert(`Mark watched failed: ${(e as Error).message}`);
+    }
+  }
+
+  // Click anywhere on the body navigates to the detail page. Using
+  // onClick + navigate (not wrapping the card in <A>) so the absolute-positioned
+  // action buttons can stop propagation without nested-anchor warnings.
+  // Mirrors DiscoverTile's pattern.
+  function handleBodyClick(e: MouseEvent) {
+    const t = e.target as HTMLElement;
+    if (
+      t.closest(".watchlist-card-action-btn") ||
+      t.closest(".watchlist-card-play-overlay")
+    ) {
+      return;
+    }
+    navigate(detailHref());
+  }
+
+  function handleBodyKeyDown(e: KeyboardEvent) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      navigate(detailHref());
+    }
+  }
+
   return (
     <li class="watchlist-card">
-      <A href={`/watchlist/${encodeURIComponent(props.item.ratingKey)}`} class="watchlist-card-link">
+      <div
+        class="watchlist-card-body"
+        onClick={handleBodyClick}
+        onKeyDown={handleBodyKeyDown}
+        role="link"
+        tabindex="0"
+      >
         <div class="watchlist-poster">
           <Show when={props.item.thumb && isAbsoluteURL(props.item.thumb)} fallback={<div class="watchlist-poster-empty" />}>
             <img src={props.item.thumb!} alt={props.item.title} referrerpolicy="no-referrer"
                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
           </Show>
+          {/* Centered Play overlay — fades in on hover. Mirrors
+              DiscoverTile's clip-variant pattern (commit 634cdd8). */}
+          <button
+            type="button"
+            class="watchlist-card-play-overlay"
+            title="Play"
+            aria-label="Play"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handlePlay();
+            }}
+          >
+            <Play size={28} fill="currentColor" />
+          </button>
+          {/* Top-right action cluster — Mark Watched then Remove. */}
+          <div class="watchlist-card-actions">
+            <button
+              type="button"
+              class="watchlist-card-action-btn watchlist-card-mark-watched"
+              title="Mark as watched"
+              aria-label="Mark as watched"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleMarkWatched();
+              }}
+            >
+              <CircleCheck size={14} />
+            </button>
+            <button
+              type="button"
+              class="watchlist-card-action-btn watchlist-card-remove"
+              title="Remove from Watchlist"
+              aria-label="Remove from Watchlist"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleRemove();
+              }}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </div>
         <div class="watchlist-meta">
           <div class="watchlist-title">{props.item.title}</div>
@@ -96,7 +221,7 @@ function WatchlistCard(props: { item: WatchlistItem }) {
             <Show when={props.item.year}> · {props.item.year}</Show>
           </div>
         </div>
-      </A>
+      </div>
     </li>
   );
 }

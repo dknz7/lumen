@@ -48,19 +48,30 @@
 .watchlist-card {
   display: flex;
 }
-.watchlist-card-link {
+.watchlist-card-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
   text-decoration: none;
   color: inherit;
   width: 100%;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+.watchlist-card-body:hover {
+  transform: translateY(-2px);
+}
+.watchlist-card-body:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 .watchlist-poster {
   aspect-ratio: 2 / 3;
   background: var(--bg-menu);
   border-radius: 4px;
   overflow: hidden;
+  position: relative;
 }
 .watchlist-poster img {
   width: 100%;
@@ -71,6 +82,95 @@
 .watchlist-poster-empty {
   width: 100%;
   height: 100%;
+}
+
+/* Dim overlay on hover — interactivity cue. Sits below the action buttons
+   and play overlay via z-index stacking. Mirrors DiscoverTile.css. */
+.watchlist-poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  transition: background 0.18s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.watchlist-card-body:hover .watchlist-poster::after {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Centered Play overlay — fades in on hover. Mirrors DiscoverTile's
+   clip-variant .discover-tile-play-overlay. z-index:3 sits above the dim
+   overlay (1) but below the top-right action cluster (4). */
+.watchlist-card-play-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--text);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease, background 0.15s ease;
+  z-index: 3;
+  /* Optical-centre nudge for the solid play triangle. */
+  padding-left: 4px;
+}
+.watchlist-card-body:hover .watchlist-card-play-overlay,
+.watchlist-card-body:focus-within .watchlist-card-play-overlay {
+  opacity: 1;
+}
+.watchlist-card-play-overlay:hover {
+  background: rgba(0, 0, 0, 0.8);
+  transform: translate(-50%, -50%) scale(1.05);
+}
+.watchlist-card-play-overlay:focus-visible {
+  outline: 2px solid var(--stroke);
+  outline-offset: 2px;
+}
+
+/* Top-right action cluster — Mark Watched + Remove. Fade in on hover. */
+.watchlist-card-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 4;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.watchlist-card-body:hover .watchlist-card-actions {
+  opacity: 1;
+}
+.watchlist-card-action-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.75);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: 50%;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.watchlist-card-mark-watched:hover {
+  background: rgba(40, 180, 90, 0.85);
+}
+.watchlist-card-remove:hover {
+  background: rgba(200, 40, 40, 0.85);
 }
 .watchlist-title {
   font-weight: 600;
