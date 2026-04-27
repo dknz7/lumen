@@ -1,5 +1,5 @@
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
-import { A } from "@solidjs/router";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { A, useNavigate } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Item, Season } from "../api/types";
 import Skeleton from "./Skeleton";
@@ -10,7 +10,15 @@ export default function Episodes(props: {
   serverID: string;
   showRatingKey: string;
   initialSeasonIndex?: number;
+  /** When true, clicking a season pill navigates to that season's first
+   *  episode instead of just filtering the inline episode list. Used on
+   *  episode-detail pages where staying on the original episode while
+   *  toggling pills is confusing — Byron's spec call. Show-detail pages
+   *  leave this false so users can browse seasons without leaving the show. */
+  navigateOnSeasonChange?: boolean;
 }) {
+  const navigate = useNavigate();
+
   const [seasons, { refetch: refetchSeasons }] = createResource(
     () => props.showRatingKey,
     (k) => api.seasons(props.serverID, k)
@@ -19,6 +27,11 @@ export default function Episodes(props: {
   const realSeasons = createMemo(() => (seasons() ?? []).filter((s) => s.index > 0));
 
   const [activeKey, setActiveKey] = createSignal<string | null>(null);
+  // pendingNavigate flips to true on a "navigate-mode" pill click and stays
+  // until the corresponding episodes resource resolves — at which point the
+  // effect below jumps to the season's first episode. Decouples the click
+  // (synchronous) from the navigate (waits on async fetch).
+  const [pendingNavigate, setPendingNavigate] = createSignal(false);
 
   createMemo(() => {
     if (activeKey()) return;
@@ -44,6 +57,32 @@ export default function Episodes(props: {
     refetchEpisodes();
   });
 
+  // Navigate-mode: when the episodes for the newly-activated season resolve,
+  // jump to ep[0]. Empty seasons just clear the flag and stay put — the user
+  // sees the empty list, no jarring redirect. Clears on each fire so a later
+  // season-change click gets a fresh wait.
+  createEffect(() => {
+    if (!pendingNavigate()) return;
+    if (episodes.loading) return;
+    const eps = episodes();
+    if (!eps || eps.length === 0) {
+      setPendingNavigate(false);
+      return;
+    }
+    setPendingNavigate(false);
+    navigate(`/item/${encodeURIComponent(props.serverID)}/${encodeURIComponent(eps[0].ratingKey)}`);
+  });
+
+  function handleSeasonClick(seasonRatingKey: string) {
+    // No-op when clicking the already-active pill — avoids spurious refetch
+    // and (in navigate mode) re-navigating to the current page.
+    if (seasonRatingKey === activeKey()) return;
+    setActiveKey(seasonRatingKey);
+    if (props.navigateOnSeasonChange) {
+      setPendingNavigate(true);
+    }
+  }
+
   return (
     <section class="episodes">
       <h3>Episodes</h3>
@@ -54,7 +93,7 @@ export default function Episodes(props: {
               <button
                 class="season-tab"
                 classList={{ active: activeKey() === s.ratingKey }}
-                onClick={() => setActiveKey(s.ratingKey)}
+                onClick={() => handleSeasonClick(s.ratingKey)}
               >
                 Season {s.index}
               </button>

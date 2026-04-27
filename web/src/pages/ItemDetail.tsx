@@ -284,6 +284,7 @@ export default function ItemDetail() {
                 serverID={params.serverID!}
                 showRatingKey={(it() as Item).grandparentRatingKey ?? (it() as Item).ratingKey}
                 initialSeasonIndex={(it() as Item).parentIndex}
+                navigateOnSeasonChange={(it() as Item).type === "episode"}
               />
             </Show>
             <section class="availability">
