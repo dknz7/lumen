@@ -4,7 +4,8 @@
 export {
   ArrowLeft,
   Home,
-  Maximize2,      // kiosk / fullscreen toggle
+  Maximize2,      // enter browser fullscreen
+  Minimize2,      // exit browser fullscreen
   Minus,          // zoom out
   Plus,           // zoom in (paired with slider)
   X,              // close buttons

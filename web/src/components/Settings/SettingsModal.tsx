@@ -3,7 +3,7 @@ import { Dynamic } from "solid-js/web";
 // @ts-expect-error — motionone/solid's package.json exports field hides its d.ts file
 import { Motion, Presence } from "@motionone/solid";
 import Appearance from "./Appearance";
-import KioskShortcuts from "./KioskShortcuts";
+import Shortcuts from "./Shortcuts";
 import AccountsServers from "./AccountsServers";
 import Playback from "./Playback";
 import DataCache from "./DataCache";
@@ -13,7 +13,7 @@ import "./SettingsModal.css";
 
 const SECTIONS = [
   { id: "appearance",  label: "Appearance",         component: Appearance },
-  { id: "kiosk",       label: "Kiosk & Shortcuts",  component: KioskShortcuts },
+  { id: "shortcuts",   label: "Shortcuts",          component: Shortcuts },
   { id: "accounts",    label: "Accounts & Servers", component: AccountsServers },
   { id: "playback",    label: "Playback",           component: Playback },
   { id: "cache",       label: "Data & Cache",       component: DataCache },

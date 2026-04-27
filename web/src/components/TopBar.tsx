@@ -1,6 +1,6 @@
-import { createSignal, onCleanup, Show } from "solid-js";
+import { createSignal, onCleanup, onMount, Show } from "solid-js";
 import { useLocation, useNavigate } from "@solidjs/router";
-import { ArrowLeft, Home, Maximize2, Search, Sparkles, X } from "./icons";
+import { ArrowLeft, Home, Maximize2, Minimize2, Search, Sparkles, X } from "./icons";
 import { store as settingsStore } from "../state/settings";
 import { api } from "../api/client";
 import CloseConfirmModal from "./CloseConfirmModal";
@@ -64,6 +64,31 @@ export default function TopBar() {
     if (query().trim().length >= 2) setFlydownOpen(true);
   }
 
+  // Browser fullscreen toggle — same effect as the user pressing F11.
+  // Tracks state via the fullscreenchange event so the icon + label flip
+  // even if the user exits via Esc / F11 / dev-tools instead of the button.
+  const [isFullscreen, setIsFullscreen] = createSignal(false);
+  onMount(() => {
+    const sync = () => setIsFullscreen(!!document.fullscreenElement);
+    sync();
+    document.addEventListener("fullscreenchange", sync);
+    onCleanup(() => document.removeEventListener("fullscreenchange", sync));
+  });
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (err) {
+      // Browser denied (e.g. not triggered by a user gesture, or unsupported).
+      // Silently log; the icon state stays in sync via fullscreenchange.
+      console.warn("Fullscreen toggle failed:", err);
+    }
+  }
+
   function applyZoom(v: number) {
     settingsStore.patch({ zoom: v });
   }
@@ -109,9 +134,16 @@ export default function TopBar() {
           </Show>
         </form>
         <div class="tb-divider" />
-        <div class="tb-group tb-kiosk">
-          <button class="icon-btn" title="Kiosk mode (later session)" aria-label="Kiosk mode">
-            <Maximize2 size={16} />
+        <div class="tb-group tb-fullscreen">
+          <button
+            class="icon-btn"
+            title={isFullscreen() ? "Exit fullscreen" : "Enter fullscreen"}
+            aria-label={isFullscreen() ? "Exit fullscreen" : "Enter fullscreen"}
+            onClick={toggleFullscreen}
+          >
+            <Show when={isFullscreen()} fallback={<Maximize2 size={16} />}>
+              <Minimize2 size={16} />
+            </Show>
           </button>
         </div>
         <Show when={showZoom()}>

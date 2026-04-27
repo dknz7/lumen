@@ -22,16 +22,9 @@ type UIConfig struct {
 	CardLayout      string                    `json:"cardLayout"`      // "poster" | "landscape"
 	DefaultSort     string                    `json:"defaultSort"`     // library default sort
 	DefaultViewMode string                    `json:"defaultViewMode"` // "shows" | "episodes" for TV libraries
-	Kiosk           KioskConfig               `json:"kiosk"`
 	Playback        PlaybackUIConfig          `json:"playback"`
 	HiddenLibraries []string                  `json:"hiddenLibraries"` // "serverID:libraryKey" entries
 	ShelfState      map[string]PageShelfState `json:"shelfState"`      // keyed by page: "home", "recommended", "discover"
-}
-
-// KioskConfig — launched for real in Session 5; Session 3 just persists the toggles.
-type KioskConfig struct {
-	EnableOnStartup bool   `json:"enableOnStartup"`
-	Browser         string `json:"browser"` // "edge" | "chrome" | "system"
 }
 
 // PlaybackUIConfig — persists the Pot Player override path (Session 4 reads it).
@@ -155,9 +148,6 @@ func Load() (*Config, error) {
 	if c.UI.DefaultViewMode == "" {
 		c.UI.DefaultViewMode = "episodes"
 	}
-	if c.UI.Kiosk.Browser == "" {
-		c.UI.Kiosk.Browser = "edge"
-	}
 	if c.UI.ShelfState == nil {
 		c.UI.ShelfState = map[string]PageShelfState{}
 	}
@@ -275,7 +265,6 @@ func newDefault() *Config {
 		CardLayout:      "poster",
 		DefaultSort:     "addedAt:desc",
 		DefaultViewMode: "episodes",
-		Kiosk:           KioskConfig{Browser: "edge"},
 		ShelfState:      map[string]PageShelfState{},
 		HiddenLibraries: []string{},
 	}

@@ -22,11 +22,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			CardLayout      *string `json:"cardLayout"`
 			DefaultSort     *string `json:"defaultSort"`
 			DefaultViewMode *string `json:"defaultViewMode"`
-			Kiosk           *struct {
-				EnableOnStartup *bool   `json:"enableOnStartup"`
-				Browser         *string `json:"browser"`
-			} `json:"kiosk"`
-			Playback *struct {
+			Playback        *struct {
 				PotPlayerPath *string `json:"potPlayerPath"`
 			} `json:"playback"`
 			HiddenLibraries *[]string       `json:"hiddenLibraries"`
@@ -64,14 +60,6 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		if incoming.DefaultViewMode != nil {
 			s.cfg.UI.DefaultViewMode = *incoming.DefaultViewMode
-		}
-		if incoming.Kiosk != nil {
-			if incoming.Kiosk.EnableOnStartup != nil {
-				s.cfg.UI.Kiosk.EnableOnStartup = *incoming.Kiosk.EnableOnStartup
-			}
-			if incoming.Kiosk.Browser != nil {
-				s.cfg.UI.Kiosk.Browser = *incoming.Kiosk.Browser
-			}
 		}
 		if incoming.Playback != nil && incoming.Playback.PotPlayerPath != nil {
 			s.cfg.UI.Playback.PotPlayerPath = *incoming.Playback.PotPlayerPath

@@ -8,7 +8,6 @@ export interface UISettings {
   cardLayout: "poster" | "landscape";
   defaultSort: string;
   defaultViewMode: "shows" | "episodes" | "";
-  kiosk: { enableOnStartup: boolean; browser: "edge" | "chrome" | "system" };
   playback: { potPlayerPath: string };
   hiddenLibraries: string[];
   shelfState: Record<string, PageShelfState>;
