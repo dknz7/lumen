@@ -179,6 +179,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
         <Show when={isClip()}>
           <div class="discover-tile-actions">
             <button
+              type="button"
               class="discover-tile-action-btn"
               title="Play trailer"
               aria-label="Play trailer"
@@ -188,6 +189,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
               <Play size={14} fill="currentColor" />
             </button>
             <button
+              type="button"
               class="discover-tile-action-btn"
               classList={{ "is-on": isInWatchlist() }}
               title={isInWatchlist() ? "Remove from Watchlist" : "Add to Watchlist"}

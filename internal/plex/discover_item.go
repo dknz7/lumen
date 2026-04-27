@@ -93,21 +93,24 @@ type discoverItemWire struct {
 				Value float64 `json:"value"`
 			} `json:"Rating"`
 
-			// Cast/Crew shapes match server-local Plex Item structure so we can
-			// reuse personsFromRole / personsFromCrew from libraries.go.
+			// Cast/Crew IDs are UUID-shaped strings on the discover.provider.plex.tv
+			// surface — server-local Plex returns int IDs (and the existing helpers
+			// personsFromRole/personsFromCrew in libraries.go expect that shape).
+			// We can't reuse those helpers; declare a string-id local shape and
+			// inline-adapt below. Same Session 5 Phase A.5/A.6 lesson as Part.ID.
 			Role []struct {
-				ID    int    `json:"id"`
+				ID    string `json:"id"`
 				Tag   string `json:"tag"`
 				Role  string `json:"role"`
 				Thumb string `json:"thumb"`
 			} `json:"Role"`
 			Director []struct {
-				ID    int    `json:"id"`
+				ID    string `json:"id"`
 				Tag   string `json:"tag"`
 				Thumb string `json:"thumb"`
 			} `json:"Director"`
 			Writer []struct {
-				ID    int    `json:"id"`
+				ID    string `json:"id"`
 				Tag   string `json:"tag"`
 				Thumb string `json:"thumb"`
 			} `json:"Writer"`
@@ -172,6 +175,27 @@ func (c *Client) GetDiscoverItem(accountToken, plexTvRatingKey string) (*Discove
 	}
 	imdbID := extractIMDBId(tagless)
 
+	// Person.ID is int (server-local convention); discover IDs are UUID
+	// strings. We don't surface Person.ID in the SPA, so dropping it (zero
+	// value) is safe. Inline-adapt rather than reuse personsFromRole /
+	// personsFromCrew which expect int-id source types.
+	cast := make([]Person, 0, len(m.Role))
+	for _, p := range m.Role {
+		cast = append(cast, Person{
+			Name:  p.Tag,
+			Tag:   p.Role,
+			Thumb: p.Thumb,
+		})
+	}
+	directors := make([]Person, 0, len(m.Director))
+	for _, p := range m.Director {
+		directors = append(directors, Person{Name: p.Tag, Thumb: p.Thumb})
+	}
+	writers := make([]Person, 0, len(m.Writer))
+	for _, p := range m.Writer {
+		writers = append(writers, Person{Name: p.Tag, Thumb: p.Thumb})
+	}
+
 	return &DiscoverItem{
 		RatingKey:             m.RatingKey,
 		GUID:                  m.GUID,
@@ -191,8 +215,8 @@ func (c *Client) GetDiscoverItem(accountToken, plexTvRatingKey string) (*Discove
 		PublicPagesURL:        m.PublicPagesURL,
 		Genres:                genres,
 		Ratings:               ratings,
-		Cast:                  personsFromRole(m.Role),
-		Directors:             personsFromCrew(m.Director),
-		Writers:               personsFromCrew(m.Writer),
+		Cast:                  cast,
+		Directors:             directors,
+		Writers:               writers,
 	}, nil
 }

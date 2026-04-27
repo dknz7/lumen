@@ -113,6 +113,7 @@ export default function DiscoverItem() {
             <Hero item={it() as DiscoverItem} imdbRating={imdbRating() ?? null} />
             <nav class="action-row">
               <button
+                type="button"
                 class="btn-primary"
                 onClick={toggleWatchlist}
                 title={isInWatchlist() ? "Remove from Watchlist" : "Add to Watchlist"}
@@ -120,6 +121,7 @@ export default function DiscoverItem() {
                 {isInWatchlist() ? "✓ On Watchlist" : "+ Add to Watchlist"}
               </button>
               <button
+                type="button"
                 class="btn"
                 disabled={!resolvedTrailer()}
                 title={
