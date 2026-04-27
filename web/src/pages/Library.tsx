@@ -11,7 +11,7 @@ import "./Library.css";
 const SORT_OPTIONS = [
   { value: "addedAt:desc", label: "Date Added (newest)" },
   { value: "titleSort:asc", label: "Title (A→Z)" },
-  { value: "year:desc",    label: "Release Year (newest)" },
+  { value: "originallyAvailableAt:desc", label: "Release Date (newest)" },
   { value: "rating:desc",  label: "Rating (highest)" },
   { value: "lastViewedAt:desc", label: "Last Viewed" },
 ];
