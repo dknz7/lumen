@@ -76,6 +76,14 @@ func (s *Server) handleDiscoverItem(w http.ResponseWriter, r *http.Request) {
 		// X-Plex-Token via redirect chains in some failure modes); log full
 		// detail server-side, return a generic message to the SPA.
 		log.Printf("discover-item lookup failed for %s: %v", rk, err)
+		// Pass through 404s with a friendlier message — most often this means
+		// the ratingKey was a clip-id (Trending Trailers shelf) whose underlying
+		// movie isn't accessible at this endpoint. Task 12.8 will resolve clip
+		// -> parent properly; for now we surface a clear "not found" UX.
+		if strings.Contains(err.Error(), "status 404") {
+			writeError(w, http.StatusNotFound, "this item isn't available on Plex Discover")
+			return
+		}
 		writeError(w, http.StatusBadGateway, "discover-item lookup failed")
 		return
 	}

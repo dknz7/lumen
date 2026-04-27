@@ -68,7 +68,20 @@ export const api = {
   // /api/items/<rk> — this hits discover.provider.plex.tv via the proxy.
   discoverItem: async (ratingKey: string): Promise<DiscoverItem> => {
     const res = await fetch(`/api/discover-item/${encodeURIComponent(ratingKey)}`);
-    if (!res.ok) throw new Error(`${res.status} GET /api/discover-item/${ratingKey}`);
+    if (!res.ok) {
+      // Backend writes errors as JSON via writeError ({error: "..."}). Parse
+      // it so friendly messages (e.g. 404 "this item isn't available on Plex
+      // Discover") reach the user via DiscoverItem's <Show when={!item.error}>
+      // block. Fall back to status + URL if the body isn't JSON.
+      let msg = `${res.status} GET /api/discover-item/${ratingKey}`;
+      try {
+        const body = await res.json();
+        if (body && typeof body.error === "string") {
+          msg = body.error;
+        }
+      } catch { /* body wasn't JSON; keep the default */ }
+      throw new Error(msg);
+    }
     return res.json();
   },
 

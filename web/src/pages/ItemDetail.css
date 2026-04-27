@@ -267,8 +267,7 @@
   margin: 0;
   padding: 0 0 8px;             /* extra bottom padding so the scrollbar doesn't crowd the next section */
   display: grid;
-  grid-auto-flow: column;       /* fill columns first → 2 rows max grow horizontally */
-  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;       /* single row — fill horizontally, scroll for more */
   grid-auto-columns: 140px;     /* each cell fixed width so cards don't squish */
   gap: 16px;
   overflow-x: auto;
