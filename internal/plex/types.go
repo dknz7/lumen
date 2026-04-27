@@ -120,6 +120,16 @@ type HubItem struct {
 	Type      string `json:"type"`
 	Year      int    `json:"year,omitempty"`
 	Thumb     string `json:"thumb,omitempty"`
+	// NEW (Task 12) — surfaces fields needed by DiscoverTile for rich card
+	// info, watchlist parent navigation, and the trailer cascade.
+	IMDBID                string `json:"imdbId,omitempty"`
+	ParentRatingKey       string `json:"parentRatingKey,omitempty"`      // for clip items: the parent movie/show ratingKey
+	GrandparentRatingKey  string `json:"grandparentRatingKey,omitempty"` // for episode-clips: the show ratingKey (fallback)
+	ContentRating         string `json:"contentRating,omitempty"`
+	Studio                string `json:"studio,omitempty"`
+	Tagline               string `json:"tagline,omitempty"`
+	AddedAt               int64  `json:"addedAt,omitempty"`
+	OriginallyAvailableAt string `json:"originallyAvailableAt,omitempty"`
 }
 
 // ItemQuery carries optional filter/sort parameters for GetItems.

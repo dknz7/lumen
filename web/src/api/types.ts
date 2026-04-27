@@ -60,6 +60,14 @@ export interface HubItem {
   type: string;
   year?: number;
   thumb?: string; // absolute URL — render direct <img>, no proxy
+  imdbId?: string;
+  parentRatingKey?: string;
+  grandparentRatingKey?: string;
+  contentRating?: string;
+  studio?: string;
+  tagline?: string;
+  addedAt?: number;
+  originallyAvailableAt?: string;
 }
 
 export interface Match {

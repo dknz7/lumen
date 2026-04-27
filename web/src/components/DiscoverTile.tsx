@@ -50,7 +50,22 @@ export default function DiscoverTile(props: DiscoverTileProps) {
   const ctx = useDiscoverTile();
   const navigate = useNavigate();
   const isClip = () => props.item.type === "clip";
-  const href = () => `/discover-item/${encodeURIComponent(props.item.ratingKey)}`;
+  const href = () => {
+    // For clip items (trailer cards on Trending Trailers / New Trailers
+    // shelves), the card's ratingKey is the clip's id which 404s on
+    // Plex's /library/metadata/<rk> endpoint. Navigate to the underlying
+    // movie/show instead via parentRatingKey (or grandparentRatingKey
+    // for episode-clips).
+    if (props.item.type === "clip") {
+      const parentRk = props.item.parentRatingKey || props.item.grandparentRatingKey;
+      if (parentRk) {
+        return `/discover-item/${encodeURIComponent(parentRk)}`;
+      }
+      // No parent ratingKey known — fall through to the clip's own rk;
+      // the backend's friendly 404 message will render correctly.
+    }
+    return `/discover-item/${encodeURIComponent(props.item.ratingKey)}`;
+  };
 
   const [imgFailed, setImgFailed] = createSignal(false);
   const hasImg = () => !!props.item.thumb && !imgFailed();
@@ -72,31 +87,31 @@ export default function DiscoverTile(props: DiscoverTileProps) {
     if (trailerBusy()) return;
     setTrailerBusy(true);
     try {
-      // Cascade: TMDB (via imdbId, if HubItem ever exposes one) → Plex Extras
-      // youtubeID (likewise) → "no trailer". HubItem today is light (Session 5),
-      // so unless Task 12 fattens it both branches are absent and we fall to
-      // the alert. Keeping the cascade structure here means the upgrade path
-      // is just a wire-shape change, no component rewrite.
-      const anyItem = props.item as HubItem & {
-        imdbId?: string;
-        trailer?: { youtubeID?: string };
-        parentType?: string;
-        grandparentType?: string;
-      };
+      // Cascade: TMDB (via imdbId — Task 12 surfaced it on HubItem) →
+      // Plex Extras youtubeID (only present on Item, not HubItem; kept
+      // here as a defensive optional cast) → "no trailer".
       let youtubeID: string | null = null;
 
-      if (anyItem.imdbId) {
-        const parentT = anyItem.parentType ?? anyItem.grandparentType ?? "movie";
+      if (props.item.imdbId) {
+        // For clips, type === "clip" → falls to "movie". Most TMDB trailer
+        // lookups for clips are for movies; if it's a TV trailer the IMDB
+        // id may still resolve via TMDB's /find endpoint. If it doesn't,
+        // the cascade falls back gracefully.
         const mediaType: "movie" | "show" =
-          parentT === "show" || parentT === "season" || parentT === "episode" ? "show" : "movie";
+          props.item.type === "show" ||
+          props.item.type === "season" ||
+          props.item.type === "episode"
+            ? "show"
+            : "movie";
         try {
-          youtubeID = await api.tmdbTrailer(anyItem.imdbId, mediaType);
+          youtubeID = await api.tmdbTrailer(props.item.imdbId, mediaType);
         } catch (err) {
           console.warn("DiscoverTile: TMDB trailer lookup failed; falling back", err);
         }
       }
-      if (!youtubeID && anyItem.trailer?.youtubeID) {
-        youtubeID = anyItem.trailer.youtubeID;
+      const trailerExtra = (props.item as HubItem & { trailer?: { youtubeID?: string } }).trailer;
+      if (!youtubeID && trailerExtra?.youtubeID) {
+        youtubeID = trailerExtra.youtubeID;
       }
       if (!youtubeID) {
         alert("No trailer available");
@@ -216,6 +231,9 @@ export default function DiscoverTile(props: DiscoverTileProps) {
         </A>
         <Show when={props.item.year}>
           <div class="discover-tile-year">{props.item.year}</div>
+        </Show>
+        <Show when={props.item.contentRating}>
+          <div class="discover-tile-rating">{props.item.contentRating}</div>
         </Show>
       </div>
     </div>

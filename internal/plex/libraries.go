@@ -32,28 +32,42 @@ type metadataWire struct {
 	GuidArray []struct {
 		ID string `json:"id"`
 	} `json:"Guid"`
-	Title                 string  `json:"title"`
-	Type                  string  `json:"type"`
-	Year                  int     `json:"year"`
-	Summary               string  `json:"summary"`
-	Thumb                 string  `json:"thumb"`
-	Art                   string  `json:"art"`
-	Duration              int64   `json:"duration"`
-	ViewOffset            int64   `json:"viewOffset"`
-	AddedAt               int64   `json:"addedAt"`
-	LastViewedAt          int64   `json:"lastViewedAt"`
-	Index                 int     `json:"index"`
-	ParentIndex           int     `json:"parentIndex"`
-	ParentTitle           string  `json:"parentTitle"`
-	ParentThumb           string  `json:"parentThumb"`
-	GrandparentTitle      string  `json:"grandparentTitle"`
-	GrandparentThumb      string  `json:"grandparentThumb"`
-	GrandparentArt        string  `json:"grandparentArt"`
-	GrandparentRatingKey  string  `json:"grandparentRatingKey"`
-	ViewCount             int     `json:"viewCount"`
-	OriginallyAvailableAt string  `json:"originallyAvailableAt"`
-	Media                 []Media `json:"Media"`
-	Role                  []struct {
+	Title                 string `json:"title"`
+	Type                  string `json:"type"`
+	Year                  int    `json:"year"`
+	Summary               string `json:"summary"`
+	Thumb                 string `json:"thumb"`
+	Art                   string `json:"art"`
+	Duration              int64  `json:"duration"`
+	ViewOffset            int64  `json:"viewOffset"`
+	AddedAt               int64  `json:"addedAt"`
+	LastViewedAt          int64  `json:"lastViewedAt"`
+	Index                 int    `json:"index"`
+	ParentIndex           int    `json:"parentIndex"`
+	ParentTitle           string `json:"parentTitle"`
+	ParentThumb           string `json:"parentThumb"`
+	ParentRatingKey       string `json:"parentRatingKey"`
+	GrandparentTitle      string `json:"grandparentTitle"`
+	GrandparentThumb      string `json:"grandparentThumb"`
+	GrandparentArt        string `json:"grandparentArt"`
+	GrandparentRatingKey  string `json:"grandparentRatingKey"`
+	ViewCount             int    `json:"viewCount"`
+	ContentRating         string `json:"contentRating"`
+	Tagline               string `json:"tagline"`
+	OriginallyAvailableAt string `json:"originallyAvailableAt"`
+	// StudioString absorbs Plex's lowercase "studio" string. Server-local
+	// /library/metadata responses may also emit a capital-"Studio" array
+	// (same case-collision pattern as guid/Guid handled above). Without
+	// this absorber pair, Go's case-insensitive json matching could spill
+	// the array into a Studio string field and fail to decode. Hubs only
+	// emit the lowercase form in practice, but metadataWire is shared
+	// between hub and server-local paths so we handle both shapes.
+	StudioString string `json:"studio"`
+	Studio       []struct {
+		Tag string `json:"tag"`
+	} `json:"Studio"`
+	Media []Media `json:"Media"`
+	Role  []struct {
 		ID    int    `json:"id"`
 		Tag   string `json:"tag"`
 		Role  string `json:"role"`

@@ -41,13 +41,24 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 	}
 	out := make([]HubItem, 0, len(mc.MediaContainer.Metadata))
 	for _, m := range mc.MediaContainer.Metadata {
+		// IMDB id absorbed from the Guid[] array on each hub item. Same
+		// helper movies/shows + the discover-item endpoint use.
+		imdbID := extractIMDBId(toIDOnly(m.GuidArray))
 		out = append(out, HubItem{
-			GUID:      m.GUID,
-			RatingKey: m.RatingKey,
-			Title:     m.Title,
-			Type:      m.Type,
-			Year:      m.Year,
-			Thumb:     m.Thumb,
+			GUID:                  m.GUID,
+			RatingKey:             m.RatingKey,
+			Title:                 m.Title,
+			Type:                  m.Type,
+			Year:                  m.Year,
+			Thumb:                 m.Thumb,
+			IMDBID:                imdbID,
+			ParentRatingKey:       m.ParentRatingKey,
+			GrandparentRatingKey:  m.GrandparentRatingKey,
+			ContentRating:         m.ContentRating,
+			Studio:                m.StudioString,
+			Tagline:               m.Tagline,
+			AddedAt:               m.AddedAt,
+			OriginallyAvailableAt: m.OriginallyAvailableAt,
 		})
 	}
 	return out, nil

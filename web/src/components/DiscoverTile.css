@@ -195,3 +195,17 @@
   color: var(--text-muted);
   margin-top: 2px;
 }
+
+/* Content-rating pill (e.g. "PG-13", "TV-MA") — small badge under the
+   year line. Reuses existing menu/border tokens for visual continuity. */
+.discover-tile-rating {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  margin-top: 4px;
+  background: var(--bg-menu);
+  border: 1px solid var(--border-soft);
+  border-radius: 3px;
+  color: var(--text-muted);
+}
