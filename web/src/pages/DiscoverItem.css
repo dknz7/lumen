@@ -79,3 +79,24 @@
   display: inline-flex;
   align-items: center;
 }
+
+/* Resource error block — replaces the indefinite loading skeleton when the
+   /api/discover-item fetch fails. Centred text, muted body copy, and
+   breathing room around the Retry button so the user has somewhere obvious
+   to click. */
+.discover-item-error {
+  text-align: center;
+  padding: 48px 24px;
+  max-width: 520px;
+  margin: 48px auto;
+}
+
+.discover-item-error h2 {
+  margin: 0 0 12px;
+}
+
+.discover-item-error-message {
+  color: var(--text-muted);
+  margin: 0 0 24px;
+  word-break: break-word;
+}

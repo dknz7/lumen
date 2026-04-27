@@ -20,9 +20,9 @@ import "./ItemDetail.css";
 // MORE WAYS TO WATCH section, filtered to local servers only).
 export default function DiscoverItem() {
   const params = useParams();
-  const [item] = createResource(
-    () => params.ratingKey!,
-    (rk) => api.discoverItem(rk)
+  const [item, { refetch }] = createResource(
+    () => params.ratingKey ?? null,
+    async (rk: string) => api.discoverItem(rk)
   );
 
   // Local servers list — same DisplayName resolution as ItemDetail.tsx so
@@ -105,10 +105,24 @@ export default function DiscoverItem() {
   return (
     <div class="discover-item-page item-detail">
       <Show
-        when={item()}
-        fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}
+        when={!item.error}
+        fallback={
+          <div class="discover-item-error">
+            <h2>Could not load item</h2>
+            <p class="discover-item-error-message">
+              {item.error instanceof Error ? item.error.message : String(item.error)}
+            </p>
+            <button type="button" class="btn" onClick={() => refetch()}>
+              Retry
+            </button>
+          </div>
+        }
       >
-        {(it) => (
+        <Show
+          when={item()}
+          fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}
+        >
+          {(it) => (
           <>
             <Hero item={it() as DiscoverItem} imdbRating={imdbRating() ?? null} />
             <nav class="action-row">
@@ -155,44 +169,56 @@ export default function DiscoverItem() {
             <section class="availability">
               <h3>More Ways to Watch</h3>
               <Show
-                when={availability()}
-                fallback={<div class="availability-loading">Checking your servers…</div>}
-              >
-                {(matches) => (
+                when={!availability.error}
+                fallback={
                   <ul>
-                    <For each={matches() as Match[]}>
-                      {(m) => (
-                        <li class="availability-row">
-                          <A
-                            href={`/item/${m.machineIdentifier}/${m.ratingKey}`}
-                            class="availability-link"
-                          >
-                            <span class="availability-server">
-                              <strong>
-                                {displayName(m.machineIdentifier) || m.serverName || m.machineIdentifier}
-                              </strong>
-                            </span>
-                            <span class="availability-lib">{m.libraryName}</span>
-                            <span class="availability-quality">
-                              {m.resolution}p · {m.codec ?? m.container}
-                            </span>
-                            <span class="availability-size">{formatBytes(m.size)}</span>
-                          </A>
-                        </li>
-                      )}
-                    </For>
-                    <Show when={(matches() as Match[]).length === 0}>
-                      <li class="availability-empty">
-                        Not available on any of your servers.
-                      </li>
-                    </Show>
+                    <li class="availability-empty">
+                      Couldn't check your servers — try again later.
+                    </li>
                   </ul>
-                )}
+                }
+              >
+                <Show
+                  when={availability()}
+                  fallback={<div class="availability-loading">Checking your servers…</div>}
+                >
+                  {(matches) => (
+                    <ul>
+                      <For each={matches() as Match[]}>
+                        {(m) => (
+                          <li class="availability-row">
+                            <A
+                              href={`/item/${m.machineIdentifier}/${m.ratingKey}`}
+                              class="availability-link"
+                            >
+                              <span class="availability-server">
+                                <strong>
+                                  {displayName(m.machineIdentifier) || m.serverName || m.machineIdentifier}
+                                </strong>
+                              </span>
+                              <span class="availability-lib">{m.libraryName}</span>
+                              <span class="availability-quality">
+                                {m.resolution}p · {m.codec ?? m.container}
+                              </span>
+                              <span class="availability-size">{formatBytes(m.size)}</span>
+                            </A>
+                          </li>
+                        )}
+                      </For>
+                      <Show when={(matches() as Match[]).length === 0}>
+                        <li class="availability-empty">
+                          Not available on any of your servers.
+                        </li>
+                      </Show>
+                    </ul>
+                  )}
+                </Show>
               </Show>
             </section>
             <CastCrew item={it() as DiscoverItem} />
           </>
         )}
+        </Show>
       </Show>
       <TrailerModal
         open={trailerOpen()}

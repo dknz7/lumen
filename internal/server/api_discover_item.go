@@ -51,19 +51,24 @@ func (c *discoverItemCache) set(key string, item *plex.DiscoverItem) {
 // reads the response into the DiscoverItem page (Recommended/Discover/
 // Watchlist tile click destinations).
 func (s *Server) handleDiscoverItem(w http.ResponseWriter, r *http.Request) {
+	log.Printf("discover-item request: %s", r.URL.Path)
 	if s.cfg.Plex.AccountToken == "" {
+		log.Printf("discover-item: no account token configured")
 		writeError(w, http.StatusUnauthorized, "no account token — run lumen auth")
 		return
 	}
 	rk := strings.TrimPrefix(r.URL.Path, "/api/discover-item/")
 	if rk == "" || strings.Contains(rk, "/") {
+		log.Printf("discover-item: invalid ratingKey path %q", r.URL.Path)
 		writeError(w, http.StatusBadRequest, "expected /api/discover-item/<ratingKey>")
 		return
 	}
 	if cached, ok := s.discoverItems.get(rk); ok {
+		log.Printf("discover-item cache hit: %s", rk)
 		writeJSON(w, cached)
 		return
 	}
+	log.Printf("discover-item cache miss, fetching from Plex: %s", rk)
 	item, err := s.plex.GetDiscoverItem(s.cfg.Plex.AccountToken, rk)
 	if err != nil {
 		// Boundary error scrub — same idiom as handleIMDB / handleTMDBTrailer.
@@ -74,6 +79,7 @@ func (s *Server) handleDiscoverItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadGateway, "discover-item lookup failed")
 		return
 	}
+	log.Printf("discover-item fetched OK: %s (title=%q, imdbId=%q)", rk, item.Title, item.IMDBID)
 	s.discoverItems.set(rk, item)
 	writeJSON(w, item)
 }
