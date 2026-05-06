@@ -9,14 +9,13 @@
   flex-direction: column;
   /* Floating panel: 12px inset from viewport left + bottom (matches the top
      bar pill's edge inset), 16px top margin so the menu's top edge aligns with
-     the first shelf (Continue Watching) top — .content has padding-top:16px. */
+     the first shelf (Continue Watching) top — .content has padding-top:16px.
+     Height comes from flex-stretch in .app-body so the menu shrinks to
+     whatever vertical space is left after TopBar and (optional) NowPlaying —
+     hardcoded `height: calc(100vh - ...)` used to push the settings pill
+     off-screen the moment NowPlaying mounted. */
   margin: 16px 0 var(--top-bar-margin) var(--top-bar-margin);
-  height: calc(100vh
-    - var(--top-bar-height)
-    - var(--top-bar-margin)        /* top bar top inset */
-    - var(--top-bar-gap)           /* gap between top bar and content area */
-    - 16px                         /* margin-top */
-    - var(--top-bar-margin));      /* margin-bottom */
+  min-height: 0;
 }
 
 .menu-top, .library-list {
