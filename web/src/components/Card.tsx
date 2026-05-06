@@ -110,7 +110,6 @@ export default function Card(props: CardProps) {
             class="card-poster-img"
             src={api.image(props.serverID, d().thumb!, "poster")}
             alt=""
-            loading="lazy"
             onError={() => setImgFailed(true)}
           />
         )}
