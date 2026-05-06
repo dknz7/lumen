@@ -84,9 +84,19 @@ export default function Library() {
     setPage(0);
   });
 
+  // Resource value stamps the items with the server/lib they were fetched
+  // against. Solid's createResource preserves the previous value during a
+  // refetch — so when the user crosses between servers, params.serverID
+  // flips immediately while items() still holds the *previous* server's
+  // payload for ~1s. Cards rendered in that window combine the new
+  // serverID with stale thumb paths (different ratingKey namespaces per
+  // server) → upstream Plex CDN returns 404 → img.onError sets
+  // imgFailed → placeholders cascade in the user's view. Stamping +
+  // matching below makes the grid wait for fresh data instead of
+  // rendering with mismatched coordinates.
   const [items, { refetch: refetchItems }] = createResource(
     () => ({ server: params.serverID!, lib: params.libraryID!, sort: sort(), page: page(), type: viewMode(), isTV: isTVLibrary() }),
-    ({ server, lib, sort, page, type, isTV }) => {
+    async ({ server, lib, sort, page, type, isTV }) => {
       const opts: { sort: string; start: number; size: number; filters?: Record<string, string> } = {
         sort,
         start: page * PAGE_SIZE,
@@ -94,15 +104,28 @@ export default function Library() {
       };
       // Only apply the type filter when it's a TV library.
       if (isTV && type) opts.filters = { type };
-      return api.items(server, lib, opts);
+      const list = await api.items(server, lib, opts);
+      return { server, lib, items: list };
     }
   );
+
+  // Only expose items when their stamped server+lib match the current
+  // params — guards against the stale-while-refetching cross-server race
+  // described above. Sort/page/viewMode changes don't gate (same server,
+  // image URLs stay valid); focus-refetch with identical params stays
+  // through stableArrayByKey unchanged.
+  const matchedItems = (): Item[] | undefined => {
+    const i = items();
+    if (!i) return undefined;
+    if (i.server !== params.serverID || i.lib !== params.libraryID) return undefined;
+    return i.items;
+  };
 
   // Stabilise item refs across refetches so cards don't remount when
   // the focus-refetch lands. Prevents click-lost flicker; also saves
   // poster reflow for unchanged items.
   const stableItems = stableArrayByKey<Item>(
-    () => (items() as Item[] | undefined) ?? [],
+    () => matchedItems() ?? [],
     (it) => it.ratingKey,
   );
 
@@ -139,7 +162,7 @@ export default function Library() {
             </For>
           </select>
         </label>
-        <Show when={items()}>
+        <Show when={matchedItems()}>
           <div class="library-header-right">
             <span class="library-count">
               Page {page() + 1} · showing {currentPageItems().length} items
@@ -165,7 +188,7 @@ export default function Library() {
         </Show>
       </header>
       <div class="library-grid">
-        <Show when={items()} fallback={<Skeleton kind="card" count={12} />}>
+        <Show when={matchedItems()} fallback={<Skeleton kind="card" count={12} />}>
           <For each={currentPageItems()}>
             {(it) => <Card item={it} serverID={params.serverID!} enableWatchlistAdd />}
           </For>
