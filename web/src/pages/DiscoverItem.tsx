@@ -1,5 +1,5 @@
-import { useParams, A } from "@solidjs/router";
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { useParams, A, useNavigate } from "@solidjs/router";
+import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
 import type { DiscoverItem, DiscoverRating, Match, OMDBRating, Person } from "../api/types";
 import Skeleton from "../components/Skeleton";
@@ -20,6 +20,7 @@ import "./ItemDetail.css";
 // MORE WAYS TO WATCH section, filtered to local servers only).
 export default function DiscoverItem() {
   const params = useParams();
+  const navigate = useNavigate();
   const [item, { refetch }] = createResource(
     () => params.ratingKey ?? null,
     async (rk: string) => api.discoverItem(rk)
@@ -42,6 +43,23 @@ export default function DiscoverItem() {
     () => item()?.guid,
     (guid) => (guid ? api.availability(guid) : Promise.resolve([] as Match[]))
   );
+
+  // When the item IS on a connected server (typical for Coming Soon titles
+  // that have just released), redirect to the server's ItemDetail page so
+  // the user gets the on-server view with Play button + true media metadata
+  // instead of the marketing-only Discover view. replace:true keeps the
+  // back button clean. Picks the first match — multi-server users can still
+  // pick a specific server via the search/library navigation.
+  createEffect(() => {
+    const matches = availability();
+    if (matches && matches.length > 0) {
+      const m = matches[0];
+      navigate(
+        `/item/${encodeURIComponent(m.machineIdentifier)}/${encodeURIComponent(m.ratingKey)}`,
+        { replace: true },
+      );
+    }
+  });
 
   // OMDB IMDB rating pill — same lookup ItemDetail uses.
   const [imdbRating] = createResource(

@@ -30,7 +30,10 @@ func (s *Server) handleAvailability(w http.ResponseWriter, r *http.Request) {
 			results <- result{matches: matches, err: err}
 		}()
 	}
-	var all []plex.Match
+	// Non-nil slice so an empty result marshals as `[]` rather than `null` —
+	// the SPA's <Show when={availability()}> treats null as falsy and gets
+	// stuck on "Checking your servers…" instead of rendering the empty state.
+	all := []plex.Match{}
 	for range s.cfg.Plex.Servers {
 		r := <-results
 		if r.err != nil {
