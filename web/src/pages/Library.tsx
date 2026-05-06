@@ -1,5 +1,5 @@
-import { useParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, Show, untrack } from "solid-js";
+import { useParams, useSearchParams } from "@solidjs/router";
+import { createEffect, createResource, createSignal, For, on, Show, untrack } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
@@ -36,6 +36,17 @@ const PAGE_SIZE = 200;
 
 export default function Library() {
   const params = useParams();
+  // Page lives in the URL (?page=N) so the browser back button restores it
+  // when returning from an item-detail page, and so refresh/share/bookmark
+  // round-trips don't lose the user's place. Page 0 is represented by
+  // omitting the param to keep canonical library URLs clean.
+  const [searchParams, setSearchParams] = useSearchParams<{ page?: string }>();
+  const page = (): number => {
+    const n = parseInt(searchParams.page ?? "0", 10);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  const setPage = (n: number) =>
+    setSearchParams({ page: n === 0 ? undefined : String(n) }, { replace: true });
 
   // Note: the zoom slider's effect on card sizes is handled globally in
   // state/settings.ts, which sets --card-width on :root. Library no longer
@@ -46,7 +57,6 @@ export default function Library() {
   const [viewMode, setViewMode] = createSignal(
     viewModeToFilter(settingsStore.settings()?.defaultViewMode ?? "episodes")
   );
-  const [page, setPage] = createSignal(0);
 
   const [allLibs, { refetch: refetchAllLibs }] = createResource(
     () => params.serverID,
@@ -57,11 +67,19 @@ export default function Library() {
   const isTVLibrary = () => currentLibrary()?.type === "show";
   const libName = () => currentLibrary()?.title ?? "";
 
+  // All three reset-page effects use `on(..., { defer: true })` so they
+  // skip the initial mount run — otherwise a back-nav from item-detail to
+  // /library/:s/:l?page=4 would immediately wipe ?page=4 because the
+  // sort/viewMode effects run on first mount with the settings-store
+  // value and would call setPage(0). defer makes them only fire on
+  // *subsequent* changes (real user interaction).
+
   // Reset page on library/server change.
-  createEffect(() => {
-    params.serverID; params.libraryID;
-    setPage(0);
-  });
+  createEffect(on(
+    () => [params.serverID, params.libraryID],
+    () => setPage(0),
+    { defer: true },
+  ));
 
   // Reset page whenever sort/mode changes, and persist the new preference.
   // patch() reads settingsStore.settings() internally; without untrack the
@@ -69,20 +87,18 @@ export default function Library() {
   // page to 0) whenever any setting elsewhere changes — including the
   // debounced PUT response that lands ~300ms after this very call. That
   // race caused the Page-2 snap-back regression (Task 29b smoke test).
-  createEffect(() => {
-    const s = sort();
+  createEffect(on(sort, (s) => {
     untrack(() => {
       settingsStore.patch({ defaultSort: s });
     });
     setPage(0);
-  });
-  createEffect(() => {
-    const v = viewMode();
+  }, { defer: true }));
+  createEffect(on(viewMode, (v) => {
     untrack(() => {
       settingsStore.patch({ defaultViewMode: filterToViewMode(v) as any });
     });
     setPage(0);
-  });
+  }, { defer: true }));
 
   // Resource value stamps the items with the server/lib they were fetched
   // against. Solid's createResource preserves the previous value during a
