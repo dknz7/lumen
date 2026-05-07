@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, on, Show, untrack } from "solid-js";
+import { createEffect, createResource, createSignal, For, Match, on, onCleanup, Show, Switch, untrack } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
@@ -60,7 +60,18 @@ export default function Library() {
 
   const [allLibs, { refetch: refetchAllLibs }] = createResource(
     () => params.serverID,
-    (serverID) => api.libraries(serverID)
+    async (serverID) => {
+      try {
+        return await api.libraries(serverID);
+      } catch (err) {
+        // Forensic log so the next intermittent stall captures itself in
+        // DevTools without the user having to plan ahead — this resource
+        // and items both stalling simultaneously is the failure mode behind
+        // the rare "first-click skeleton" bug.
+        console.error("Library: api.libraries failed", { serverID, err });
+        throw err;
+      }
+    }
   );
   const currentLibrary = () =>
     ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
@@ -120,10 +131,56 @@ export default function Library() {
       };
       // Only apply the type filter when it's a TV library.
       if (isTV && type) opts.filters = { type };
-      const list = await api.items(server, lib, opts);
-      return { server, lib, items: list };
+      try {
+        const list = await api.items(server, lib, opts);
+        return { server, lib, items: list };
+      } catch (err) {
+        console.error("Library: api.items failed", { server, lib, sort, page, type, isTV, err });
+        throw err;
+      }
     }
   );
+
+  // Auto-retry once on transient failures (network blip, brief Plex
+  // slowness, backend connection-pool hiccup). Most "1-in-20 skeleton stall"
+  // reports get masked invisibly by this; if the retry also fails the
+  // error UI below surfaces it instead of leaving the user staring at an
+  // infinite skeleton.
+  let autoRetried = false;
+  createEffect(() => {
+    if (items.error && !autoRetried) {
+      autoRetried = true;
+      console.warn("Library: items errored, auto-retrying once in 600ms", items.error);
+      setTimeout(() => refetchItems(), 600);
+    } else if (items() && !items.error) {
+      autoRetried = false; // reset so future failures get their own retry
+    }
+  });
+
+  // Stuck-loading detector — if neither data nor error has arrived after
+  // 8 seconds, surface a manual retry instead of an infinite skeleton.
+  // Covers the case where a request silently hangs (HTTP/2 stream wedged,
+  // OS network stack blip, etc.) without a fetch-level error.
+  const [stuckLoading, setStuckLoading] = createSignal(false);
+  createEffect(() => {
+    const isLoading = !items() && !items.error;
+    if (!isLoading) {
+      setStuckLoading(false);
+      return;
+    }
+    setStuckLoading(false);
+    const t = setTimeout(() => setStuckLoading(true), 8000);
+    onCleanup(() => clearTimeout(t));
+  });
+
+  const fetchError = (): Error | undefined =>
+    (items.error as Error | undefined) ?? (allLibs.error as Error | undefined);
+  const manualRetry = () => {
+    autoRetried = false;
+    setStuckLoading(false);
+    refetchAllLibs();
+    refetchItems();
+  };
 
   // Only expose items when their stamped server+lib match the current
   // params — guards against the stale-while-refetching cross-server race
@@ -204,11 +261,34 @@ export default function Library() {
         </Show>
       </header>
       <div class="library-grid">
-        <Show when={matchedItems()} fallback={<Skeleton kind="card" count={12} />}>
-          <For each={currentPageItems()}>
-            {(it) => <Card item={it} serverID={params.serverID!} enableWatchlistAdd />}
-          </For>
-        </Show>
+        <Switch fallback={<Skeleton kind="card" count={12} />}>
+          <Match when={matchedItems()}>
+            <For each={currentPageItems()}>
+              {(it) => <Card item={it} serverID={params.serverID!} enableWatchlistAdd />}
+            </For>
+          </Match>
+          <Match when={fetchError()}>
+            <div class="library-fetch-error">
+              <h2>Couldn't load this library</h2>
+              <p class="library-fetch-error-message">{fetchError()?.message}</p>
+              <button type="button" class="library-fetch-retry" onClick={manualRetry}>
+                Retry
+              </button>
+            </div>
+          </Match>
+          <Match when={stuckLoading()}>
+            <div class="library-fetch-error">
+              <h2>Still loading…</h2>
+              <p class="library-fetch-error-message">
+                This is taking longer than usual. Plex may be slow to respond, or
+                the request got stuck. Hit retry — or refresh if it persists.
+              </p>
+              <button type="button" class="library-fetch-retry" onClick={manualRetry}>
+                Retry
+              </button>
+            </div>
+          </Match>
+        </Switch>
       </div>
     </div>
   );

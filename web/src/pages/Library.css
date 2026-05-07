@@ -2,6 +2,42 @@
   /* fills the content area; no fixed cap */
 }
 
+/* Error / stuck-loading panels — replace the grid skeleton when a library
+   fetch fails or hangs past 8s. Mirrors DiscoverItem.css's centered layout
+   so the visual language is consistent across pages. */
+.library-fetch-error {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 24px;
+  max-width: 520px;
+  margin: 24px auto;
+}
+
+.library-fetch-error h2 {
+  margin: 0 0 12px;
+}
+
+.library-fetch-error-message {
+  color: var(--text-muted);
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.library-fetch-retry {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill);
+  padding: 8px 24px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.library-fetch-retry:hover {
+  border-color: var(--stroke);
+}
+
 .library-pagination {
   display: flex;
   align-items: center;
