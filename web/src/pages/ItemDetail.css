@@ -240,6 +240,20 @@
   color: #000;
   font-weight: 600;
 }
+
+/* Anchor variant — same styling, plus an explicit hover override so the
+   global a:hover { color: muted } rule in theme.css doesn't fade the
+   black-on-yellow text. Slight background darkening signals interactivity. */
+a.pill-imdb-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+a.pill-imdb-link:hover,
+a.pill-imdb-link:focus-visible {
+  color: #000;
+  background: #e0b412;
+}
 .pill-imdb-label {
   font-size: 10px;
   letter-spacing: 0.06em;
