@@ -9,6 +9,7 @@ const (
 	pollInterval         = 5 * time.Second
 	directPlayTimeout    = 10 * time.Second
 	watchedThresholdFrac = 0.95 // bumped from Plex's 90% default — leaves more room on shorter shows
+	eofEpsilon           = 2 * time.Second // "position pinned at the end" tolerance for naturalEOF
 )
 
 // runPoller reads Pot Player's position/state every pollInterval, broadcasts
@@ -151,4 +152,19 @@ func (m *Manager) fireEnded(c *Context) {
 		info.ThumbPath = next.GrandparentThumb
 	}
 	m.broadcast(Event{Type: EventNextEpisode, Payload: info})
+}
+
+// naturalEOF reports whether playback reached the true end of the file.
+// PotPlayer (per Byron's config) parks paused on the last frame, so position
+// pins at/near duration; the 2 s epsilon absorbs the 5 s sample interval's
+// coarseness. State is deliberately not consulted — position alone is enough.
+func naturalEOF(pos, duration time.Duration) bool {
+	return duration > 0 && pos >= duration-eofEpsilon
+}
+
+// advanceOnClose reports whether a manual PotPlayer close should count as the
+// "next episode" gesture: only when the last-observed position was past the
+// watched threshold. Closing earlier means "done watching" — no advance.
+func advanceOnClose(lastPos, duration time.Duration) bool {
+	return duration > 0 && lastPos >= time.Duration(float64(duration)*watchedThresholdFrac)
 }
