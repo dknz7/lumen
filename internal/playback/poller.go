@@ -31,6 +31,9 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 	// covers the common transcode path.
 	durationConfirmed := args.Duration > 0
 	endedFired := false
+	episodeOverFired := false
+	var nextInfo *NextEpisodeInfo
+	var lastPos time.Duration
 
 	for {
 		select {
@@ -48,6 +51,12 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 
 		// Liveness check first — fast and cheap.
 		if !c.PotPlayer.IsAlive() {
+			// Manual close past the watched threshold is the "next episode"
+			// gesture (spec: scrobble at 95%, advance at actual end).
+			if nextInfo != nil && !episodeOverFired && advanceOnClose(lastPos, c.Duration) {
+				m.broadcast(Event{Type: EventEpisodeOver, Payload: *nextInfo})
+				episodeOverFired = true
+			}
 			// Final position is whatever we last saw.
 			m.broadcast(Event{Type: EventStateUpdate, State: m.snapshot()})
 			m.Stop()
@@ -65,6 +74,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 		m.live.position = pos
 		m.live.state = state
 		m.live.mu.Unlock()
+		lastPos = pos
 
 		// First non-zero duration confirms direct-play OR transcode bootstrapped.
 		if !durationConfirmed {
@@ -110,9 +120,16 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 				}
 			}
 			if !endedFired {
-				m.fireEnded(c)
+				nextInfo = m.fireEnded(c)
 				endedFired = true
 			}
+		}
+
+		// True end-of-file: PotPlayer parks paused on the last frame, so
+		// position pins at duration. Auto-advance — nothing left to protect.
+		if nextInfo != nil && !episodeOverFired && naturalEOF(pos, c.Duration) {
+			m.broadcast(Event{Type: EventEpisodeOver, Payload: *nextInfo})
+			episodeOverFired = true
 		}
 
 		// Always rebroadcast latest state.
@@ -122,22 +139,24 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 
 // fireEnded emits the appropriate "we crossed the watched threshold" event.
 // For episodes, looks up the next-up episode and emits next-episode-prompt;
-// for movies, emits a generic ended event.
-func (m *Manager) fireEnded(c *Context) {
+// for movies, emits a generic ended event. Returns the next-episode info so
+// the poller can replay it in the episode-over payload; nil when there is no
+// next episode to advance to.
+func (m *Manager) fireEnded(c *Context) *NextEpisodeInfo {
 	if !c.IsEpisode || c.ShowRatingKey == "" {
 		m.broadcast(Event{Type: EventEnded})
-		return
+		return nil
 	}
 	next, err := m.plex.NextEpisode(c.Server, c.ShowRatingKey, c.RatingKey)
 	if err != nil {
 		m.logd.Logf("NextEpisode", "playback: NextEpisode: %v", err)
 		m.broadcast(Event{Type: EventEnded})
-		return
+		return nil
 	}
 	if next == nil {
 		// Last episode in show.
 		m.broadcast(Event{Type: EventEnded})
-		return
+		return nil
 	}
 	info := NextEpisodeInfo{
 		RatingKey: next.RatingKey,
@@ -152,6 +171,7 @@ func (m *Manager) fireEnded(c *Context) {
 		info.ThumbPath = next.GrandparentThumb
 	}
 	m.broadcast(Event{Type: EventNextEpisode, Payload: info})
+	return &info
 }
 
 // naturalEOF reports whether playback reached the true end of the file.

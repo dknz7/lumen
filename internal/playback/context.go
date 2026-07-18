@@ -74,6 +74,7 @@ const (
 	EventStateUpdate     = "state"
 	EventEnded           = "ended"
 	EventNextEpisode     = "next-episode-prompt"
+	EventEpisodeOver     = "episode-over"
 	EventTranscodePrompt = "transcode-prompt"
 	EventStopped         = "stopped"
 )
