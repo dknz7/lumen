@@ -79,6 +79,10 @@ function createPlaybackStore() {
 
     es.addEventListener("stopped", () => {
       setState({ active: false, position: 0, duration: 0, state: "stopped" });
+      // The session is gone — any pending Up Next card or auto-advance is
+      // stale (e.g. user crossed 95%, rewound, then closed the player).
+      setNextEpisode(null);
+      setEpisodeOver(null);
       // Plex's /library/metadata/<key> cache lags ~100-300ms after the final
       // ReportTimeline POST that Manager.Stop() fires. Wait before broadcasting
       // invalidation so subscribers (ItemDetail, Episodes, etc.) refetch fresh
