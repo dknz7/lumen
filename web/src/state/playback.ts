@@ -20,6 +20,12 @@ function createPlaybackStore() {
   const [nextEpisode, setNextEpisode] = createSignal<NextEpisodeInfo | null>(null);
   const [transcodePrompt, setTranscodePrompt] = createSignal<TranscodePromptInfo | null>(null);
   const [endedAt, setEndedAt] = createSignal<number>(0);
+  // Set when the backend says the episode truly ended (natural EOF or player
+  // closed past the watched threshold) — the SPA advances immediately.
+  const [episodeOver, setEpisodeOver] = createSignal<NextEpisodeInfo | null>(null);
+  // Dismiss = opt out of auto-advance for this transition only. Reset when
+  // the next prompt arrives (i.e. the next episode's own 95% mark).
+  let bingeCancelled = false;
 
   let es: EventSource | null = null;
 
@@ -53,7 +59,17 @@ function createPlaybackStore() {
 
     es.addEventListener("next-episode-prompt", (ev) => {
       const evt = parse(ev);
-      if (evt && evt.type === "next-episode-prompt") setNextEpisode(evt.payload);
+      if (evt && evt.type === "next-episode-prompt") {
+        bingeCancelled = false;
+        setNextEpisode(evt.payload);
+      }
+    });
+
+    es.addEventListener("episode-over", (ev) => {
+      const evt = parse(ev);
+      if (evt && evt.type === "episode-over" && !bingeCancelled) {
+        setEpisodeOver(evt.payload);
+      }
     });
 
     es.addEventListener("transcode-prompt", (ev) => {
@@ -81,15 +97,24 @@ function createPlaybackStore() {
 
   function dismissNextEpisode() { setNextEpisode(null); }
   function dismissTranscodePrompt() { setTranscodePrompt(null); }
+  // Dismiss button: hide the card AND opt out of auto-advance this episode.
+  function cancelBinge() {
+    bingeCancelled = true;
+    setNextEpisode(null);
+  }
+  function clearEpisodeOver() { setEpisodeOver(null); }
 
   return {
     state,
     nextEpisode,
     transcodePrompt,
     endedAt,
+    episodeOver,
     connect,
     dismissNextEpisode,
     dismissTranscodePrompt,
+    cancelBinge,
+    clearEpisodeOver,
   };
 }
 

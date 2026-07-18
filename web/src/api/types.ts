@@ -144,6 +144,7 @@ export type PlaybackEvent =
   | { type: "state"; state: PlaybackState }
   | { type: "ended" }
   | { type: "next-episode-prompt"; payload: NextEpisodeInfo }
+  | { type: "episode-over"; payload: NextEpisodeInfo }
   | { type: "transcode-prompt"; payload: TranscodePromptInfo }
   | { type: "stopped" };
 
