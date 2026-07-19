@@ -101,6 +101,29 @@ episode *actually* ending.
   it's one close, at episode start, with nothing lost (contrast with the old
   failure mode which destroyed an in-progress episode).
 
+## Addendum (2026-07-19, post-smoke-test): EOF-during-playback stops PotPlayer
+
+Live probe finding (250ms sampling of a real session): PotPlayer only parks
+paused on the last frame when EOF is reached **while paused** (e.g. a
+seek-to-end from a paused state). When EOF is reached **during active
+playback** — a seek to 100% while playing, or natural play-out — PotPlayer
+*stops*: raw state `0` (previously unmapped by our client) and position
+resets to `0` within ~300ms. The original design's naturalEOF check misses
+this reliably; natural play-out only ever worked when a 5s poll tick
+happened to sample inside the final 2s window.
+
+Fix: raw state `0` now maps to `PlayStateStopped`, and the poller fires
+`episode-over` on `stoppedAdvance(state, prevPos, duration)` — Stopped state
+with the *pre-reset* position past the 95% threshold. Stop below the
+threshold (including rewind-then-stop) still means "done watching".
+
+Known residual limitation: seeking from below 95% directly to 100% while
+playing does not advance — after PotPlayer's stop-and-reset it is
+indistinguishable from a mid-episode Stop, and the transient
+position-at-duration sample (~265ms) cannot be reliably caught at a 5s poll
+interval. Accepted: the realistic gestures (credits skip past 95%, natural
+play-out, manual close past 95%, paused seek-to-end) are all covered.
+
 ## Testing
 
 - **Backend:** unit tests around the poller's EOF branch — natural-end
