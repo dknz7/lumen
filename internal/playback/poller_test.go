@@ -3,7 +3,35 @@ package playback
 import (
 	"testing"
 	"time"
+
+	"lumen/internal/potplayer"
 )
+
+func TestStoppedAdvance(t *testing.T) {
+	d := 40 * time.Minute
+	cases := []struct {
+		name    string
+		state   potplayer.PlayState
+		lastPos time.Duration
+		dur     time.Duration
+		want    bool
+	}{
+		{"stopped after credits at 97%", potplayer.PlayStateStopped, time.Duration(float64(d) * 0.97), d, true},
+		{"stopped exactly at threshold", potplayer.PlayStateStopped, time.Duration(float64(d) * 0.95), d, true},
+		{"stopped after rewind to 30%", potplayer.PlayStateStopped, time.Duration(float64(d) * 0.30), d, false},
+		{"playing at 97% is not stopped", potplayer.PlayStatePlaying, time.Duration(float64(d) * 0.97), d, false},
+		{"paused at 97% is not stopped", potplayer.PlayStatePaused, time.Duration(float64(d) * 0.97), d, false},
+		{"unknown state never advances", potplayer.PlayStateUnknown, time.Duration(float64(d) * 0.97), d, false},
+		{"zero duration never advances", potplayer.PlayStateStopped, 39 * time.Minute, 0, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := stoppedAdvance(tc.state, tc.lastPos, tc.dur); got != tc.want {
+				t.Errorf("stoppedAdvance(%v, %v, %v) = %v, want %v", tc.state, tc.lastPos, tc.dur, got, tc.want)
+			}
+		})
+	}
+}
 
 func TestNaturalEOF(t *testing.T) {
 	d := 40 * time.Minute

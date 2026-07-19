@@ -15,7 +15,7 @@ const (
 	// its result as the SendMessage return value.
 	ppGetPosition uintptr = 0x5004 // returns current position in milliseconds
 	ppGetDuration uintptr = 0x5002 // returns total duration in milliseconds
-	ppGetState    uintptr = 0x5006 // returns 1=PAUSED, 2=PLAYING, -1=NOT_READY
+	ppGetState    uintptr = 0x5006 // returns 0=STOPPED, 1=PAUSED, 2=PLAYING, -1=NOT_READY
 
 	// WM_APPCOMMAND high-word values for write-side control. Sent via
 	// SendMessage(hwnd, wmAppCommand, 0, value<<16).

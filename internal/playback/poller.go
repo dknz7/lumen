@@ -3,6 +3,8 @@ package playback
 import (
 	"context"
 	"time"
+
+	"lumen/internal/potplayer"
 )
 
 const (
@@ -74,6 +76,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 		m.live.position = pos
 		m.live.state = state
 		m.live.mu.Unlock()
+		prevPos := lastPos
 		lastPos = pos
 
 		// First non-zero duration confirms direct-play OR transcode bootstrapped.
@@ -128,6 +131,14 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 		// True end-of-file: PotPlayer parks paused on the last frame, so
 		// position pins at duration. Auto-advance — nothing left to protect.
 		if nextInfo != nil && !episodeOverFired && naturalEOF(pos, c.Duration) {
+			m.broadcast(Event{Type: EventEpisodeOver, Payload: *nextInfo})
+			episodeOverFired = true
+		}
+
+		// EOF reached during active playback: PotPlayer stops and resets
+		// position to 0 instead of parking (Session 7 probe finding), so
+		// this tick's pos is meaningless — gate on the pre-reset position.
+		if nextInfo != nil && !episodeOverFired && stoppedAdvance(state, prevPos, c.Duration) {
 			m.broadcast(Event{Type: EventEpisodeOver, Payload: *nextInfo})
 			episodeOverFired = true
 		}
@@ -187,4 +198,14 @@ func naturalEOF(pos, duration time.Duration) bool {
 // watched threshold. Closing earlier means "done watching" — no advance.
 func advanceOnClose(lastPos, duration time.Duration) bool {
 	return duration > 0 && lastPos >= time.Duration(float64(duration)*watchedThresholdFrac)
+}
+
+// stoppedAdvance reports whether a Stopped state from PotPlayer should
+// auto-advance. PotPlayer reports Stopped (and resets position to 0) when EOF
+// is reached during active playback — seek-to-end or play-out — so the
+// decision uses the position observed before the reset. Stopping after a
+// rewind below the threshold means "done watching" — no advance, matching
+// advanceOnClose semantics.
+func stoppedAdvance(state potplayer.PlayState, lastPos, duration time.Duration) bool {
+	return state == potplayer.PlayStateStopped && advanceOnClose(lastPos, duration)
 }

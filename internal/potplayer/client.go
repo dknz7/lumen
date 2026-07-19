@@ -38,7 +38,7 @@ const (
 	PlayStateUnknown PlayState = iota // returned during cold-start (-1 from Pot Player)
 	PlayStatePaused                   // 1
 	PlayStatePlaying                  // 2
-	PlayStateStopped                  // synthetic — produced when window is gone
+	PlayStateStopped                  // raw 0 (EOF during playback); also synthetic when window is gone
 )
 
 func (s PlayState) String() string {
@@ -173,6 +173,12 @@ func (c *Client) GetState() (PlayState, error) {
 			continue
 		}
 		switch raw {
+		case 0:
+			// Stopped with the window still open. Pot Player reports this
+			// after EOF is reached during active playback (seek-to-end or
+			// play-out) — it resets position to 0 rather than parking on
+			// the last frame (Session 7 probe finding).
+			return PlayStateStopped, nil
 		case 1:
 			return PlayStatePaused, nil
 		case 2:
