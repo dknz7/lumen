@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
 import Episodes from "../components/Episodes";
+import IMDBPill from "../components/IMDBPill";
 import ResumeRestartModal from "../components/Modal/ResumeRestartModal";
 import TrailerModal from "../components/Modal/TrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
@@ -395,43 +396,6 @@ function formatBytes(n: number): string {
   let v = n;
   while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
   return `${v.toFixed(1)} ${units[u]}`;
-}
-
-function IMDBPill(props: { imdbId?: string }) {
-  const [rating] = createResource(
-    () => props.imdbId,
-    async (id) => (id ? api.imdb(id) : null)
-  );
-  // Renders as a link to imdb.com when an imdbId is present; falls back to
-  // a plain span when not (no imdbId → nothing to link to). The pill itself
-  // is the affordance — DiscoverItem keeps a separate IMDB action button,
-  // ItemDetail just makes the existing pill clickable per Byron's call.
-  return (
-    <Show
-      when={props.imdbId}
-      fallback={
-        <span class="pill pill-imdb">
-          <span class="pill-imdb-label">IMDB</span>
-          <Show when={rating()} fallback={<span class="pill-imdb-value">—</span>}>
-            {(r) => <span class="pill-imdb-value">{(r() as import("../api/types").OMDBRating).imdbRating ?? "—"}</span>}
-          </Show>
-        </span>
-      }
-    >
-      <a
-        class="pill pill-imdb pill-imdb-link"
-        href={`https://www.imdb.com/title/${props.imdbId}/`}
-        target="_blank"
-        rel="noreferrer"
-        title="Open on IMDB"
-      >
-        <span class="pill-imdb-label">IMDB</span>
-        <Show when={rating()} fallback={<span class="pill-imdb-value">—</span>}>
-          {(r) => <span class="pill-imdb-value">{(r() as import("../api/types").OMDBRating).imdbRating ?? "—"}</span>}
-        </Show>
-      </a>
-    </Show>
-  );
 }
 
 function CastCrew(props: { item: Item; serverID: string }) {
