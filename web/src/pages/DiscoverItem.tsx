@@ -1,9 +1,10 @@
 import { useParams, A, useNavigate } from "@solidjs/router";
 import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
 import { api } from "../api/client";
-import type { DiscoverItem, DiscoverRating, Match, OMDBRating, Person } from "../api/types";
+import type { DiscoverItem, DiscoverRating, Match, Person } from "../api/types";
 import Skeleton from "../components/Skeleton";
 import TrailerModal from "../components/Modal/TrailerModal";
+import IMDBPill from "../components/IMDBPill";
 import "./DiscoverItem.css";
 // Reuse ItemDetail's CSS — .hero / .meta-pills / .btn / .availability /
 // .people-grid / .person-card / .pill-imdb all live there. We only add
@@ -60,12 +61,6 @@ export default function DiscoverItem() {
       );
     }
   });
-
-  // OMDB IMDB rating pill — same lookup ItemDetail uses.
-  const [imdbRating] = createResource(
-    () => item()?.imdbId,
-    async (id) => (id ? api.imdb(id) : null)
-  );
 
   // Watchlist toggle — optimistic override + revert on error, identical to
   // ItemDetail/DiscoverTile. The plex.tv ratingKey IS the watchlist key
@@ -142,7 +137,7 @@ export default function DiscoverItem() {
         >
           {(it) => (
           <>
-            <Hero item={it() as DiscoverItem} imdbRating={imdbRating() ?? null} />
+            <Hero item={it() as DiscoverItem} />
             <nav class="action-row">
               <button
                 type="button"
@@ -167,16 +162,6 @@ export default function DiscoverItem() {
               >
                 Play Trailer
               </button>
-              <Show when={(it() as DiscoverItem).imdbId}>
-                <a
-                  class="btn"
-                  href={`https://www.imdb.com/title/${(it() as DiscoverItem).imdbId}/`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  IMDB
-                </a>
-              </Show>
             </nav>
             <Show when={(it() as DiscoverItem).summary}>
               <section class="overview">
@@ -248,7 +233,7 @@ export default function DiscoverItem() {
   );
 }
 
-function Hero(props: { item: DiscoverItem; imdbRating: OMDBRating | null }) {
+function Hero(props: { item: DiscoverItem }) {
   // plex.tv image URLs are absolute (https://metadata-static.plex.tv/...);
   // render direct with referrerpolicy="no-referrer" — no image-proxy round
   // trip needed. Confirmed in HubItem comment + DiscoverTile usage.
@@ -297,12 +282,7 @@ function Hero(props: { item: DiscoverItem; imdbRating: OMDBRating | null }) {
             <span class="pill">{runtimeText()}</span>
           </Show>
           <Show when={props.item.imdbId}>
-            <span class="pill pill-imdb">
-              <span class="pill-imdb-label">IMDB</span>
-              <span class="pill-imdb-value">
-                {props.imdbRating?.imdbRating ?? "—"}
-              </span>
-            </span>
+            <IMDBPill imdbId={props.item.imdbId} />
           </Show>
           <Show when={criticRT()}>
             {(r) => (
