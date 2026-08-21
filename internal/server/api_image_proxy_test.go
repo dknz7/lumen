@@ -26,6 +26,10 @@ func TestImageProxyForwardsWithTokenServerSide(t *testing.T) {
 	}}
 	c := plex.NewClient("id", "1.0.0")
 	s := New(cfg, c, "127.0.0.1:0")
+	// Isolate the disk cache — otherwise the first run write-through-caches the
+	// fake bytes into the real %APPDATA%\Lumen cache and every later run is a
+	// cache hit that never contacts the fake Plex server.
+	s.images.dir = t.TempDir()
 
 	req, _ := http.NewRequest("GET", "/api/image-proxy?server=abc&path=/library/metadata/1/thumb/1", nil)
 	w := newResponseRecorder()
