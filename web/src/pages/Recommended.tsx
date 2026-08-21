@@ -10,6 +10,7 @@ import HLSTrailerModal from "../components/Modal/HLSTrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import { stableArrayByKey } from "../util/stableArray";
 import "./Recommended.css";
+import { store } from "../state/settings";
 
 // Per spec — Phase 4 Task 10. New shelf order (Byron's call): Coming Soon
 // leads, then trailers, then recently added, then aired episodes. Watchlist
@@ -20,6 +21,10 @@ const SHELVES: { id: string; title: string; slug: string }[] = [
   { id: "rec-recently-added", title: "Recently Added", slug: "recently-added" },
   { id: "rec-new-episodes", title: "Recently Aired Episodes", slug: "new-episodes" },
 ];
+
+// Appearance > Rows per shelf. Every call site used to pass a literal 2,
+// which is why the setting appeared to do nothing.
+const shelfRows = () => store.settings()?.rowsPerShelf ?? 2;
 
 export default function Recommended() {
   // Page-level watchlist resource powers the +/✓ state on every clip card
@@ -108,7 +113,7 @@ function RecommendedShelfHost(props: { id: string; title: string; slug: string }
     <Shelf
       id={props.id}
       title={props.title}
-      rowsPerPage={2}
+      rowsPerPage={shelfRows()}
       sortable={false}
       items={itemList()}
       renderItem={(it: HubItem) => <DiscoverTile item={it} />}

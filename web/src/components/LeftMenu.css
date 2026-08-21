@@ -241,3 +241,9 @@
 .hidden-row .library-eye {
   opacity: 1;
 }
+
+.libraries-error {
+  padding: 8px 14px;
+  font-size: 11px;
+  color: #f0a0a0;
+}

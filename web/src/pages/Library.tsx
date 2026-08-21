@@ -8,6 +8,7 @@ import { store as settingsStore } from "../state/settings";
 import { refetchOnFocus } from "../util/focusRefetch";
 import { stableArrayByKey } from "../util/stableArray";
 import "./Library.css";
+import { librariesFor } from "../state/libraries";
 
 const SORT_OPTIONS = [
   { value: "addedAt:desc", label: "Date Added (newest)" },
@@ -62,7 +63,7 @@ export default function Library() {
     () => params.serverID,
     async (serverID) => {
       try {
-        return await api.libraries(serverID);
+        return await librariesFor(serverID);
       } catch (err) {
         // Forensic log so the next intermittent stall captures itself in
         // DevTools without the user having to plan ahead — this resource
@@ -74,7 +75,9 @@ export default function Library() {
     }
   );
   const currentLibrary = () =>
-    ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
+    allLibs.error
+      ? undefined
+      : ((allLibs() ?? []) as LibraryType[]).find((l) => l.key === params.libraryID);
   const isTVLibrary = () => currentLibrary()?.type === "show";
   const libName = () => currentLibrary()?.title ?? "";
 
@@ -122,7 +125,21 @@ export default function Library() {
   // matching below makes the grid wait for fresh data instead of
   // rendering with mismatched coordinates.
   const [items, { refetch: refetchItems }] = createResource(
-    () => ({ server: params.serverID!, lib: params.libraryID!, sort: sort(), page: page(), type: viewMode(), isTV: isTVLibrary() }),
+    () => {
+      // Wait for the library list before fetching items. isTVLibrary() is
+      // false until allLibs resolves and then flips true, which re-keyed this
+      // resource and made every TV library fetch its items twice — the first
+      // request wasted, its response discarded.
+      if (!allLibs.error && !allLibs()) return null;
+      return {
+        server: params.serverID!,
+        lib: params.libraryID!,
+        sort: sort(),
+        page: page(),
+        type: viewMode(),
+        isTV: isTVLibrary(),
+      };
+    },
     async ({ server, lib, sort, page, type, isTV }) => {
       const opts: { sort: string; start: number; size: number; filters?: Record<string, string> } = {
         sort,
@@ -163,7 +180,9 @@ export default function Library() {
   // OS network stack blip, etc.) without a fetch-level error.
   const [stuckLoading, setStuckLoading] = createSignal(false);
   createEffect(() => {
-    const isLoading = !items() && !items.error;
+    // .error FIRST: reading items() while errored re-throws, which fired from
+    // inside this effect and aborted the reactive flush.
+    const isLoading = !items.error && !items();
     if (!isLoading) {
       setStuckLoading(false);
       return;
@@ -188,6 +207,7 @@ export default function Library() {
   // image URLs stay valid); focus-refetch with identical params stays
   // through stableArrayByKey unchanged.
   const matchedItems = (): Item[] | undefined => {
+    if (items.error) return undefined;
     const i = items();
     if (!i) return undefined;
     if (i.server !== params.serverID || i.lib !== params.libraryID) return undefined;
@@ -261,12 +281,12 @@ export default function Library() {
         </Show>
       </header>
       <div class="library-grid">
+        {/* Error branch first. It used to sit AFTER the data branch, where it
+            was unreachable: matchedItems() read an errored resource, which
+            throws in Solid, so the flush aborted before this Match — along
+            with the auto-retry and the stuck-loading detector — was ever
+            evaluated. */}
         <Switch fallback={<Skeleton kind="card" count={12} />}>
-          <Match when={matchedItems()}>
-            <For each={currentPageItems()}>
-              {(it) => <Card item={it} serverID={params.serverID!} enableWatchlistAdd />}
-            </For>
-          </Match>
           <Match when={fetchError()}>
             <div class="library-fetch-error">
               <h2>Couldn't load this library</h2>
@@ -275,6 +295,11 @@ export default function Library() {
                 Retry
               </button>
             </div>
+          </Match>
+          <Match when={matchedItems()}>
+            <For each={currentPageItems()}>
+              {(it) => <Card item={it} serverID={params.serverID!} enableWatchlistAdd />}
+            </For>
           </Match>
           <Match when={stuckLoading()}>
             <div class="library-fetch-error">

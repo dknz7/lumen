@@ -1,9 +1,10 @@
-import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createResource, createSignal, For, on, Show } from "solid-js";
 import { A, useNavigate } from "@solidjs/router";
 import { api } from "../api/client";
 import type { Item, Season } from "../api/types";
 import Skeleton from "./Skeleton";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { stableArrayByKey } from "../util/stableArray";
 import "./Episodes.css";
 
 export default function Episodes(props: {
@@ -24,7 +25,18 @@ export default function Episodes(props: {
     (k) => api.seasons(props.serverID, k)
   );
 
-  const realSeasons = createMemo(() => (seasons() ?? []).filter((s) => s.index > 0));
+  const realSeasons = createMemo(() =>
+    seasons.error ? [] : (seasons() ?? []).filter((s) => s.index > 0),
+  );
+
+  // Episodes were the one list still iterated raw while refetchOnFocus was
+  // attached: <For> keys by reference, so every alt-tab handed it new objects
+  // and remounted every row — the click-loss/flicker class that
+  // stableArrayByKey exists to prevent, fixed everywhere else.
+  const stableEpisodes = stableArrayByKey<Item>(
+    () => (episodes.error ? [] : ((episodes() as Item[] | undefined) ?? [])),
+    (ep) => ep.ratingKey,
+  );
 
   const [activeKey, setActiveKey] = createSignal<string | null>(null);
   // pendingNavigate flips to true on a "navigate-mode" pill click and stays
@@ -33,7 +45,29 @@ export default function Episodes(props: {
   // (synchronous) from the navigate (waits on async fetch).
   const [pendingNavigate, setPendingNavigate] = createSignal(false);
 
-  createMemo(() => {
+  // Solid Router keeps this component mounted across /item/:s/:rk param
+  // changes — clicking a "More ways to watch" row, a hero show-link, or a
+  // search result while already on a detail page swaps props.showRatingKey
+  // without remounting. activeKey then still held the PREVIOUS show's season,
+  // the picker below bailed on `if (activeKey()) return`, and the episodes
+  // resource never refetched: new show's season tabs above the old show's
+  // episode list (or a 404 when the server changed too).
+  //
+  // defer:true so this doesn't clear the key on first render.
+  createEffect(
+    on(
+      () => props.showRatingKey,
+      () => {
+        setActiveKey(null);
+        setPendingNavigate(false);
+      },
+      { defer: true },
+    ),
+  );
+
+  // A memo used purely for its side effect is really an effect; it only worked
+  // because something happened to read it.
+  createEffect(() => {
     if (activeKey()) return;
     const list = realSeasons();
     if (list.length === 0) return;
@@ -103,7 +137,7 @@ export default function Episodes(props: {
       </Show>
       <Show when={!episodes.loading} fallback={<Skeleton kind="line" count={6} />}>
         <ul class="episode-list">
-          <For each={episodes() ?? []}>
+          <For each={stableEpisodes()}>
             {(ep) => (
               <li class="episode-row">
                 <A href={`/item/${props.serverID}/${ep.ratingKey}`} class="episode-link">

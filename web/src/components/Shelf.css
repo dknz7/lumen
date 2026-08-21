@@ -79,7 +79,7 @@
 .shelf-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-width, 160px), 1fr));
-  gap: 20px 16px;
+  gap: var(--card-gap-y) var(--card-gap-x);
 }
 
 /* Paginated layout — flex row of viewport-wide pages, each page is its own
@@ -119,7 +119,7 @@
   scroll-snap-align: start;
   display: grid;
   grid-auto-flow: row;
-  gap: 20px 16px;
+  gap: var(--card-gap-y) var(--card-gap-x);
 }
 
 /* Floating left/right arrows. Only rendered when there's room to scroll in

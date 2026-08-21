@@ -58,6 +58,12 @@
   --card-width-xl: 240px;
 
   --card-width: var(--card-width-m);
+
+  /* Overridden inline on :root from Appearance settings (see state/settings.ts).
+     Defaults here match cardDensity 50 and cardLayout "poster". */
+  --card-gap-x: 16px;
+  --card-gap-y: 20px;
+  --card-aspect: 2 / 3;
 }
 
 :root[data-card-size="s"]  { --card-width: var(--card-width-s); }
@@ -141,4 +147,16 @@ a:focus:not(:focus-visible) {
   flex: 1;
   overflow-y: auto;
   padding: 16px 24px;
+}
+
+/* Page-level h1. Several pages had no h1 at all (axe page-has-heading-one),
+ * which leaves screen-reader users without a landmark for "what page is this".
+ * Visually understated — the pages were designed without one. */
+.page-heading {
+  margin: 0 0 4px;
+  font-family: var(--font-headline);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--text);
 }

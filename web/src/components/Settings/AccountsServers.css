@@ -1,0 +1,186 @@
+/* Rows whose control side is a stack: align the label to the top rather than
+ * centring it against a tall block. */
+.as-row--top {
+  align-items: start;
+}
+
+.as-row--top > label:first-child {
+  padding-top: 8px;
+}
+
+.as-account {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.as-email {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.as-reauth {
+  margin-top: 10px;
+}
+
+.as-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 54ch;
+}
+
+.as-hint--lead {
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+
+.as-warn {
+  color: #f0b878;
+  font-size: 13px;
+}
+
+.as-field-error {
+  margin-top: 4px;
+  color: #f07878;
+  font-size: 12px;
+}
+
+.as-error {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+  color: #f07878;
+  font-size: 13px;
+}
+
+.as-empty {
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.as-empty p {
+  margin: 0;
+}
+
+.as-server-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.as-server {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 8px);
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+}
+
+.as-server-main {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.as-server-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.as-server-status {
+  flex-shrink: 0;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--status-offline);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg);
+}
+
+.as-server-status--on {
+  color: var(--status-online);
+}
+
+.as-server-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.as-server-id {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.as-forget {
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 3px 11px;
+  cursor: pointer;
+}
+
+.as-forget:hover {
+  color: var(--text);
+  border-color: var(--stroke);
+}
+
+/* Inline confirm, rather than a window.confirm() dialog — same reasoning as
+ * replacing alert() with toasts. */
+.as-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.as-forget--yes:hover {
+  color: #f07878;
+  border-color: #c83c3c;
+}
+
+.as-server-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.as-server-actions .settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.as-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 1px;
+}
+
+.as-link:hover {
+  border-bottom-color: var(--stroke);
+}
+
+.as-link--inline {
+  font-size: 11px;
+  color: var(--text-muted);
+}

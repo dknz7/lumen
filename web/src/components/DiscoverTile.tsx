@@ -4,6 +4,7 @@ import type { HubItem } from "../api/types";
 import { api } from "../api/client";
 import { CircleCheck, ImageOff, Play, Plus } from "./icons";
 import "./DiscoverTile.css";
+import { toast, errorMessage } from "./Toast";
 
 // Context plumbed by the host page (Recommended / Discover) so DiscoverTile
 // instances rendered deep inside Shelf's renderItem closure can:
@@ -137,7 +138,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
         youtubeID = trailerExtra.youtubeID;
       }
       if (!youtubeID) {
-        alert("No trailer available");
+        toast.info("No trailer available for this title.");
         return;
       }
       ctx.openTrailer(youtubeID, props.item.title);
@@ -166,7 +167,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
       );
     } catch (err) {
       setOverride(wasIn);
-      alert(`Watchlist toggle failed: ${(err as Error).message}`);
+      toast.error(`Couldn't update your Watchlist — ${errorMessage(err)}`);
     }
   }
 

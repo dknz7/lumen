@@ -55,6 +55,18 @@ func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 	rest := strings.TrimPrefix(r.URL.Path, "/api/servers/")
 	parts := strings.Split(rest, "/")
+
+	// DELETE /api/servers/<id> — forget a server locally.
+	//
+	// This does not, and cannot, revoke anything: access to a Plex server is
+	// granted on the plex.tv account, so a forgotten server reappears on the
+	// next /api/servers/refresh if the account can still see it. It is for
+	// clearing out servers that are gone for good, and Settings says so.
+	if len(parts) == 1 && parts[0] != "" && r.Method == http.MethodDelete {
+		s.handleServerForget(w, parts[0])
+		return
+	}
+
 	if len(parts) < 2 {
 		writeError(w, http.StatusNotFound, "path too short")
 		return
@@ -313,4 +325,28 @@ func toPlexServer(srv *config.Server) *plex.Server {
 		AccessToken:       srv.AccessToken,
 		BaseURL:           srv.LastGoodConnection,
 	}
+}
+
+// handleServerForget removes a server from the local config.
+func (s *Server) handleServerForget(w http.ResponseWriter, machineID string) {
+	var found bool
+	if err := s.mutateCfg(func(c *config.Config) {
+		kept := make([]config.Server, 0, len(c.Plex.Servers))
+		for _, srv := range c.Plex.Servers {
+			if srv.MachineIdentifier == machineID {
+				found = true
+				continue
+			}
+			kept = append(kept, srv)
+		}
+		c.Plex.Servers = kept
+	}); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	if !found {
+		writeError(w, http.StatusNotFound, "unknown server")
+		return
+	}
+	writeJSON(w, map[string]string{"status": "forgotten"})
 }

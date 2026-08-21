@@ -1,5 +1,5 @@
 import { useParams, A } from "@solidjs/router";
-import { createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { For, Show, createEffect, createMemo, createResource, createSignal, on } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Match } from "../api/types";
 import Skeleton from "../components/Skeleton";
@@ -10,6 +10,7 @@ import TrailerModal from "../components/Modal/TrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import { extractPlexTvRatingKey } from "../util/plexGuid";
 import "./ItemDetail.css";
+import { toast, errorMessage } from "../components/Toast";
 
 export default function ItemDetail() {
   const params = useParams();
@@ -99,6 +100,18 @@ export default function ItemDetail() {
   // Optimistic — flips immediately on click, reverts if the API call fails.
   // Plex propagates Watchlist add/remove cross-device after a brief lag.
   const [inWatchlistOverride, setInWatchlistOverride] = createSignal<boolean | null>(null);
+
+  // Solid Router reuses this component across params.ratingKey changes, so the
+  // optimistic override survived navigation: toggle the watchlist on item A,
+  // click through to item B, and B rendered A's state — "Remove from
+  // Watchlist" on something that was never added.
+  createEffect(
+    on(
+      () => params.ratingKey,
+      () => setInWatchlistOverride(null),
+      { defer: true },
+    ),
+  );
   const [watchlist] = createResource(() => api.watchlist().catch(() => []));
 
   // Plex's watchlist is keyed at the show level — for episode/season detail
@@ -140,7 +153,7 @@ export default function ItemDetail() {
       setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
     } catch (e) {
       setInWatchlistOverride(wasIn);
-      alert(`Watchlist toggle failed: ${(e as Error).message}`);
+      toast.error(`Couldn't update your Watchlist — ${errorMessage(e)}`);
     }
   }
 
@@ -166,7 +179,7 @@ export default function ItemDetail() {
       await api.play(params.serverID!, it.ratingKey);
     } catch (e) {
       console.error("play failed:", e);
-      alert(`Play failed: ${(e as Error).message}`);
+      toast.error(`Couldn't start playback — ${errorMessage(e)}`);
     }
   }
 
@@ -177,7 +190,7 @@ export default function ItemDetail() {
       await api.play(params.serverID!, it.ratingKey, it.viewOffset);
     } catch (e) {
       console.error("play resume failed:", e);
-      alert(`Play failed: ${(e as Error).message}`);
+      toast.error(`Couldn't start playback — ${errorMessage(e)}`);
     }
   }
 
@@ -194,7 +207,7 @@ export default function ItemDetail() {
       // ItemDetail's own refetchItem and any mounted Episodes resources.
       window.dispatchEvent(new CustomEvent("lumen:data-invalidated"));
     } catch (e) {
-      alert(`Mark watched failed: ${(e as Error).message}`);
+      toast.error(`Couldn't mark as watched — ${errorMessage(e)}`);
     }
   }
 
@@ -224,13 +237,23 @@ export default function ItemDetail() {
       // ItemDetail's own refetchItem and any mounted Episodes resources.
       window.dispatchEvent(new CustomEvent("lumen:data-invalidated"));
     } catch (e) {
-      alert(`Mark unwatched failed: ${(e as Error).message}`);
+      toast.error(`Couldn't mark as unwatched — ${errorMessage(e)}`);
     }
   }
 
   return (
     <div class="item-detail">
-      <Show when={item()} fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}>
+      <Show when={item.error}>
+        <div class="item-fetch-error" role="alert">
+          <h2>Couldn't load this title</h2>
+          <p>{errorMessage(item.error)}</p>
+          <button class="library-fetch-retry" onClick={() => refetchItem()}>Retry</button>
+        </div>
+      </Show>
+      <Show
+        when={!item.error && item()}
+        fallback={<div class="item-loading"><Skeleton kind="line" count={4} /></div>}
+      >
         {(it) => (
           <>
             <Hero item={it() as Item} serverID={params.serverID!} effectiveImdbId={effectiveImdbId()} />
@@ -277,7 +300,7 @@ export default function ItemDetail() {
               </div>
             </Show>
             <section class="overview">
-              <h3>Overview</h3>
+              <h2>Overview</h2>
               <p>{(it() as Item).summary ?? "No synopsis available."}</p>
             </section>
             <Show when={(it() as Item).type === "episode" || (it() as Item).type === "show"}>
@@ -289,7 +312,7 @@ export default function ItemDetail() {
               />
             </Show>
             <section class="availability">
-              <h3>More Ways to Watch</h3>
+              <h2>More Ways to Watch</h2>
               <Show when={availability()} fallback={<div class="availability-loading">Checking other servers…</div>}>
                 {(matches) => (
                   <ul>
@@ -359,7 +382,10 @@ function Hero(props: { item: Item; serverID: string; effectiveImdbId?: string })
   const backdropPath = () =>
     props.item.art || props.item.grandparentArt || props.item.thumb;
   return (
-    <header class="hero">
+    // Without a backdrop the hero used to reserve its full 65vh anyway,
+    // producing ~700px of empty black with the title pushed to the bottom edge
+    // of the viewport. classList collapses it to fit its content instead.
+    <header class="hero" classList={{ "hero--no-art": !backdropPath() }}>
       <Show when={backdropPath()}>
         <div
           class="hero-backdrop"
@@ -410,7 +436,7 @@ function CastCrew(props: { item: Item; serverID: string }) {
   return (
     <Show when={combined().length > 0}>
       <section class="cast-crew">
-        <h3>Cast & Crew</h3>
+        <h2>Cast &amp; Crew</h2>
         <ul class="people-grid">
           <For each={combined()}>
             {(p) => <PersonCard person={p} serverID={props.serverID} />}

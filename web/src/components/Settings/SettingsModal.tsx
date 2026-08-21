@@ -1,19 +1,20 @@
-import { createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
 // @ts-expect-error — motionone/solid's package.json exports field hides its d.ts file
 import { Motion, Presence } from "@motionone/solid";
 import Appearance from "./Appearance";
-import Shortcuts from "./Shortcuts";
+import WindowTray from "./WindowTray";
 import AccountsServers from "./AccountsServers";
 import Playback from "./Playback";
 import DataCache from "./DataCache";
 import About from "./About";
 import { X } from "../icons";
+import { createEscapeHandler, createFocusTrap } from "../../util/focusTrap";
 import "./SettingsModal.css";
 
 const SECTIONS = [
   { id: "appearance",  label: "Appearance",         component: Appearance },
-  { id: "shortcuts",   label: "Shortcuts",          component: Shortcuts },
+  { id: "window",      label: "Window & Tray",      component: WindowTray },
   { id: "accounts",    label: "Accounts & Servers", component: AccountsServers },
   { id: "playback",    label: "Playback",           component: Playback },
   { id: "cache",       label: "Data & Cache",       component: DataCache },
@@ -23,14 +24,13 @@ const SECTIONS = [
 export default function SettingsModal(props: { open: boolean; onClose: () => void }) {
   const [activeID, setActiveID] = createSignal<string>(SECTIONS[0].id);
 
-  function onKeyDown(e: KeyboardEvent) {
-    if (e.key === "Escape") props.onClose();
-  }
+  let dialogRef: HTMLDivElement | undefined;
 
-  onMount(() => {
-    document.addEventListener("keydown", onKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", onKeyDown));
-  });
+  // This listener previously had NO props.open guard, so Escape anywhere in the
+  // app called onClose — and closed Settings out from under any modal stacked
+  // on top of it.
+  createEscapeHandler(() => props.open, () => props.onClose());
+  createFocusTrap({ container: () => dialogRef, isOpen: () => props.open });
 
   const activeSection = () => SECTIONS.find((s) => s.id === activeID())!;
 
@@ -48,8 +48,11 @@ export default function SettingsModal(props: { open: boolean; onClose: () => voi
         >
           <Motion.div
             class="settings-modal"
+            ref={dialogRef}
+            tabindex="-1"
             onClick={(e: Event) => e.stopPropagation()}
             role="dialog"
+            aria-modal="true"
             aria-label="Settings"
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -77,9 +80,9 @@ export default function SettingsModal(props: { open: boolean; onClose: () => voi
                 </For>
               </nav>
             </aside>
-            <main class="settings-detail">
+            <div class="settings-detail">
               <Dynamic component={activeSection().component} />
-            </main>
+            </div>
           </Motion.div>
         </Motion.div>
       </Show>

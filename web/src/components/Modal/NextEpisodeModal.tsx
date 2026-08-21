@@ -3,6 +3,7 @@ import ModalShell from "./ModalShell";
 import { playbackStore } from "../../state/playback";
 import { api } from "../../api/client";
 import "./NextEpisodeModal.css";
+import { toast, errorMessage } from "../Toast";
 
 export default function NextEpisodeModal() {
   const info = playbackStore.nextEpisode;
@@ -13,7 +14,7 @@ export default function NextEpisodeModal() {
       await api.play(target.serverID, target.ratingKey);
     } catch (e) {
       console.error("play next failed:", e);
-      alert(`Failed to play next episode: ${(e as Error).message}`);
+      toast.error(`Couldn't play the next episode — ${errorMessage(e)}`);
     } finally {
       playbackStore.dismissNextEpisode();
     }

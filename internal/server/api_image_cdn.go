@@ -21,6 +21,10 @@ var cdnImageHosts = map[string]bool{
 	"metadata-static.plex.tv": true,
 	"provider-static.plex.tv": true,
 	"images.plex.tv":          true,
+	// Plex mixes TMDB-hosted headshots into its cast lists — on one show, 75
+	// people came from metadata-static.plex.tv and 3 from here. Public CDN,
+	// no credentials involved.
+	"image.tmdb.org": true,
 }
 
 func isAbsoluteURL(raw string) bool {

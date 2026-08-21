@@ -8,9 +8,20 @@ import type { OMDBRating } from "../api/types";
 // to). The link never depends on the rating fetch — unrated/unreleased
 // titles show "—" but still link.
 export default function IMDBPill(props: { imdbId?: string }) {
+  // OMDB legitimately 404s for unreleased titles, and api.imdb throws on any
+  // non-2xx. An unhandled rejection here would make reading rating() re-throw
+  // and take the whole detail page down over a missing rating — so "no rating"
+  // is caught and rendered as "—", which is what it means.
   const [rating] = createResource(
     () => props.imdbId,
-    async (id) => (id ? api.imdb(id) : null)
+    async (id) => {
+      if (!id) return null;
+      try {
+        return await api.imdb(id);
+      } catch {
+        return null;
+      }
+    },
   );
   const value = () => (
     <Show when={rating()} fallback={<span class="pill-imdb-value">—</span>}>

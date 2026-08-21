@@ -8,6 +8,10 @@ const CARD_WIDTH_BASE_PX: Record<"s" | "m" | "l" | "xl", number> = {
   s: 120, m: 160, l: 200, xl: 240,
 };
 
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, Number.isFinite(n) ? n : lo));
+}
+
 // Debounce helper for PUT coalescing.
 function debounce<T extends (...args: any[]) => any>(fn: T, ms: number): T {
   let t: number | undefined;
@@ -25,6 +29,20 @@ function createSettingsStore() {
     const root = document.documentElement;
     root.setAttribute("data-card-size", s.cardSize);
     root.style.setProperty("--font-size", `${s.fontSize}px`);
+
+    // cardDensity, cardLayout and rowsPerShelf used to render controls, persist
+    // to config.json, and be read by absolutely nothing — three of the six
+    // Appearance settings were decorative. These wire the first two up; Shelf
+    // reads rowsPerShelf directly.
+    //
+    // The density mapping is chosen so the default (50) reproduces the previous
+    // hardcoded 20px/16px gaps exactly, and existing installs see no change.
+    const density = clamp(s.cardDensity, 0, 100);
+    root.style.setProperty("--card-gap-x", `${(6 + density * 0.2).toFixed(1)}px`);
+    root.style.setProperty("--card-gap-y", `${(10 + density * 0.2).toFixed(1)}px`);
+
+    root.setAttribute("data-card-layout", s.cardLayout);
+    root.style.setProperty("--card-aspect", s.cardLayout === "landscape" ? "16 / 9" : "2 / 3");
     // --card-width is set INLINE on :root as cardSize-base × zoom%. This wins
     // over the [data-card-size] CSS rules (same specificity but inline beats
     // selector). All cards across pages scale together. Top bar / left menu
@@ -41,6 +59,38 @@ function createSettingsStore() {
     setLoaded(true);
     applyTheme(themeByID(s.theme));
     applyRootDerived(s);
+  }
+
+  /**
+   * loadWithRetry keeps trying, with backoff, until settings arrive.
+   *
+   * A single failed load used to be terminal: settings() stayed null forever,
+   * so Appearance and Playback showed "Loading…" permanently, every patch()
+   * silently no-opped on `if (!current) return`, and the theme fell back to raw
+   * CSS defaults — with nothing on screen explaining why. Since the server is
+   * on loopback and starting up alongside the SPA, losing this race is easy.
+   */
+  async function loadWithRetry(attempts = 5) {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        await load();
+        return;
+      } catch (e) {
+        const last = i === attempts - 1;
+        console.error(`settings load failed (attempt ${i + 1}/${attempts}):`, e);
+        if (last) {
+          // Imported lazily: the toast host is part of the component tree and
+          // this module is imported by main.tsx before render.
+          const { toast } = await import("../components/Toast");
+          toast.error("Couldn't load your settings — using defaults.", {
+            label: "Retry",
+            run: () => void loadWithRetry(),
+          });
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 250 * 2 ** i));
+      }
+    }
   }
 
   const flushDebounced = debounce(async (patch: Partial<UISettings>) => {
@@ -77,7 +127,7 @@ function createSettingsStore() {
     flushDebounced(update);
   }
 
-  return { settings, loaded, load, patch };
+  return { settings, loaded, load, loadWithRetry, patch };
 }
 
 export const store = createRoot(createSettingsStore);

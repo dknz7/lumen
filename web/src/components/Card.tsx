@@ -4,7 +4,9 @@ import { api } from "../api/client";
 import type { Item } from "../api/types";
 import { CircleCheck, ImageOff, Play, Plus, Trash2 } from "./icons";
 import { formatAddedTimestamp } from "../util/date";
+import { store } from "../state/settings";
 import "./Card.css";
+import { toast, errorMessage } from "./Toast";
 
 export interface CardProps {
   item: Item;
@@ -30,6 +32,7 @@ function derive(item: Item) {
       title: item.grandparentTitle ?? item.title,
       subtitle: se + (item.title && se ? ` · ${item.title}` : item.title ?? ""),
       thumb: item.grandparentThumb ?? item.thumb,
+      art: item.art,
       year: undefined as number | undefined,
       linkKey: item.ratingKey,
     };
@@ -38,6 +41,7 @@ function derive(item: Item) {
     title: item.title,
     subtitle: undefined as string | undefined,
     thumb: item.thumb,
+    art: item.art,
     year: item.year,
     linkKey: item.ratingKey,
   };
@@ -48,7 +52,14 @@ export default function Card(props: CardProps) {
   // Placeholder-first: ImageOff always renders underneath; <img> overlays when
   // it loads. If thumb is missing OR the load 404s, placeholder stays visible.
   const [imgFailed, setImgFailed] = createSignal(false);
-  const hasImg = () => !!d().thumb && !imgFailed();
+
+  // Appearance > Card layout. In landscape the backdrop is the right source —
+  // cropping a 2:3 poster to 16:9 chops off faces and titles, and Plex already
+  // ships a wide image for the purpose. Falls back to the poster when a title
+  // has no backdrop.
+  const isLandscape = () => store.settings()?.cardLayout === "landscape";
+  const cardImage = () => (isLandscape() ? d().art ?? d().thumb : d().thumb);
+  const hasImg = () => !!cardImage() && !imgFailed();
 
   const progressPct = () => {
     const dur = props.item.duration ?? 0;
@@ -77,7 +88,7 @@ export default function Card(props: CardProps) {
       setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
     } catch (err) {
       setWatchlistAdded(false);
-      alert(`Add to Watchlist failed: ${(err as Error).message}`);
+      toast.error(`Couldn't add to Watchlist — ${errorMessage(err)}`);
     } finally {
       setWatchlistBusy(false);
     }
@@ -95,7 +106,7 @@ export default function Card(props: CardProps) {
       }
     } catch (err) {
       console.error("card play failed:", err);
-      alert(`Play failed: ${(err as Error).message}`);
+      toast.error(`Couldn't start playback — ${errorMessage(err)}`);
     }
   }
 
@@ -108,8 +119,10 @@ export default function Card(props: CardProps) {
         {hasImg() && (
           <img
             class="card-poster-img"
-            src={api.image(props.serverID, d().thumb!, "poster")}
+            src={api.image(props.serverID, cardImage()!, isLandscape() ? "landscape" : "poster")}
             alt=""
+            loading="lazy"
+            decoding="async"
             onError={() => setImgFailed(true)}
           />
         )}

@@ -36,6 +36,7 @@ type Server struct {
 	playback      *playback.Manager
 	window        windowController
 	hls           *hlsProxy
+	availability  *availabilityCache
 	hlsClient     *http.Client
 }
 
@@ -63,6 +64,7 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 		images:        newImageCache(),
 		auth:          newAuthState(),
 		hls:           newHLSProxy(),
+		availability:  newAvailabilityCache(),
 		// Its own client: trailer manifests and segments are streamed, so this
 		// must not inherit a short whole-request timeout.
 		hlsClient: &http.Client{Timeout: 60 * time.Second},

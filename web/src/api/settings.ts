@@ -9,8 +9,18 @@ export interface UISettings {
   defaultSort: string;
   defaultViewMode: "shows" | "episodes" | "";
   playback: { potPlayerPath: string };
+  window: WindowSettings;
   hiddenLibraries: string[];
   shelfState: Record<string, PageShelfState>;
+}
+
+export interface WindowSettings {
+  /** "tray" keeps Lumen running when the window is closed; "quit" exits. */
+  closeAction: "tray" | "quit";
+  /** Minimising hides to the tray rather than the taskbar. */
+  minimizeToTray: boolean;
+  /** Launch straight to the tray with no window. */
+  startHidden: boolean;
 }
 
 export interface PageShelfState {

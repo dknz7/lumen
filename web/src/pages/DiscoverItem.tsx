@@ -1,5 +1,5 @@
 import { useParams, A, useNavigate } from "@solidjs/router";
-import { createEffect, createMemo, createResource, createSignal, For, Show } from "solid-js";
+import { For, Show, createEffect, createMemo, createResource, createSignal, on } from "solid-js";
 import { api } from "../api/client";
 import type { DiscoverItem, DiscoverRating, Match, Person } from "../api/types";
 import Skeleton from "../components/Skeleton";
@@ -10,6 +10,7 @@ import "./DiscoverItem.css";
 // .people-grid / .person-card / .pill-imdb all live there. We only add
 // DiscoverItem-specific rules in DiscoverItem.css.
 import "./ItemDetail.css";
+import { toast, errorMessage } from "../components/Toast";
 
 // DiscoverItem renders the plex.tv-source detail page. Both
 // /discover-item/:ratingKey (Recommended/Discover tile click) and
@@ -67,6 +68,18 @@ export default function DiscoverItem() {
   // (Discover and Watchlist share the discover-namespace ratingKey space).
   const [watchlist] = createResource(() => api.watchlist().catch(() => []));
   const [inWatchlistOverride, setInWatchlistOverride] = createSignal<boolean | null>(null);
+
+  // Solid Router reuses this component across params.ratingKey changes, so the
+  // optimistic override survived navigation: toggle the watchlist on item A,
+  // click through to item B, and B rendered A's state — "Remove from
+  // Watchlist" on something that was never added.
+  createEffect(
+    on(
+      () => params.ratingKey,
+      () => setInWatchlistOverride(null),
+      { defer: true },
+    ),
+  );
   const isInWatchlist = createMemo(() => {
     const override = inWatchlistOverride();
     if (override !== null) return override;
@@ -86,7 +99,7 @@ export default function DiscoverItem() {
       setTimeout(() => window.dispatchEvent(new CustomEvent("lumen:data-invalidated")), 350);
     } catch (e) {
       setInWatchlistOverride(wasIn);
-      alert(`Watchlist toggle failed: ${(e as Error).message}`);
+      toast.error(`Couldn't update your Watchlist — ${errorMessage(e)}`);
     }
   }
 

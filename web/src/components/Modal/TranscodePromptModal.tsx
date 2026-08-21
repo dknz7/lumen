@@ -2,6 +2,7 @@ import ModalShell from "./ModalShell";
 import { playbackStore } from "../../state/playback";
 import { api } from "../../api/client";
 import "./TranscodePromptModal.css";
+import { toast, errorMessage } from "../Toast";
 
 export default function TranscodePromptModal() {
   const info = playbackStore.transcodePrompt;
@@ -15,7 +16,7 @@ export default function TranscodePromptModal() {
       await api.playTranscode(i.serverID, i.ratingKey);
     } catch (e) {
       console.error("playTranscode failed:", e);
-      alert(`Transcode failed: ${(e as Error).message}`);
+      toast.error(`Couldn't start the transcode — ${errorMessage(e)}`);
     }
   }
 

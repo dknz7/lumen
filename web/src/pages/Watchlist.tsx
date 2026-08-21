@@ -6,8 +6,11 @@ import Skeleton from "../components/Skeleton";
 import TrailerModal from "../components/Modal/TrailerModal";
 import { CircleCheck, Play, Trash2 } from "../components/icons";
 import { refetchOnFocus } from "../util/focusRefetch";
+import { createInViewport } from "../util/inViewport";
+import { useAvailability } from "../state/availability";
 import { stableArrayByKey } from "../util/stableArray";
 import "./Watchlist.css";
+import { toast, errorMessage } from "../components/Toast";
 
 function isAbsoluteURL(s: string): boolean {
   return /^https?:\/\//i.test(s);
@@ -31,8 +34,8 @@ type TypeFilter = "all" | "movie" | "show";
 type SortKey = "addedAt" | "title" | "year";
 
 export default function Watchlist() {
-  const [items, { refetch }] = createResource<WatchlistItem[]>(() => api.watchlist());
-  refetchOnFocus(refetch);
+  const [items, { refetch: refetchItems }] = createResource<WatchlistItem[]>(() => api.watchlist());
+  refetchOnFocus(refetchItems);
 
   const [typeFilter, setTypeFilter] = createSignal<TypeFilter>("all");
   const [sortKey, setSortKey] = createSignal<SortKey>("addedAt");
@@ -73,6 +76,7 @@ export default function Watchlist() {
   return (
     <div class="watchlist-page">
       <header class="watchlist-header">
+        <h1 class="page-heading">Watchlist</h1>
         <div class="watchlist-controls">
           <label>
             Type
@@ -92,12 +96,21 @@ export default function Watchlist() {
           </label>
         </div>
         <div class="watchlist-count">
-          <Show when={items()} fallback="…">
+          <Show when={!items.error && items()} fallback="…">
             {visible().length} item{visible().length === 1 ? "" : "s"}
           </Show>
         </div>
       </header>
-      <Show when={items()} fallback={<div class="watchlist-grid"><Skeleton kind="card" count={12} /></div>}>
+      <Show when={items.error}>
+        <div class="watchlist-error" role="alert">
+          <p>Couldn't load your Watchlist — {errorMessage(items.error)}</p>
+          <button class="shelf-retry" onClick={() => refetchItems()}>Try again</button>
+        </div>
+      </Show>
+      <Show
+        when={!items.error && items()}
+        fallback={<div class="watchlist-grid"><Skeleton kind="card" count={12} /></div>}
+      >
         <ul class="watchlist-grid">
           <For each={visible()}>
             {(it) => <WatchlistCard item={it} openTrailer={openTrailer} />}
@@ -123,21 +136,13 @@ function WatchlistCard(props: {
 }) {
   const navigate = useNavigate();
 
-  // Eager per-card availability fetch on mount. Byron explicitly accepted
-  // the N-parallel-call cost (Lumen runs on his desktop, watchlist tops
-  // out around 100 items). Defensive `?? []`: backend returns null for the
-  // empty case which would crash downstream `.length` reads.
-  const [availability] = createResource(
-    () => props.item.guid ?? null,
-    async (guid: string) => {
-      try {
-        const result = await api.availability(guid);
-        return Array.isArray(result) ? result : [];
-      } catch {
-        return [];
-      }
-    },
-  );
+  // Availability is requested only once this card scrolls into view, and the
+  // request is coalesced with its neighbours into a single batch. Asking for
+  // all 528 up front took ~42 seconds and hammered both Plex servers on every
+  // visit and every window focus.
+  let cardRef: HTMLLIElement | undefined;
+  const onScreen = createInViewport(() => cardRef);
+  const availability = useAvailability(() => props.item.guid, onScreen);
 
   // Best local match: highest resolution wins, tiebreak alphabetically by
   // server display name. For Pineapple Express on Stargaze 1080p in Byron's
@@ -161,7 +166,7 @@ function WatchlistCard(props: {
       try {
         await api.play(m.machineIdentifier, m.ratingKey);
       } catch (e) {
-        alert(`Play failed: ${(e as Error).message}`);
+        toast.error(`Couldn't start playback — ${errorMessage(e)}`);
       }
       return;
     }
@@ -171,7 +176,7 @@ function WatchlistCard(props: {
     try {
       const detail = await api.discoverItem(props.item.ratingKey);
       if (!detail.imdbId) {
-        alert("No trailer available — this title has no IMDB id on Plex Discover.");
+        toast.info("No trailer available — Plex has no IMDB id for this title.");
         return;
       }
       const mediaType: "movie" | "show" =
@@ -180,12 +185,12 @@ function WatchlistCard(props: {
           : "movie";
       const youtubeID = await api.tmdbTrailer(detail.imdbId, mediaType);
       if (!youtubeID) {
-        alert("No trailer available.");
+        toast.info("No trailer available for this title.");
         return;
       }
       props.openTrailer(youtubeID, detail.title);
     } catch (e) {
-      alert(`Could not load trailer: ${(e as Error).message}`);
+      toast.error(`Couldn't load the trailer — ${errorMessage(e)}`);
     }
   }
 
@@ -200,7 +205,7 @@ function WatchlistCard(props: {
         350,
       );
     } catch (e) {
-      alert(`Remove from watchlist failed: ${(e as Error).message}`);
+      toast.error(`Couldn't remove from your Watchlist — ${errorMessage(e)}`);
     }
   }
 
@@ -213,7 +218,7 @@ function WatchlistCard(props: {
     try {
       const matches = (await api.availability(props.item.guid ?? "")) ?? [];
       if (matches.length === 0) {
-        alert("This title isn't on any of your servers — can't mark watched.");
+        toast.info("This title isn't on any of your servers, so there's nothing to mark watched.");
         return;
       }
       const m = matches[0];
@@ -223,7 +228,7 @@ function WatchlistCard(props: {
         350,
       );
     } catch (e) {
-      alert(`Mark watched failed: ${(e as Error).message}`);
+      toast.error(`Couldn't mark as watched — ${errorMessage(e)}`);
     }
   }
 
@@ -261,7 +266,7 @@ function WatchlistCard(props: {
   }
 
   return (
-    <li class="watchlist-card">
+    <li class="watchlist-card" ref={cardRef}>
       <div
         class="watchlist-card-body"
         onClick={handleBodyClick}

@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup } from "solid-js";
+import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import ModalShell from "./ModalShell";
 import { api } from "../../api/client";
 import "./ReAuthModal.css";
@@ -31,16 +31,33 @@ export default function ReAuthModal(props: ReAuthModalProps) {
     }
   }
 
+  function stopPolling() {
+    if (pollTimer) {
+      window.clearInterval(pollTimer);
+      pollTimer = undefined;
+    }
+  }
+
+  // Closing the modal (Cancel, Escape, backdrop) left the interval running:
+  // /api/auth/poll fired every 2s for as long as Settings stayed mounted, and
+  // a late "linked" response would fire props.onLinked() out of nowhere.
+  // Clicking Start again also overwrote pollTimer, orphaning the previous
+  // interval permanently.
+  createEffect(() => {
+    if (!props.open) stopPolling();
+  });
+
   function pollLoop() {
+    stopPolling(); // never leak a previous loop
     pollTimer = window.setInterval(async () => {
       try {
         const r = await api.authPoll();
         if (r.status === "linked") {
-          window.clearInterval(pollTimer);
+          stopPolling();
           setStatus("linked");
           props.onLinked();
         } else if (r.status === "expired") {
-          window.clearInterval(pollTimer);
+          stopPolling();
           setStatus("expired");
         }
       } catch (e) {
@@ -51,9 +68,7 @@ export default function ReAuthModal(props: ReAuthModalProps) {
     }, 2000);
   }
 
-  onCleanup(() => {
-    if (pollTimer) window.clearInterval(pollTimer);
-  });
+  onCleanup(stopPolling);
 
   return (
     <ModalShell open={props.open} onCancel={props.onClose} ariaLabel="Re-authenticate with Plex">

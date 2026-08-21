@@ -1,5 +1,6 @@
 import { createResource, createSignal, Show } from "solid-js";
 import Section from "./Section";
+import { toast, errorMessage } from "../Toast";
 
 interface CacheSize {
   images: number;
@@ -31,7 +32,7 @@ export default function DataCache() {
       if (!res.ok) throw new Error(`${res.status}`);
       refetch();
     } catch (e) {
-      alert((e as Error).message);
+      toast.error(`Couldn't clear the cache — ${errorMessage(e)}`);
     } finally {
       setClearingScope(null);
     }
@@ -39,6 +40,10 @@ export default function DataCache() {
 
   return (
     <Section title="Data & Cache" description="Proxied images and OMDB metadata cache.">
+      <Show
+        when={!size.error}
+        fallback={<p class="as-warn">Couldn't read cache sizes — {errorMessage(size.error)}</p>}
+      >
       <Show when={size()} fallback={<p>Loading…</p>}>
         {(cs) => (
           <>
@@ -73,6 +78,7 @@ export default function DataCache() {
             </div>
           </>
         )}
+      </Show>
       </Show>
     </Section>
   );

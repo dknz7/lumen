@@ -1,0 +1,39 @@
+.wt-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-width: 52ch;
+}
+
+/* Checkbox rows: the whole label is the hit target, not just the 13px box. */
+.wt-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.wt-check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.wt-path {
+  display: block;
+  margin-top: 8px;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  overflow-x: auto;
+  white-space: nowrap;
+}

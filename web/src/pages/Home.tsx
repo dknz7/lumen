@@ -1,82 +1,91 @@
 import { createMemo, createResource, createSignal, For, JSX, Show } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { api } from "../api/client";
-import type { Collection, Item, Library, Server } from "../api/types";
+import type { Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
 import Shelf from "../components/Shelf";
 import Card from "../components/Card";
 import Skeleton from "../components/Skeleton";
-import { Cat, Film, Flame, Play, Server as ServerIcon, Star, Tv } from "../components/icons";
+import { Cat, Film, Flame, Play, Server as ServerIcon, Tv } from "../components/icons";
 import { store as settingsStore } from "../state/settings";
+import { librariesFor } from "../state/libraries";
+import {
+  applyPersistedOrder,
+  deriveHomeLayout,
+  type GroupDef,
+  type ShelfDef,
+} from "../util/homeLayout";
+import ResourceView from "../components/ResourceView";
+import { toast, errorMessage } from "../components/Toast";
 import { refetchOnFocus } from "../util/focusRefetch";
 import { stableArrayByKey } from "../util/stableArray";
 import "./Home.css";
 
-// Icon dispatch for Home shelves + groups. Keyed off shelf id / group name so
-// new shelves added later can be tagged via the same naming pattern.
-function iconForShelf(id: string): JSX.Element {
-  if (id.includes("trending")) return <Flame size={18} />;
-  if (id.includes("anime")) return <Cat size={18} />;
-  if (id.includes("episodes")) return <Tv size={18} />;
-  if (id.includes("movies")) return <Film size={18} />;
-  return <Film size={18} />;
+// Icon dispatch for Home shelves and groups. Keyed off the library type and
+// title rather than a hardcoded shelf id, so it works for any user's libraries.
+function iconForShelf(def: ShelfDef): JSX.Element {
+  const t = def.libraryTitle.toLowerCase();
+  if (t.includes("anime")) return <Cat size={18} />;
+  if (def.kind === "server-collection") return <Flame size={18} />;
+  return def.libraryType === "show" ? <Tv size={18} /> : <Film size={18} />;
 }
 
-function iconForGroup(logicalName: string): JSX.Element {
-  if (logicalName.toLowerCase() === "stargaze") return <Star size={20} />;
+function iconForGroup(): JSX.Element {
   return <ServerIcon size={20} />;
 }
 
-// Shelf definitions — one entry per shelf on the Home page (spec §12.1).
-// "server-collection" resolves a Plex Collection by title within a library
-// (admin-rename tolerant). title is Lumen's display label; collectionTitle
-// is the lookup key on Plex — they may differ (e.g. Plex's "Trending Shows"
-// vs Lumen's "Trending TV Shows").
-type ShelfDef =
-  | { kind: "ondeck-merged"; id: string; title: string }
-  | { kind: "server-recent"; id: string; title: string; serverName: string; libraryName: string }
-  | { kind: "server-collection"; id: string; title: string; serverName: string; libraryName: string; collectionTitle: string }
-  | { kind: "stub"; id: string; title: string; reason: string };
-
-const STARGAZE_SHELVES: ShelfDef[] = [
-  { kind: "server-collection", id: "stargaze-trending-movies", title: "Trending Movies", serverName: "Stargaze", libraryName: "Movies", collectionTitle: "Trending Movies" },
-  { kind: "server-recent", id: "stargaze-recent-movies", title: "Recently Released Movies", serverName: "Stargaze", libraryName: "Movies" },
-  { kind: "server-recent", id: "stargaze-recent-movies-4k", title: "Recently Released Movies (4K)", serverName: "Stargaze", libraryName: "Movies - 4K" },
-  { kind: "server-collection", id: "stargaze-trending-tv", title: "Trending TV Shows", serverName: "Stargaze", libraryName: "TV Shows", collectionTitle: "Trending Shows" },
-  { kind: "server-recent", id: "stargaze-recent-episodes", title: "Recently Released Episodes", serverName: "Stargaze", libraryName: "TV Shows" },
-  { kind: "server-recent", id: "stargaze-recent-episodes-4k", title: "Recently Released Episodes (4K)", serverName: "Stargaze", libraryName: "TV Shows - 4K" },
-  { kind: "server-recent", id: "stargaze-recent-anime", title: "Recently Released Anime Episodes", serverName: "Stargaze", libraryName: "Anime" },
-];
-
-const DKNZPLEX_SHELVES: ShelfDef[] = [
-  { kind: "server-recent", id: "dknzplex-recent-movies", title: "Recently Released Movies", serverName: "DKNZPLEX", libraryName: "Movies" },
-  { kind: "server-recent", id: "dknzplex-recent-movies-4k", title: "Recently Released Movies (4K)", serverName: "DKNZPLEX", libraryName: "Movies - 4K UHD" },
-  { kind: "server-recent", id: "dknzplex-recent-anime-movies", title: "Recently Released Anime Movies", serverName: "DKNZPLEX", libraryName: "Movies - Anime" },
-  { kind: "server-recent", id: "dknzplex-recent-episodes", title: "Recently Released Episodes", serverName: "DKNZPLEX", libraryName: "TV Shows" },
-  { kind: "server-recent", id: "dknzplex-recent-episodes-4k", title: "Recently Released Episodes (4K)", serverName: "DKNZPLEX", libraryName: "TV Shows - 4K HDR" },
-  { kind: "server-recent", id: "dknzplex-recent-anime-episodes", title: "Recently Released Anime Episodes", serverName: "DKNZPLEX", libraryName: "TV Shows - Anime" },
-];
-
-const GROUP_DEFS = [
-  { id: "stargaze", logicalName: "Stargaze", shelves: STARGAZE_SHELVES },
-  { id: "dknzplex", logicalName: "DKNZPLEX", shelves: DKNZPLEX_SHELVES },
-];
+// Appearance > Rows per shelf. Every call site used to pass a literal 2,
+// which is why the setting appeared to do nothing.
+const shelfRows = () => settingsStore.settings()?.rowsPerShelf ?? 2;
 
 export default function Home() {
-  const [servers] = createResource(() => api.servers());
+  const [servers, { refetch: refetchServers }] = createResource(() => api.servers());
   const pageKey = "home";
 
-  const persistedGroupOrder = () => {
-    const persisted = settingsStore.settings()?.shelfState?.[pageKey]?.groupOrder;
-    if (!persisted || persisted.length === 0) return GROUP_DEFS.map((g) => g.id);
-    const missing = GROUP_DEFS.map((g) => g.id).filter((id) => !persisted.includes(id));
-    return [...persisted.filter((id) => GROUP_DEFS.some((g) => g.id === id)), ...missing];
-  };
+  // One libraries fetch per server for the whole page. Every Recently Added
+  // shelf used to run its own, which is how a single Home load produced 17
+  // requests for the same two library lists.
+  const [libsByServer] = createResource(
+    () => (servers.error ? undefined : (servers() as Server[] | undefined)),
+    async (srvs) => {
+      const entries = await Promise.all(
+        srvs.map(async (s) => {
+          try {
+            return [s.machineIdentifier, await librariesFor(s.machineIdentifier)] as const;
+          } catch (e) {
+            // One unreachable server shouldn't blank the whole page; it just
+            // contributes no shelves.
+            console.error(`libraries failed for ${s.displayName}:`, e);
+            return [s.machineIdentifier, [] as Library[]] as const;
+          }
+        }),
+      );
+      return Object.fromEntries(entries) as Record<string, Library[]>;
+    },
+  );
+
+  const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
+
+  // The Home layout, derived from whatever this user's account can actually
+  // see. Previously a pair of hardcoded constants naming one person's servers.
+  const groups = createMemo<GroupDef[]>(() => {
+    if (servers.error || libsByServer.error) return [];
+    const srvs = servers() as Server[] | undefined;
+    const libs = libsByServer();
+    if (!srvs || !libs) return [];
+    return deriveHomeLayout(srvs, libs, hiddenSet());
+  });
+
+  const groupOrder = () =>
+    applyPersistedOrder(
+      groups().map((g) => g.id),
+      settingsStore.settings()?.shelfState?.[pageKey]?.groupOrder,
+    );
 
   function onGroupDragEnd(e: any) {
     const { draggable, droppable } = e;
     if (!draggable || !droppable) return;
-    const current = persistedGroupOrder();
+    const current = groupOrder();
     const from = current.indexOf(draggable.id as string);
     const to = current.indexOf(droppable.id as string);
     if (from === -1 || to === -1 || from === to) return;
@@ -93,24 +102,46 @@ export default function Home() {
 
   return (
     <div class="home-page">
-      <Show when={servers()}>
+      {/* ResourceView reads .error before the value. Reading an errored resource
+          in Solid THROWS, so the old <Show when={servers()}> turned a failed
+          /api/servers into a blank page plus an uncaught error. */}
+      <ResourceView
+        resource={servers}
+        errorTitle="Couldn't reach your Plex servers"
+        onRetry={refetchServers}
+        loading={<Skeleton kind="card" count={12} />}
+        empty={
+          <div class="home-empty">
+            <h2>No servers yet</h2>
+            <p>
+              Lumen shows everything your Plex account can reach. If you've just
+              signed in, refresh your servers in Settings &rsaquo; Accounts &amp;
+              Servers.
+            </p>
+          </div>
+        }
+      >
         {(srvs) => (
           <>
-            <ContinueWatching servers={srvs() as Server[]} />
+            <ContinueWatching servers={srvs as Server[]} />
             <DragDropProvider onDragEnd={onGroupDragEnd} collisionDetector={closestCenter}>
               <DragDropSensors />
-              <SortableProvider ids={persistedGroupOrder()}>
-                <For each={persistedGroupOrder()}>
+              <SortableProvider ids={groupOrder()}>
+                <For each={groupOrder()}>
                   {(id) => {
-                    const def = GROUP_DEFS.find((g) => g.id === id)!;
-                    return <ServerGroup srvs={srvs() as Server[]} groupID={def.id} logicalName={def.logicalName} shelves={def.shelves} />;
+                    const def = () => groups().find((g) => g.id === id);
+                    return (
+                      <Show when={def()}>
+                        {(g) => <ServerGroup group={g()} />}
+                      </Show>
+                    );
                   }}
                 </For>
               </SortableProvider>
             </DragDropProvider>
           </>
         )}
-      </Show>
+      </ResourceView>
     </div>
   );
 }
@@ -181,7 +212,10 @@ function ContinueWatching(props: { servers: Server[] }) {
     } catch (e) {
       console.error(`${label} failed:`, e);
       setLocalItems(current);
-      alert(`Failed to ${label}: ${(e as Error).message}`);
+      toast.error(`Couldn't ${label} — ${errorMessage(e)}`, {
+        label: "Retry",
+        run: () => void applyCWAction(item, apiCall, label),
+      });
     }
   }
 
@@ -205,7 +239,7 @@ function ContinueWatching(props: { servers: Server[] }) {
       id="continue-watching"
       title="Continue Watching"
       sortable={false}
-      rowsPerPage={2}
+      rowsPerPage={shelfRows()}
       icon={<Play size={18} />}
       items={cwItems()}
       renderItem={(it: CWItem) => (
@@ -232,26 +266,20 @@ function ContinueWatching(props: { servers: Server[] }) {
   );
 }
 
-function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: string; shelves: ShelfDef[] }) {
-  const matched = () =>
-    props.srvs.find((s) =>
-      s.displayName.toLowerCase().includes(props.logicalName.toLowerCase())
-    ) ?? props.srvs.find((s) => s.name.toLowerCase() === props.logicalName.toLowerCase());
-
+function ServerGroup(props: { group: GroupDef }) {
   const pageKey = "home";
-  const groupID = props.groupID;
+  const groupID = () => props.group.id;
 
-  const persistedOrder = () => {
-    const order = settingsStore.settings()?.shelfState?.[pageKey]?.shelfOrder?.[groupID];
-    if (!order || order.length === 0) return props.shelves.map((s) => s.id);
-    const missing = props.shelves.map((s) => s.id).filter((id) => !order.includes(id));
-    return [...order.filter((id) => props.shelves.some((s) => s.id === id)), ...missing];
-  };
+  const shelfOrder = () =>
+    applyPersistedOrder(
+      props.group.shelves.map((sh) => sh.id),
+      settingsStore.settings()?.shelfState?.[pageKey]?.shelfOrder?.[groupID()],
+    );
 
   function onShelfDragEnd(e: any) {
     const { draggable, droppable } = e;
     if (!draggable || !droppable) return;
-    const current = persistedOrder();
+    const current = shelfOrder();
     const from = current.indexOf(draggable.id as string);
     const to = current.indexOf(droppable.id as string);
     if (from === -1 || to === -1 || from === to) return;
@@ -261,229 +289,89 @@ function ServerGroup(props: { srvs: Server[]; groupID: string; logicalName: stri
 
     const state = settingsStore.settings()?.shelfState ?? {};
     const pageState = state[pageKey] ?? {};
-    const shelfOrder = { ...(pageState.shelfOrder ?? {}), [groupID]: next };
+    const order = { ...(pageState.shelfOrder ?? {}), [groupID()]: next };
     settingsStore.patch({
-      shelfState: { ...state, [pageKey]: { ...pageState, shelfOrder } },
+      shelfState: { ...state, [pageKey]: { ...pageState, shelfOrder: order } },
     });
   }
 
   return (
-    <Group id={`group-${groupID}`} title={props.logicalName} icon={iconForGroup(props.logicalName)}>
-      <Show when={matched()} fallback={<div class="group-missing">{props.logicalName} not found in servers — run `lumen list`</div>}>
-        {(srv) => (
-          <DragDropProvider onDragEnd={onShelfDragEnd} collisionDetector={closestCenter}>
-            <DragDropSensors />
-            <SortableProvider ids={persistedOrder()}>
-              <For each={persistedOrder()}>
-                {(id) => {
-                  const def = props.shelves.find((s) => s.id === id);
-                  return def ? <ShelfLoader server={srv() as Server} def={def} /> : null;
-                }}
-              </For>
-            </SortableProvider>
-          </DragDropProvider>
-        )}
+    <Group id={`group-${groupID()}`} title={props.group.title} icon={iconForGroup()}>
+      <Show
+        when={props.group.shelves.length > 0}
+        fallback={
+          <div class="shelf-stub">
+            No movie or TV libraries on this server — or they're all hidden.
+          </div>
+        }
+      >
+        <DragDropProvider onDragEnd={onShelfDragEnd} collisionDetector={closestCenter}>
+          <DragDropSensors />
+          <SortableProvider ids={shelfOrder()}>
+            <For each={shelfOrder()}>
+              {(id) => {
+                const def = () => props.group.shelves.find((sh) => sh.id === id);
+                return (
+                  <Show when={def()}>
+                    {(d) => <RecentShelf def={d() as Extract<ShelfDef, { kind: "server-recent" }>} />}
+                  </Show>
+                );
+              }}
+            </For>
+          </SortableProvider>
+        </DragDropProvider>
       </Show>
     </Group>
   );
 }
 
-// ShelfLoader dispatches to the right loader by kind. Each per-kind component
-// has its own Solid hook scope so createResource lifecycles aren't shared
-// across mixed shelf types within a single function body.
-function ShelfLoader(props: { server: Server; def: ShelfDef }) {
-  if (props.def.kind === "stub") {
-    const def = props.def;
-    return (
-      <Shelf
-        id={def.id}
-        title={def.title}
-        initialCollapsed
-        rowsPerPage={2}
-        icon={iconForShelf(def.id)}
-      >
-        <div class="shelf-stub">({def.reason})</div>
-      </Shelf>
-    );
-  }
-  if (props.def.kind === "ondeck-merged") {
-    return null;
-  }
-  if (props.def.kind === "server-collection") {
-    return <CollectionShelf server={props.server} def={props.def} />;
-  }
-  return <RecentShelf server={props.server} def={props.def} />;
-}
-
-// RecentShelf renders a "Recently Released" Home shelf — Plex's native
-// /library/sections/<id>/recentlyAdded feed. Resolves the named library on
-// the server, then fetches its recently-added items.
-function RecentShelf(props: {
-  server: Server;
-  def: { kind: "server-recent"; id: string; title: string; serverName: string; libraryName: string };
-}) {
-  const def = props.def;
-  const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
-  const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
-
-  const lib = createMemo(() => {
-    const list = libs();
-    if (!list) return null;
-    return (list as Library[]).find((l) => l.title === def.libraryName) ?? null;
-  });
-
-  const isHidden = createMemo(() => {
-    const l = lib();
-    if (!l) return false;
-    return hiddenSet().has(`${props.server.machineIdentifier}:${l.key}`);
-  });
-
+// RecentShelf renders Plex's native /library/sections/<id>/recentlyAdded feed.
+//
+// It now receives the library key directly from the derived layout, so it does
+// not resolve a library by NAME and does not fetch the server's library list
+// itself — which is what made a single Home load issue seventeen identical
+// /libraries requests.
+function RecentShelf(props: { def: Extract<ShelfDef, { kind: "server-recent" }> }) {
   const [items, { refetch: refetchItems }] = createResource(
-    () => {
-      const l = lib();
-      if (!l || isHidden()) return null;
-      return l.key;
-    },
-    (libKey) => api.recentlyAdded(props.server.machineIdentifier, libKey, 20)
+    () => `${props.def.serverID}:${props.def.libraryKey}`,
+    () => api.recentlyAdded(props.def.serverID, props.def.libraryKey, 20),
   );
 
   refetchOnFocus(() => refetchItems());
 
   const stable = stableArrayByKey<Item>(
-    () => (items() as Item[] | undefined) ?? [],
+    () => (items.error ? [] : ((items() as Item[] | undefined) ?? [])),
     (it) => it.ratingKey,
   );
 
+  // Guarded: reading items() while errored would throw. Keeps the previous
+  // value during a refetch so the grid isn't destroyed and rebuilt mid-click.
   const itemList = () => {
-    if (!items()) return undefined;
+    if (items.error || !items()) return undefined;
     const list = stable();
     return list.length > 0 ? list : undefined;
   };
 
   return (
     <Shelf
-      id={def.id}
-      title={def.title}
-      rowsPerPage={2}
-      icon={iconForShelf(def.id)}
+      id={props.def.id}
+      title={props.def.title}
+      rowsPerPage={shelfRows()}
+      icon={iconForShelf(props.def)}
       items={itemList()}
-      renderItem={(it: Item) => (
-        <Card item={it} serverID={props.server.machineIdentifier} />
-      )}
+      renderItem={(it: Item) => <Card item={it} serverID={props.def.serverID} />}
     >
-      <Show when={!libs()}>
+      <Show when={items.error}>
+        <div class="shelf-stub shelf-stub--error">
+          Couldn't load {props.def.libraryTitle} — {errorMessage(items.error)}{" "}
+          <button class="shelf-retry" onClick={() => refetchItems()}>Retry</button>
+        </div>
+      </Show>
+      <Show when={!items.error && items.loading && !items()}>
         <Skeleton kind="card" count={6} />
       </Show>
-      <Show when={libs() && !lib()}>
-        <div class="shelf-stub">(library "{def.libraryName}" not found on {props.server.displayName})</div>
-      </Show>
-      <Show when={lib() && isHidden()}>
-        <div class="shelf-stub">(library hidden — toggle in left menu)</div>
-      </Show>
-      <Show when={lib() && !isHidden() && !items()}>
-        <Skeleton kind="card" count={6} />
-      </Show>
-    </Shelf>
-  );
-}
-
-// CollectionShelf renders a custom Plex Collection as a Home shelf
-// (e.g. Stargaze's "Trending Movies" / "Trending Shows" admin-curated lists).
-// Resolution chain: library by title → collection by title within library →
-// fetch collection items. Lookup-by-title keeps the wiring stable across
-// admin rebuilds that change collection ratingKeys.
-function CollectionShelf(props: {
-  server: Server;
-  def: {
-    kind: "server-collection";
-    id: string;
-    title: string;
-    serverName: string;
-    libraryName: string;
-    collectionTitle: string;
-  };
-}) {
-  const def = props.def;
-  const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
-  const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
-
-  const lib = createMemo(() => {
-    const list = libs();
-    if (!list) return null;
-    return (list as Library[]).find((l) => l.title === def.libraryName) ?? null;
-  });
-
-  const isHidden = createMemo(() => {
-    const l = lib();
-    if (!l) return false;
-    return hiddenSet().has(`${props.server.machineIdentifier}:${l.key}`);
-  });
-
-  // Fetch the collections list for the resolved library, then find the one
-  // whose title matches def.collectionTitle. Resource re-runs whenever
-  // lib().key or hidden state flips.
-  const [cols] = createResource(
-    () => {
-      const l = lib();
-      if (!l || isHidden()) return null;
-      return l.key;
-    },
-    (libKey) => api.collections(props.server.machineIdentifier, libKey)
-  );
-
-  const collection = createMemo(() => {
-    const list = cols();
-    if (!list) return null;
-    return (list as Collection[]).find((c) => c.title === def.collectionTitle) ?? null;
-  });
-
-  const [items, { refetch: refetchItems }] = createResource(
-    () => {
-      const c = collection();
-      if (!c) return null;
-      return c.ratingKey;
-    },
-    (rk) => api.collectionItems(props.server.machineIdentifier, rk, 20)
-  );
-
-  refetchOnFocus(() => refetchItems());
-
-  const stable = stableArrayByKey<Item>(
-    () => (items() as Item[] | undefined) ?? [],
-    (it) => it.ratingKey,
-  );
-
-  const itemList = () => {
-    if (!items()) return undefined;
-    const list = stable();
-    return list.length > 0 ? list : undefined;
-  };
-
-  return (
-    <Shelf
-      id={def.id}
-      title={def.title}
-      rowsPerPage={2}
-      icon={iconForShelf(def.id)}
-      items={itemList()}
-      renderItem={(it: Item) => (
-        <Card item={it} serverID={props.server.machineIdentifier} />
-      )}
-    >
-      <Show when={!libs()}>
-        <Skeleton kind="card" count={6} />
-      </Show>
-      <Show when={libs() && !lib()}>
-        <div class="shelf-stub">(library "{def.libraryName}" not found on {props.server.displayName})</div>
-      </Show>
-      <Show when={lib() && isHidden()}>
-        <div class="shelf-stub">(library hidden — toggle in left menu)</div>
-      </Show>
-      <Show when={lib() && !isHidden() && cols() && !collection()}>
-        <div class="shelf-stub">(collection "{def.collectionTitle}" not found in {def.libraryName})</div>
-      </Show>
-      <Show when={lib() && !isHidden() && (!cols() || (collection() && !items()))}>
-        <Skeleton kind="card" count={6} />
+      <Show when={!items.error && !items.loading && !itemList()}>
+        <div class="shelf-stub">Nothing added to {props.def.libraryTitle} yet.</div>
       </Show>
     </Shelf>
   );

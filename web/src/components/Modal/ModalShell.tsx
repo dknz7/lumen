@@ -1,6 +1,7 @@
-import { JSX, onCleanup, onMount, Show } from "solid-js";
+import { JSX, Show } from "solid-js";
 // @ts-expect-error — motionone/solid's package.json exports field hides its d.ts file
 import { Motion, Presence } from "@motionone/solid";
+import { createEscapeHandler, createFocusTrap } from "../../util/focusTrap";
 import "./ModalShell.css";
 
 export default function ModalShell(props: {
@@ -9,14 +10,13 @@ export default function ModalShell(props: {
   ariaLabel: string;
   children: JSX.Element;
 }) {
-  function onKeyDown(e: KeyboardEvent) {
-    if (!props.open) return;
-    if (e.key === "Escape") props.onCancel();
-  }
-  onMount(() => {
-    document.addEventListener("keydown", onKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", onKeyDown));
-  });
+  let dialogRef: HTMLDivElement | undefined;
+
+  // Escape goes through the shared stack so it only closes the TOPMOST modal —
+  // ReAuth over Settings used to close both with one press.
+  createEscapeHandler(() => props.open, () => props.onCancel());
+  createFocusTrap({ container: () => dialogRef, isOpen: () => props.open });
+
   return (
     <Presence>
       <Show when={props.open}>
@@ -31,6 +31,8 @@ export default function ModalShell(props: {
         >
           <Motion.div
             class="modal-shell"
+            ref={dialogRef}
+            tabindex="-1"
             onClick={(e: Event) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

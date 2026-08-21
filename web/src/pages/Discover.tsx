@@ -9,6 +9,7 @@ import HLSTrailerModal from "../components/Modal/HLSTrailerModal";
 import { refetchOnFocus } from "../util/focusRefetch";
 import { stableArrayByKey } from "../util/stableArray";
 import "./Discover.css";
+import { store } from "../state/settings";
 
 // Per spec §12.4 — eight Byron-curated shelves from the home namespace.
 // Order kept as-is per Byron's call (Phase 4 Task 11).
@@ -22,6 +23,10 @@ const SHELVES: { id: string; title: string; slug: string }[] = [
   { id: "disc-anticipated", title: "Highly Anticipated", slug: "highly-anticipated-movies" },
   { id: "disc-apple-tv", title: "Trending on Apple TV", slug: "trend-apple-itunes" },
 ];
+
+// Appearance > Rows per shelf. Every call site used to pass a literal 2,
+// which is why the setting appeared to do nothing.
+const shelfRows = () => store.settings()?.rowsPerShelf ?? 2;
 
 export default function Discover() {
   // Page-level watchlist resource — same pattern as Recommended. Each page
@@ -60,6 +65,7 @@ export default function Discover() {
   return (
     <DiscoverTileProvider value={{ inWatchlistSet: watchlistSet, openTrailer, openHLSTrailer }}>
       <div class="discover-page">
+        <h1 class="page-heading">Discover</h1>
         <For each={SHELVES}>
           {(s) => <DiscoverShelfHost id={s.id} title={s.title} slug={s.slug} />}
         </For>
@@ -114,7 +120,7 @@ function DiscoverShelfHost(props: { id: string; title: string; slug: string }) {
     <Shelf
       id={props.id}
       title={props.title}
-      rowsPerPage={2}
+      rowsPerPage={shelfRows()}
       sortable={false}
       items={itemList()}
       renderItem={(it: HubItem) => <DiscoverTile item={it} />}

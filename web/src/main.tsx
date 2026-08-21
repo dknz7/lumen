@@ -1,20 +1,29 @@
-// Body font — Saira (geometric, multi-weight, multi-purpose)
-import "@fontsource/saira/400.css";
-import "@fontsource/saira/500.css";
-import "@fontsource/saira/600.css";
-import "@fontsource/saira/700.css";
-// Headline font — Rajdhani (Agency-FB-flavoured, used for titles + wordmark)
-import "@fontsource/rajdhani/500.css";
-import "@fontsource/rajdhani/600.css";
-import "@fontsource/rajdhani/700.css";
+// Fonts — latin subsets only.
+//
+// The unscoped imports pull every subset @fontsource ships: Devanagari,
+// Vietnamese and latin-ext as well as latin, across both families. A browser
+// only downloads the subsets it needs (they're split by unicode-range), so the
+// runtime cost was nil — but all 44 files were embedded into lumen.exe,
+// roughly 700 kB of binary for scripts Lumen's UI never renders. The three
+// Rajdhani Devanagari faces alone were the largest assets in the build.
+//
+// Body font — Saira (geometric, multi-weight)
+import "@fontsource/saira/latin-400.css";
+import "@fontsource/saira/latin-500.css";
+import "@fontsource/saira/latin-600.css";
+import "@fontsource/saira/latin-700.css";
+// Headline font — Rajdhani (used for titles and the wordmark)
+import "@fontsource/rajdhani/latin-500.css";
+import "@fontsource/rajdhani/latin-600.css";
+import "@fontsource/rajdhani/latin-700.css";
 import { render } from "solid-js/web";
-import { Router, Route } from "@solidjs/router";
+import { Router, Route, useNavigate } from "@solidjs/router";
 import App from "./App";
 import Home from "./pages/Home";
 import Library from "./pages/Library";
 import ItemDetail from "./pages/ItemDetail";
 import DiscoverItem from "./pages/DiscoverItem";
-import Placeholder from "./pages/Placeholder";
+import NotFound from "./pages/NotFound";
 import Watchlist from "./pages/Watchlist";
 import Recommended from "./pages/Recommended";
 import Discover from "./pages/Discover";
@@ -23,10 +32,23 @@ import { store as settingsStore } from "./state/settings";
 import { playbackStore } from "./state/playback";
 import "./theme.css";
 
-// Fire-and-forget — settings load populates the store and applies theme.
-// The UI renders defaults until the load resolves; no blocking splash.
-settingsStore.load().catch((e) => console.error("initial settings load failed:", e));
+// Settings load populates the store and applies the theme. The UI renders
+// defaults until it resolves; no blocking splash.
+//
+// It retries rather than giving up after one failure: when the load failed,
+// settings() stayed null forever, which left Appearance and Playback showing
+// "Loading…" permanently and made every patch() a silent no-op. A user with a
+// slow first paint could end up with settings that simply never worked.
+settingsStore.loadWithRetry();
 playbackStore.connect();
+
+// A route can't open App's modal directly, so bounce to Home — the Settings
+// entry in the left menu is one click away and clearly labelled.
+function SettingsRedirect() {
+  const navigate = useNavigate();
+  navigate("/", { replace: true });
+  return null;
+}
 
 render(() => (
   <Router root={App}>
@@ -39,6 +61,10 @@ render(() => (
     <Route path="/recommended" component={Recommended} />
     <Route path="/discover" component={Discover} />
     <Route path="/search" component={SearchResults} />
-    <Route path="/settings"    component={() => <Placeholder name="Settings"    session="opens modal instead" />} />
+    {/* Settings lives in a modal, but people type the URL. Send them Home;
+        LeftMenu opens the modal. Previously this rendered a dev placeholder
+        reading "This page lands in opens modal instead". */}
+    <Route path="/settings" component={SettingsRedirect} />
+    <Route path="*" component={NotFound} />
   </Router>
 ), document.getElementById("root")!);

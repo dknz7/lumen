@@ -1,0 +1,180 @@
+.about-hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.about-mark {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.about-hero-text h3 {
+  margin: 0;
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+.about-version {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.about-commit {
+  color: var(--text-muted);
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 12px;
+}
+
+.about-tagline {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  max-width: 46ch;
+}
+
+/* Rows whose control side is a stack, not a single line: align the label to
+ * the top rather than centring it against a tall block. */
+.about-row--top {
+  align-items: start;
+}
+
+.about-row--top > label:first-child {
+  padding-top: 6px;
+}
+
+.about-value {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.about-value--warn {
+  color: #f0b878;
+}
+
+.about-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 52ch;
+}
+
+.about-error {
+  color: #f07878;
+  font-size: 13px;
+}
+
+.about-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.about-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 1px;
+}
+
+.about-links a:hover {
+  border-bottom-color: var(--stroke);
+}
+
+.about-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.about-path-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.about-path-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.about-path {
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 5px 8px;
+  /* Windows paths are long. Scroll inside the field rather than pushing the
+   * Settings modal into a horizontal scroll. */
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.about-copy-btn {
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.about-copy-btn:hover {
+  color: var(--text);
+  border-color: var(--stroke);
+}
+
+.about-deps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.about-dep {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.about-dep:hover {
+  border-color: var(--stroke);
+}
+
+.about-dep-name {
+  color: var(--text);
+}
+
+.about-dep-license {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}

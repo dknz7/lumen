@@ -18,7 +18,7 @@
 }
 
 .card-poster {
-  aspect-ratio: 2 / 3;
+  aspect-ratio: var(--card-aspect, 2 / 3);
   background: var(--bg-card-empty);
   border-radius: var(--radius-sm);
   overflow: hidden;

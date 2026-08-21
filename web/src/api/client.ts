@@ -97,6 +97,27 @@ export const api = {
   availability: (guid: string) =>
     getJSON<Match[]>(`/api/availability?guid=${encodeURIComponent(guid)}`),
 
+  /**
+   * Resolves availability for many items in one request.
+   *
+   * The Watchlist used to call `availability` once per card. On a 528-item
+   * watchlist that was 528 concurrent requests taking ~42 seconds to fully
+   * settle, re-issued on every window focus — while each one fanned out to
+   * every configured Plex server upstream.
+   *
+   * Returns a map of guid -> matches; guids with no matches map to [].
+   */
+  availabilityBatch: async (guids: string[]): Promise<Record<string, Match[]>> => {
+    if (guids.length === 0) return {};
+    const res = await fetch("/api/availability/batch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ guids }),
+    });
+    if (!res.ok) throw new Error(`${res.status} /api/availability/batch: ${await res.text()}`);
+    return res.json();
+  },
+
   // Rich metadata for a plex.tv-source item (Recommended/Discover/Watchlist
   // tile click destination). Distinct from `item()` which hits a server-local
   // /api/items/<rk> — this hits discover.provider.plex.tv via the proxy.

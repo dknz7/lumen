@@ -1,6 +1,7 @@
-import { onCleanup, onMount, Show } from "solid-js";
+import { Show } from "solid-js";
 // @ts-expect-error — motionone/solid's package.json exports field hides its d.ts file
 import { Motion, Presence } from "@motionone/solid";
+import { createEscapeHandler, createFocusTrap } from "../util/focusTrap";
 import "./CloseConfirmModal.css";
 
 export default function CloseConfirmModal(props: {
@@ -8,15 +9,10 @@ export default function CloseConfirmModal(props: {
   onCancel: () => void;
   onConfirm: () => void;
 }) {
-  function onKeyDown(e: KeyboardEvent) {
-    if (!props.open) return;
-    if (e.key === "Escape") props.onCancel();
-  }
+  let dialogRef: HTMLDivElement | undefined;
 
-  onMount(() => {
-    document.addEventListener("keydown", onKeyDown);
-    onCleanup(() => document.removeEventListener("keydown", onKeyDown));
-  });
+  createEscapeHandler(() => props.open, () => props.onCancel());
+  createFocusTrap({ container: () => dialogRef, isOpen: () => props.open });
 
   return (
     <Presence>
@@ -32,6 +28,8 @@ export default function CloseConfirmModal(props: {
         >
           <Motion.div
             class="close-confirm-modal"
+            ref={dialogRef}
+            tabindex="-1"
             onClick={(e: Event) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

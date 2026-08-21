@@ -19,6 +19,7 @@ import {
 } from "./icons";
 import type { JSX } from "solid-js";
 import "./LeftMenu.css";
+import { librariesFor } from "../state/libraries";
 
 // Server icon dispatch — Stargaze gets a star (the name calls for it), every
 // other server falls back to the generic server icon. Mirrors Home.tsx.
@@ -62,7 +63,10 @@ export default function LeftMenu(props: { onOpenSettings: () => void }) {
           <LibraryIcon size={12} class="menu-link-icon" />
           <span>LIBRARIES</span>
         </div>
-        <Show when={servers()}>
+        <Show when={servers.error}>
+          <div class="libraries-error" role="alert">Couldn't load your libraries.</div>
+        </Show>
+        <Show when={!servers.error && servers()}>
           {(srvs) => (
             <>
               <For each={srvs()}>
@@ -90,7 +94,7 @@ export default function LeftMenu(props: { onOpenSettings: () => void }) {
 }
 
 function ServerLibraries(props: { server: Server }) {
-  const [libs] = createResource(() => api.libraries(props.server.machineIdentifier));
+  const [libs] = createResource(() => librariesFor(props.server.machineIdentifier));
   const [expanded, setExpanded] = createSignal(true);
   const hiddenSet = () => new Set(settingsStore.settings()?.hiddenLibraries ?? []);
   const key = (libKey: string) => `${props.server.machineIdentifier}:${libKey}`;
@@ -176,7 +180,7 @@ function HiddenLibraries(props: { servers: Server[] }) {
       await Promise.all(
         props.servers.map(async (s) => {
           try {
-            const libs = await api.libraries(s.machineIdentifier);
+            const libs = await librariesFor(s.machineIdentifier);
             for (const l of libs) {
               map.set(`${s.machineIdentifier}:${l.key}`, l.title);
             }

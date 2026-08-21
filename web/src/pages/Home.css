@@ -7,3 +7,44 @@
   color: var(--text-muted);
   font-style: italic;
 }
+
+/* Empty state when the account has no servers at all — a first-run install,
+ * or an account whose sharing was revoked. */
+.home-empty {
+  max-width: 520px;
+  padding: 40px 8px;
+}
+
+.home-empty h2 {
+  margin: 0 0 8px;
+  font-family: var(--font-headline);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-empty p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+/* A shelf whose own fetch failed. Distinct from the neutral "nothing here"
+ * stub so a failure never reads as an empty library. */
+.shelf-stub--error {
+  color: #f0a0a0;
+}
+
+.shelf-retry {
+  margin-left: 8px;
+  background: transparent;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-pill, 999px);
+  color: var(--text);
+  font-size: 11px;
+  padding: 3px 11px;
+  cursor: pointer;
+}
+
+.shelf-retry:hover { border-color: var(--stroke); }

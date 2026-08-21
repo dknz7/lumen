@@ -159,11 +159,16 @@ export default function Shelf(props: ShelfProps) {
           <h2 class="shelf-title">{props.title}</h2>
         </button>
         <Show when={sortable}>
+          {/* A <span> can't take aria-label — assistive tech ignores it and
+              axe flags aria-prohibited-attr. role="button" + tabindex also
+              makes the handle reachable by keyboard, which it wasn't. */}
           <span
             class="shelf-drag-handle"
             {...(sortable?.dragActivators ?? {})}
+            role="button"
+            tabindex="0"
             title="Drag to reorder"
-            aria-label="Drag handle"
+            aria-label={`Reorder ${props.title}`}
           >
             <GripVertical size={20} />
           </span>

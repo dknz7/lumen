@@ -156,6 +156,7 @@ export default function TopBar() {
               max="150"
               value={zoom()}
               class="zoom-slider"
+              aria-label="Zoom"
               title={`Card zoom: ${zoom()}%`}
               onInput={(e) => applyZoom(Number(e.currentTarget.value))}
             />

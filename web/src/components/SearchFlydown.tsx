@@ -57,6 +57,9 @@ export default function SearchFlydown(props: SearchFlydownProps) {
   // empty-state. Buckets stay in the response even when items[]==[], so
   // we count by content rather than by presence.
   const totalHits = createMemo(() => {
+    // .error first — reading an errored resource re-throws, which would take
+    // the page down instead of showing "search failed".
+    if (results.error) return 0;
     const r = results();
     if (!r) return 0;
     return (

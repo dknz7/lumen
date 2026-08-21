@@ -187,3 +187,15 @@
   text-align: center;
   color: var(--text-muted);
 }
+
+/* A failed watchlist fetch used to render 12 skeleton cards forever, with the
+ * count stuck on "…" and no indication anything had gone wrong. */
+.watchlist-error {
+  padding: 20px 8px;
+  color: #f0a0a0;
+  font-size: 13px;
+}
+
+.watchlist-error p {
+  margin: 0 0 10px;
+}
