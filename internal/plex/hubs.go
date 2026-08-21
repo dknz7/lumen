@@ -54,9 +54,11 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 		imdbID := extractIMDBId(toIDOnly(m.GuidArray))
 		// HLS URL — clip items on home/trending-trailers carry their own
 		// native HLS playback URL inside Media[0].Part[0].key (path-style,
-		// e.g. /library/metadata/.../extras/.../parts/hls.m3u8). Qualify
-		// against the Discover host and stamp the account token so the SPA
-		// receives a ready-to-play URL.
+		// e.g. /library/metadata/.../extras/.../parts/hls.m3u8). Qualify it
+		// against the Discover host and return it WITHOUT credentials: the
+		// server layer swaps it for an opaque /api/hls/<handle> before the SPA
+		// ever sees it. Putting the account token in here used to hand the
+		// browser Lumen's broadest-scoped credential.
 		hlsURL := ""
 		if len(m.Media) > 0 && len(m.Media[0].Part) > 0 {
 			key := m.Media[0].Part[0].Key
@@ -66,12 +68,6 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 				} else {
 					hlsURL = c.discoverBase + key
 				}
-				// Append the account token so <video>/hls.js requests authenticate.
-				sep := "?"
-				if strings.Contains(hlsURL, "?") {
-					sep = "&"
-				}
-				hlsURL += sep + "X-Plex-Token=" + url.QueryEscape(accountToken)
 			}
 		}
 		// Plex's hub clip items (e.g. New Trailers / Trending Trailers) point

@@ -108,12 +108,20 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 	if got.OriginallyAvailableAt != "2026-04-01" {
 		t.Errorf("OriginallyAvailableAt = %q, want 2026-04-01", got.OriginallyAvailableAt)
 	}
-	// HLS URL — Media[0].Part[0].key qualified to absolute URL with the
-	// account token applied. discoverBase points at the test server here, so
-	// the URL is built against srv.URL.
-	wantHLS := srv.URL + "/library/metadata/123/extras/456/parts/hls.m3u8?X-Plex-Token=acct-tok"
+	// HLS URL — Media[0].Part[0].key qualified to an absolute URL and
+	// deliberately UNAUTHENTICATED. discoverBase points at the test server
+	// here, so the URL is built against srv.URL.
+	//
+	// This used to carry "?X-Plex-Token=" + the account token, which handed the
+	// browser Lumen's broadest-scoped credential via HubItem.HLSUrl -> the SPA
+	// -> a <video> src. The server layer now swaps this for an opaque
+	// /api/hls/<handle> and keeps the token in-process.
+	wantHLS := srv.URL + "/library/metadata/123/extras/456/parts/hls.m3u8"
 	if got.HLSUrl != wantHLS {
 		t.Errorf("HLSUrl = %q, want %q", got.HLSUrl, wantHLS)
+	}
+	if strings.Contains(got.HLSUrl, "acct-tok") || strings.Contains(got.HLSUrl, "X-Plex-Token") {
+		t.Errorf("HLSUrl leaks credentials to the SPA: %q", got.HLSUrl)
 	}
 
 	// Second fixture clip — no literal parentRatingKey, only primaryGuid.
