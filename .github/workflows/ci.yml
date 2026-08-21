@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: go.sum
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: go test (with race detector)
+        run: go test -race ./...
+
+      - name: Build SPA
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Typecheck SPA
+        working-directory: web
+        run: npx tsc --noEmit
+
+      - name: Build binary
+        run: go build -trimpath -ldflags "-H windowsgui -s -w -X main.version=ci" -o lumen.exe ./cmd/lumen
+
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumen-ci-build
+          path: lumen.exe
+          retention-days: 7

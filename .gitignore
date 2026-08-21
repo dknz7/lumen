@@ -1,4 +1,11 @@
-# Vite build output — embedded into lumen.exe, not checked in
+# --- Build output -----------------------------------------------------------
+lumen.exe
+lumen.exe~
+probe/probe.exe
+dist/
+staging/
+
+# Vite build output — embedded into lumen.exe, not checked in.
 web/dist/
 web/node_modules/
 
@@ -7,6 +14,21 @@ web/node_modules/
 internal/server/web/dist/*
 !internal/server/web/dist/index.html
 
-# Compiled binaries
-lumen.exe
-probe/probe.exe
+# --- Local working files ----------------------------------------------------
+# Screenshots and captures used while developing. Some are 40 MB+; they have no
+# business in the repo. Committed artwork lives in assets/ by explicit path.
+assets/screencapture-*
+assets/*.jpg
+
+# Agent / editor local config
+.claude/
+.superpowers/
+
+# Internal build logs and session notes — kept locally, not published.
+docs/internal/
+
+# --- OS / editor ------------------------------------------------------------
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
