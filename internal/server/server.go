@@ -21,8 +21,11 @@ type Server struct {
 	// cfgMu guards every read and write of cfg. See the accessors in api.go —
 	// nothing outside them may touch cfg directly. Regression coverage lives in
 	// api_settings_concurrent_test.go.
-	cfgMu         sync.RWMutex
-	cfg           *config.Config
+	cfgMu sync.RWMutex
+	cfg   *config.Config
+	// lnMu guards ln. Serve writes it from whichever goroutine is serving,
+	// while Addr is read from another — a real race the detector caught.
+	lnMu          sync.RWMutex
 	plex          *plex.Client
 	mux           *http.ServeMux
 	http          *http.Server
@@ -151,7 +154,9 @@ func (s *Server) ListenAndServe() error {
 // "port already in use" can be reported before a window opens, rather than as a
 // mystery blank window afterwards.
 func (s *Server) Serve(ln net.Listener) error {
+	s.lnMu.Lock()
 	s.ln = ln
+	s.lnMu.Unlock()
 	return s.http.Serve(ln)
 }
 
@@ -164,6 +169,8 @@ func (s *Server) Shutdown() error {
 
 // Addr returns the actual bound address. Useful for tests using port 0.
 func (s *Server) Addr() string {
+	s.lnMu.RLock()
+	defer s.lnMu.RUnlock()
 	if s.ln == nil {
 		return ""
 	}

@@ -71,9 +71,11 @@ func (s *Server) originAllowed(origin string) bool {
 // listenPort returns the port Lumen is actually bound to, falling back to the
 // configured address before the listener exists.
 func (s *Server) listenPort() string {
-	addr := s.http.Addr
-	if s.ln != nil {
-		addr = s.ln.Addr().String()
+	// Via Addr(), which takes the lock: this runs on every request goroutine,
+	// concurrently with Serve writing s.ln at startup.
+	addr := s.Addr()
+	if addr == "" {
+		addr = s.http.Addr
 	}
 	if _, port, err := net.SplitHostPort(addr); err == nil {
 		return port
