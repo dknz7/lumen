@@ -1,6 +1,10 @@
 import { createRoot, createSignal, untrack } from "solid-js";
 import { settingsAPI, UISettings } from "../api/settings";
 import { applyTheme, themeByID } from "../themes";
+// Static import: Toast is statically imported by most of the component tree
+// anyway, so a dynamic import here bought nothing and made Vite warn that the
+// chunk could not be split.
+import { toast } from "../components/Toast";
 
 // Card-size base widths must mirror theme.css's --card-width-{s,m,l,xl}.
 // Used to compute the zoom-scaled global --card-width override.
@@ -79,9 +83,6 @@ function createSettingsStore() {
         const last = i === attempts - 1;
         console.error(`settings load failed (attempt ${i + 1}/${attempts}):`, e);
         if (last) {
-          // Imported lazily: the toast host is part of the component tree and
-          // this module is imported by main.tsx before render.
-          const { toast } = await import("../components/Toast");
           toast.error("Couldn't load your settings — using defaults.", {
             label: "Retry",
             run: () => void loadWithRetry(),
