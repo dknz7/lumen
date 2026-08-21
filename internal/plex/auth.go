@@ -23,7 +23,7 @@ type pinResponse struct {
 }
 
 // CreatePIN asks plex.tv for a new PIN with a 4-char Code and numeric ID.
-// Byron will enter the Code at https://plex.tv/link.
+// The user enters the Code at https://plex.tv/link.
 func (c *Client) CreatePIN() (PIN, error) {
 	u := c.plexTVBase + "/api/v2/pins"
 	req, err := c.NewRequest("POST", u, nil)
@@ -107,7 +107,7 @@ func (c *Client) GetAccount(accountToken string) (AccountInfo, error) {
 	return info, nil
 }
 
-// LinkURL returns the user-visible URL Byron opens in a browser.
+// LinkURL returns the user-visible URL to open in a browser.
 func LinkURL() string {
 	return "https://plex.tv/link"
 }

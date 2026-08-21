@@ -14,7 +14,7 @@ export default function Episodes(props: {
   /** When true, clicking a season pill navigates to that season's first
    *  episode instead of just filtering the inline episode list. Used on
    *  episode-detail pages where staying on the original episode while
-   *  toggling pills is confusing — Byron's spec call. Show-detail pages
+   *  toggling pills is confusing — a deliberate choice. Show-detail pages
    *  leave this false so users can browse seasons without leaving the show. */
   navigateOnSeasonChange?: boolean;
 }) {

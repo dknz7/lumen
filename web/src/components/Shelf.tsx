@@ -192,7 +192,7 @@ export default function Shelf(props: ShelfProps) {
                   reference, reusing tile DOM across data updates. Without
                   this, the outer For remounted page divs on every refetch,
                   destroying tile DOM mid-click → "double-click required"
-                  bug (Session 6.5 round 2). */}
+                  bug (a real regression). */}
               <Index each={pages()}>
                 {(pageItems) => (
                   <div

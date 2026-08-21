@@ -30,8 +30,8 @@ jobs:
       - name: go vet
         run: go vet ./...
 
-      - name: go test (with race detector)
-        run: go test -race ./...
+      - name: go test
+        run: go test ./...
 
       - name: Build SPA
         working-directory: web
@@ -52,3 +52,30 @@ jobs:
           name: lumen-ci-build
           path: lumen.exe
           retention-days: 7
+
+  race:
+    name: Race detector
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache-dependency-path: go.sum
+
+      # -race requires cgo, which on Windows requires a C compiler. Checked
+      # explicitly so a missing toolchain fails with an obvious message rather
+      # than "-race requires cgo".
+      - name: Verify a C compiler is available
+        shell: pwsh
+        run: |
+          $gcc = Get-Command gcc -ErrorAction SilentlyContinue
+          if (-not $gcc) { throw "gcc not found on PATH — the race detector needs cgo" }
+          Write-Host "using $($gcc.Source)"
+          gcc --version | Select-Object -First 1
+
+      - name: go test -race
+        env:
+          CGO_ENABLED: '1'
+        run: go test -race ./...

@@ -71,7 +71,7 @@
 
 /* Hover-to-play overlay (clip variant only) — centered circular button that
    fades in on tile hover. Mirrors Card.css's .card-play-btn pattern from
-   Session 4.5 so trailer cards match Continue Watching's hover-to-play UX.
+   an earlier pass so trailer cards match Continue Watching's hover-to-play UX.
    z-index:3 sits above the dim overlay (z-index:1) but below the top-right
    action cluster (z-index:4) so the watchlist button stays clickable. */
 .discover-tile-play-overlay {

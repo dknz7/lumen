@@ -16,7 +16,7 @@ empty name for shared servers (the name shown in the Plex Friends UI isn't
 always exposed via the API).
 
 Example:
-  lumen rename 4db54e45876c "Stargaze"`)
+  lumen rename 4db54e45876c "Living Room"`)
 		os.Exit(2)
 	}
 	machineID, displayName := args[0], args[1]

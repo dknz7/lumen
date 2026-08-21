@@ -11,8 +11,8 @@ import { stableArrayByKey } from "../util/stableArray";
 import "./Discover.css";
 import { store } from "../state/settings";
 
-// Per spec §12.4 — eight Byron-curated shelves from the home namespace.
-// Order kept as-is per Byron's call (Phase 4 Task 11).
+// Per spec §12.4 — eight the user-curated shelves from the home namespace.
+// Order kept as-is per the user's call (Phase 4 Task 11).
 const SHELVES: { id: string; title: string; slug: string }[] = [
   { id: "disc-coming-soon", title: "Coming Soon", slug: "coming-soon" },
   { id: "disc-new-trailers", title: "New Trailers", slug: "recently-released-trailers" },

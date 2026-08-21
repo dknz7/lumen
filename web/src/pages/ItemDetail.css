@@ -33,7 +33,7 @@
   border-color: var(--stroke);
 }
 
-/* Primary action — inverse fill (white bg, black text) per Byron's design call. */
+/* Primary action — inverse fill (white bg, black text) per the user's design call. */
 .btn-primary {
   background: var(--bg-inverse);
   color: var(--text-inverse);

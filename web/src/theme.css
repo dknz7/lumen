@@ -1,5 +1,5 @@
 :root {
-  /* Pure OLED — spec §14 + Byron's design call (2026-04-24):
+  /* Pure OLED — spec §14 + the user's design call (2026-04-24):
      - Black canvas, dark grey left menu, dark navy for any "coloured" surface.
      - Primary action uses INVERSE fill (white bg, black text) per Plezy reference.
      - Body text (descriptions, durations, character names) is muted grey. */
@@ -21,7 +21,7 @@
 
   /* Shelf surfaces — kept very transparent so the OLED black canvas reads
      through and the page feels light. Outer = top-level shelves (CW) and
-     groups (Stargaze, DKNZPLEX). Inner = subshelves nested inside a group;
+     groups (one per Plex server). Inner = subshelves nested inside a group;
      more opaque so it layers visually above the outer surface. Inner mirrors
      the drag-drop visual (var(--bg-elevated) navy) at high opacity. */
   --bg-shelf-outer: rgba(255, 255, 255, 0.04);

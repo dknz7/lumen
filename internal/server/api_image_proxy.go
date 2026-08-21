@@ -10,8 +10,8 @@ import (
 	"strings"
 )
 
-// Defaults match Plex Web's poster-cell request (240×360 — Session 5 post-smoke
-// capture) so we share Stargaze's CDN cache instead of cold-missing on every
+// Defaults match Plex Web's poster-cell request (240×360 — an earlier session post-smoke
+// capture) so we share the CDN's cache instead of cold-missing on every
 // first paint with our own dimension permutation.
 const (
 	defaultImageWidth  = 240
@@ -108,8 +108,8 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	base := strings.TrimSuffix(srv.LastGoodConnection, ":443")
 
 	// Token try-with-fallback: Plex Web uses the per-server token for some
-	// servers (Stargaze observed Session 5 post-smoke) and the account token
-	// for others (DKNZPLEX, Session 2). Any non-200 (404 is the common case;
+	// servers and the account token
+	// for others (that server, an earlier session). Any non-200 (404 is the common case;
 	// 401/403 also possible) is the signal to retry with the other. The
 	// handler caching whichever worked for next time would be ideal but for
 	// v1.0 we just try both per request — the disk cache hit rate makes the
@@ -157,7 +157,7 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 
 // fetchImageProxyWithFallback attempts the /photo/:/transcode request with the
 // account token first, then retries with the per-server token on any non-200
-// or transport error (404 is the common case for Stargaze movie thumbs;
+// or transport error (404 is the common case for some servers' movie thumbs;
 // 401/403 also possible per CDN policy). Returns the response, the token
 // kind that worked ("account" or "server"), or an error that already
 // carries enough context for diagnosis.
@@ -175,7 +175,7 @@ func (s *Server) fetchImageProxyWithFallback(ctx context.Context, base, path str
 		if err != nil {
 			return nil, kind, err
 		}
-		// Match Plex Web's image-request header signature (Session 2 finding —
+		// Match Plex Web's image-request header signature (An observed finding —
 		// CDN rejects API-style headers). Keep what a browser naturally sends.
 		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0")
 		req.Header.Set("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5")

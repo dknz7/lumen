@@ -15,16 +15,16 @@ import {
   Server as ServerIcon,
   Settings,
   Sparkles,
-  Star,
-} from "./icons";
+  } from "./icons";
 import type { JSX } from "solid-js";
 import "./LeftMenu.css";
 import { librariesFor } from "../state/libraries";
 
-// Server icon dispatch — Stargaze gets a star (the name calls for it), every
-// other server falls back to the generic server icon. Mirrors Home.tsx.
-function iconForServer(displayName: string): JSX.Element {
-  if (displayName.toLowerCase().includes("stargaze")) return <Star size={12} class="menu-link-icon" />;
+// Every server gets the same icon.
+//
+// This used to special-case one server by NAME — a substring match that handed
+// a star to anything called "stargaze" and meant nothing on any other install.
+function iconForServer(): JSX.Element {
   return <ServerIcon size={12} class="menu-link-icon" />;
 }
 
@@ -105,7 +105,7 @@ function ServerLibraries(props: { server: Server }) {
     settingsStore.patch({ hiddenLibraries: Array.from(set) });
   }
 
-  // Filter out hidden libraries — spec §10.2 + Byron's preference: hidden
+  // Filter out hidden libraries — spec §10.2 + the user's preference: hidden
   // libraries disappear entirely from the menu, managed via the restore
   // section at the bottom rather than sitting here greyed-out.
   const visibleLibs = createMemo(() => {
@@ -118,7 +118,7 @@ function ServerLibraries(props: { server: Server }) {
     <div class="server-group">
       <button class="server-group-header" onClick={() => setExpanded(!expanded())}>
         <span class="caret">{expanded() ? <ChevronDown size={10} /> : <ChevronRight size={10} />}</span>
-        {iconForServer(props.server.displayName)}
+        {iconForServer()}
         <span>{props.server.displayName}</span>
         <span class="server-status" data-status={props.server.status} />
       </button>

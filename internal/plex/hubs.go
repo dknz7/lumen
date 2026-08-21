@@ -11,7 +11,7 @@ import (
 // GetHub calls the plex.tv Discover hubs endpoint for a given namespace + slug.
 // Namespace is "home" or "watchlist".
 //
-// Request shape mirrors Plex Web's call (Session 5 post-smoke DevTools
+// Request shape mirrors Plex Web's call (a real DevTools
 // capture): includeMeta=1 enables richer metadata fields, and the
 // X-Plex-Container-Size param is required for some clip-type hubs (e.g.
 // home/trending-trailers) that returned empty without it.
@@ -43,7 +43,7 @@ func (c *Client) GetHub(namespace, slug, accountToken string) ([]HubItem, error)
 	out := make([]HubItem, 0, len(mc.MediaContainer.Metadata))
 	for _, m := range mc.MediaContainer.Metadata {
 		// Plex injects ad slots as "placeholder" items in some hubs (Coming
-		// Soon being the confirmed example — see Session 6.5 capture). They
+		// Soon being the confirmed example — see the captured fixture). They
 		// carry no title/thumb and only a stub "url" pointing at /ad/tile.
 		// Drop them so the SPA never tries to render an empty card.
 		if m.Type == "placeholder" {

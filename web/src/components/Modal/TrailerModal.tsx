@@ -10,7 +10,7 @@ export interface TrailerModalProps {
 }
 
 // TrailerModal embeds the YouTube player in an iframe when youtubeID is set.
-// Plex-hosted (.flv) trailers are NOT supported in v1.0 — Byron's call:
+// Plex-hosted (.flv) trailers are NOT supported in v1.0 — the user's call:
 // Plex Extras YouTube IDs are the common case; if a server-hosted trailer
 // is ever needed we'll handle the .flv case separately.
 export default function TrailerModal(props: TrailerModalProps) {

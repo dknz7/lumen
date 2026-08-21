@@ -1,4 +1,4 @@
-// Lumen Session 0 spike — Pot Player Win32 IPC probe.
+// Lumen an earlier session spike — Pot Player Win32 IPC probe.
 // Throwaway code. Not imported by production packages.
 package main
 
@@ -77,7 +77,7 @@ func potPlayerPath() string {
 
 // resolvePotPlayerPath returns the exe path and a label for where it came from.
 // Preference: --potplayer flag → HKCU\Software\DAUM\PotPlayerMini64\ProgramPath.
-// Session 0 observation: not every install writes ProgramPath to the registry,
+// an earlier session observation: not every install writes ProgramPath to the registry,
 // so the flag is the reliable path and the registry is best-effort.
 func resolvePotPlayerPath() (string, string) {
 	if *potPlayerFlag != "" {
@@ -134,7 +134,7 @@ const (
 	WM_USER = 0x0400
 
 	// Pot Player query codes (from rasvob/PotPlayerRemoteAPI).
-	// Session 0 job: confirm these against v260422.
+	// an earlier session job: confirm these against v260422.
 	PP_GET_POSITION = 0x5004 // expected: position in seconds (some sources say ms — probe both)
 	PP_GET_DURATION = 0x5002
 	PP_GET_STATE    = 0x5006 // expected: 0=stopped, 1=paused, 2=playing

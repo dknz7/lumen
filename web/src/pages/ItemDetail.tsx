@@ -53,7 +53,7 @@ export default function ItemDetail() {
   // Local servers list — used to resolve the SPA's display-name override
   // (set via `lumen rename` or Settings → Accounts & Servers) for the
   // MORE WAYS TO WATCH rows. Plex's wire `serverName` is empty for some
-  // shared-to-you servers (e.g. Stargaze — Session 1 finding).
+  // shared-to-you servers.
   const [servers] = createResource(() => api.servers());
   const displayName = (machineID: string): string => {
     const list = servers();

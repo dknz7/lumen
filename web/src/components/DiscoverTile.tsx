@@ -172,7 +172,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
   }
 
   // Per-type render contract derived from Plex Web's
-  // MediaContainer.Meta.DisplayFields (Session 6.5 capture):
+  // MediaContainer.Meta.DisplayFields (from a real capture):
   //   season               → parentTitle / title / date
   //   episode              → grandparentTitle / S{parentIndex}E{index} / date
   //   clip with parentTitle → parentTitle / title / date  (TV-show season trailer:
@@ -218,7 +218,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
   // Whole-tile <A> wrap — Solid Router handles the click via its own
   // listener on the <a> element. Robust against mid-click DOM remounts
   // that previously dropped clicks when window-focus refetch fired during
-  // a click (Session 6.5 bug). Action buttons inside use preventDefault +
+  // a click (an earlier session bug). Action buttons inside use preventDefault +
   // stopPropagation to suppress navigation when toggling watchlist or
   // playing trailers.
   return (
@@ -239,7 +239,7 @@ export default function DiscoverTile(props: DiscoverTileProps) {
         )}
         <Show when={isClip()}>
           {/* Centered Play Trailer overlay — large, fades in on hover. Mirrors
-              Card.tsx's hover-to-play pattern (Session 4.5). */}
+              Card.tsx's hover-to-play pattern . */}
           <button
             type="button"
             class="discover-tile-play-overlay"

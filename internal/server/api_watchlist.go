@@ -137,7 +137,7 @@ func (s *Server) handleWatchlistAddFromItem(w http.ResponseWriter, r *http.Reque
 	if err := s.plex.AddItemToWatchlist(toPlexServer(srv), s.accountToken(), body.RatingKey); err != nil {
 		// Boundary scrub — log full detail server-side, hand the SPA a
 		// generic message. Resolution failures (missing parent ratingKey,
-		// non-plex GUID) carry actionable hints for Byron in the operator log.
+		// non-plex GUID) carry actionable hints in the operator log.
 		log.Printf("watchlist add-from-item server=%s rk=%s: %v", body.Server, body.RatingKey, err)
 		writeError(w, http.StatusBadGateway, "watchlist add failed")
 		return

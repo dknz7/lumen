@@ -8,7 +8,7 @@ import (
 )
 
 // TestSearchDiscoverDecodesAndSortsByScore is fixture-grounded against the
-// real plex.tv /library/search response captured Session 6.5 (query=hokum).
+// real plex.tv /library/search response captured an earlier session (query=hokum).
 // Locks the doubly-nested envelope shape (SearchResults groups → SearchResult
 // items → Metadata + score), the empty-group skip behaviour, and score-desc
 // sorting across groups.

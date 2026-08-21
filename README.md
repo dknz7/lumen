@@ -40,10 +40,10 @@ Watch progress still scrobbles back to Plex, so your library stays in sync exact
 
 | | |
 |---|---|
-| **OS** | Windows 10 (21H2+) or Windows 11, 64-bit |
+| **OS** | Windows 10 version 2004 (build 19041) or newer, 64-bit — including Windows 11 |
 | **Plex** | A Plex account with at least one server you can access |
 | **Player** | [PotPlayer](https://potplayer.daum.net/) (64-bit) — required for playback |
-| **Runtime** | Microsoft Edge WebView2 — preinstalled on Windows 11 and current Windows 10 |
+| **Runtime** | Microsoft Edge WebView2 — preinstalled on Windows 11 and current Windows 10; the installer adds it if missing |
 
 ## Install
 
@@ -66,7 +66,7 @@ Lumen works fine without either — you just lose those two features.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  lumen.exe  (single ~13 MB binary, no runtime deps)      │
+│  lumen.exe  (single ~8.5 MB binary, no runtime deps)     │
 │                                                          │
 │   ┌────────────────┐         ┌───────────────────────┐   │
 │   │  WebView2      │  HTTP   │  Go server            │   │
@@ -126,9 +126,21 @@ Add `-Installer` to also produce `dist\LumenSetup.exe` (requires [Inno Setup 6](
 ### Tests
 
 ```powershell
-go test ./...          # Go unit tests
-go test -race ./...    # with the race detector
+go test ./...          # Go unit tests — no extra tooling needed
 ```
+
+The race detector needs cgo, which on Windows means a C compiler on `PATH`
+(MSYS2 or TDM-GCC). It's optional for a PR, but worth running if you touch
+anything concurrent:
+
+```powershell
+$env:CGO_ENABLED = "1"
+go test -race ./...
+```
+
+Note the concurrency regression test in `internal/server` reproduces its bug
+*without* `-race` — Go's map-corruption checks are unconditional — so a plain
+`go test` still catches it.
 
 ## CLI
 

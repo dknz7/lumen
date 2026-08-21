@@ -52,7 +52,7 @@ func TestGetCollectionsBuildsPathAndParses(t *testing.T) {
 }
 
 // TestGetCollectionItemsBuildsPathAndDecodes locks the path shape (Stargaze
-// DevTools URL captured Session 6.5: /library/collections/<rk>/children)
+// DevTools URL captured from a real server: /library/collections/<rk>/children)
 // and the size-cap query params. Items decode through the shared
 // metadataSliceToItems helper so collection items inherit every existing
 // case-collision absorber + Item field surface.

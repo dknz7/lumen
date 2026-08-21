@@ -84,7 +84,7 @@ export default function SearchFlydown(props: SearchFlydownProps) {
     try {
       const matches = (await api.availability(it.guid)) ?? [];
       if (matches.length > 0) {
-        // Highest-resolution match (Stargaze 1080p preferred over DKNZPLEX 720p).
+        // Highest-resolution match wins (e.g. a 1080p copy over a 720p one).
         const best = matches.reduce((a, b) =>
           parseResolution(a.resolution) >= parseResolution(b.resolution) ? a : b,
         );

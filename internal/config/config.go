@@ -28,7 +28,7 @@ type UIConfig struct {
 	ShelfState      map[string]PageShelfState `json:"shelfState"`      // keyed by page: "home", "recommended", "discover"
 }
 
-// PlaybackUIConfig — persists the Pot Player override path (Session 4 reads it).
+// PlaybackUIConfig — persists the Pot Player override path.
 type PlaybackUIConfig struct {
 	PotPlayerPath string `json:"potPlayerPath"`
 }

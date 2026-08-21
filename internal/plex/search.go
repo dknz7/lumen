@@ -13,7 +13,7 @@ import (
 // finds items physically in a user's libraries — discover search returns
 // items from Plex's full catalog whether the user owns them or not.
 //
-// Wire shape (Session 6.5 DevTools capture):
+// Wire shape (from a real DevTools capture):
 //
 //	MediaContainer.SearchResults[]   // groups: "plex"/"Free On Demand" + "external"/"More Ways To Watch"
 //	  └── SearchResult[]             // singular noun, plural slice
@@ -91,7 +91,7 @@ func (c *Client) SearchDiscover(query, accountToken string) ([]Item, error) {
 }
 
 // discoverSearchEnvelope mirrors plex.tv's /library/search response. Two
-// levels deep: groups → items. Captured Session 6.5 against query=hokum.
+// levels deep: groups → items. Captured an earlier session against query=hokum.
 type discoverSearchEnvelope struct {
 	MediaContainer struct {
 		Size          int                   `json:"size"`

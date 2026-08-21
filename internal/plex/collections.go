@@ -7,7 +7,7 @@ import (
 )
 
 // Collection is one curated list inside a Plex library section. Powers the
-// custom "Trending Movies" / "Trending Shows" Home shelves on Stargaze.
+// custom Home shelves such as "Trending Movies" / "Trending Shows".
 // Plex emits collections via /library/sections/<id>/collections; the items
 // themselves come from /library/collections/<rk>/children.
 type Collection struct {

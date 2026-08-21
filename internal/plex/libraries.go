@@ -28,7 +28,7 @@ type metadataWire struct {
 	GUID      string `json:"guid"`
 	// GuidArray absorbs Plex's capital-"Guid" array of external IDs (imdb/tmdb/tvdb)
 	// so Go's case-insensitive json matching doesn't spill it into the GUID string
-	// field and fail to unmarshal. Parsed in Session 5 for OMDB IMDB lookup.
+	// field and fail to unmarshal. Parsed for OMDB IMDB lookup.
 	GuidArray []struct {
 		ID string `json:"id"`
 	} `json:"Guid"`

@@ -115,7 +115,7 @@ type Part struct {
 // Thumb is an absolute URL (e.g. https://metadata-static.plex.tv/... or
 // https://image.tmdb.org/...). Render directly with <img src> — does NOT
 // need to go through Lumen's image proxy. Confirmed via Plex Web capture
-// of home/trending-trailers in Session 5 post-smoke.
+// of home/trending-trailers in an earlier session post-smoke.
 type HubItem struct {
 	GUID      string `json:"guid,omitempty"`
 	RatingKey string `json:"ratingKey"`
@@ -135,7 +135,7 @@ type HubItem struct {
 	OriginallyAvailableAt string `json:"originallyAvailableAt,omitempty"`
 	// Per-type display fields surfaced for DiscoverTile rendering parity
 	// with Plex Web's MediaContainer.Meta.DisplayFields directive
-	// (Session 6.5 Coming Soon capture). Season items render
+	// (an earlier session Coming Soon capture). Season items render
 	// parentTitle / title / date; episode items render
 	// grandparentTitle / S{parentIndex}E{index} / date.
 	ParentTitle      string `json:"parentTitle,omitempty"`

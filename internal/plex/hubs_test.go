@@ -134,12 +134,12 @@ func TestGetHubSurfacesExtendedFields(t *testing.T) {
 	}
 }
 
-// TestGetHubFiltersPlaceholdersAndSurfacesSeasonFields covers Session 6.5 —
+// TestGetHubFiltersPlaceholdersAndSurfacesSeasonFields covers a real-capture regression —
 // Plex's Coming Soon hub injects "type":"placeholder" ad slots, and season
 // items carry parentTitle/parentIndex/index/grandparentTitle that
 // DiscoverTile needs to render parentTitle / title / date per Plex Web's
 // MediaContainer.Meta.DisplayFields directive. Confirmed against a real
-// home/coming-soon DevTools capture in Session 6.5.
+// home/coming-soon DevTools capture in an earlier session.
 func TestGetHubFiltersPlaceholdersAndSurfacesSeasonFields(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`{"MediaContainer":{"Metadata":[

@@ -1,6 +1,6 @@
 // Package potplayer drives Pot Player Mini 64-bit via Win32 IPC. All
 // command IDs and message constants live in commands.go and were confirmed
-// against Pot Player v260422 (1.7.22859) during the Session 0 spike.
+// against Pot Player v260422 (1.7.22859) during the an earlier session spike.
 package potplayer
 
 import (
@@ -177,7 +177,7 @@ func (c *Client) GetState() (PlayState, error) {
 			// Stopped with the window still open. Pot Player reports this
 			// after EOF is reached during active playback (seek-to-end or
 			// play-out) — it resets position to 0 rather than parking on
-			// the last frame (Session 7 probe finding).
+			// the last frame (observed while probing a real player).
 			return PlayStateStopped, nil
 		case 1:
 			return PlayStatePaused, nil
@@ -286,7 +286,7 @@ func (c *Client) sendUserQuery(wParam uintptr) (uintptr, error) {
 }
 
 // sendAppCommand fires WM_APPCOMMAND with the given command in the high
-// word of lParam. Per Session 0 findings: SendMessage(hwnd, 0x0319, 0, cmd<<16).
+// word of lParam. Per an earlier session findings: SendMessage(hwnd, 0x0319, 0, cmd<<16).
 func sendAppCommand(hwnd windows.Handle, cmd uintptr) error {
 	_, _, _ = procSendMessageW.Call(
 		uintptr(hwnd),

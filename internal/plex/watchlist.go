@@ -28,7 +28,7 @@ type watchlistWire struct {
 			// GuidArray absorbs Plex's capital-"Guid" array of external IDs
 			// (imdb/tmdb/tvdb) so Go's case-insensitive json matching doesn't
 			// spill it into the GUID string field and fail to unmarshal.
-			// Session 3 critical gotcha #6.
+			// an earlier session critical gotcha #6.
 			GuidArray []struct {
 				ID string `json:"id"`
 			} `json:"Guid"`
@@ -45,10 +45,10 @@ type watchlistWire struct {
 // Authentication: X-Plex-Token header (account token).
 //
 // Endpoint host + request shape confirmed via Plex Web DevTools capture
-// (Session 5 post-smoke). Plex Web pages 50→100→100→…; sizes above ~100
+// (an earlier session post-smoke). Plex Web pages 50→100→100→…; sizes above ~100
 // are rejected with 400. We page in 100-item chunks until totalSize is
 // reached or we've collected 1000 items (a generous cap that covers
-// almost any user; Byron's 471 fits comfortably).
+// almost any user).
 func (c *Client) GetWatchlist(accountToken string) ([]WatchlistItem, error) {
 	const pageSize = 100
 	const maxItems = 1000
@@ -108,7 +108,7 @@ func (c *Client) getWatchlistPage(accountToken string, start, size int) ([]Watch
 // plex.tv watchlist. The ratingKey here is plex.tv's metadata rating
 // key (NOT a server-local one). Caller must resolve that via the
 // item's plex.tv GUID before invoking. Endpoint shape confirmed via
-// Plex Web DevTools capture in Session 5 (PUT /actions/addToWatchlist
+// Plex Web DevTools capture in an earlier session (PUT /actions/addToWatchlist
 // with header-only X-Plex-Token, ratingKey via URL query, empty body,
 // 200 response with {"MediaContainer":{"size":0}}).
 func (c *Client) AddToWatchlist(accountToken, plexTvRatingKey string) error {

@@ -10,7 +10,7 @@ import (
 const (
 	pollInterval         = 5 * time.Second
 	directPlayTimeout    = 10 * time.Second
-	watchedThresholdFrac = 0.95 // bumped from Plex's 90% default — leaves more room on shorter shows
+	watchedThresholdFrac = 0.95            // bumped from Plex's 90% default — leaves more room on shorter shows
 	eofEpsilon           = 2 * time.Second // "position pinned at the end" tolerance for naturalEOF
 )
 
@@ -136,7 +136,7 @@ func (m *Manager) runPoller(ctx context.Context, args StartArgs) {
 		}
 
 		// EOF reached during active playback: PotPlayer stops and resets
-		// position to 0 instead of parking (Session 7 probe finding), so
+		// position to 0 instead of parking (observed while probing a real player), so
 		// this tick's pos is meaningless — gate on the pre-reset position.
 		if nextInfo != nil && !episodeOverFired && stoppedAdvance(state, prevPos, c.Duration) {
 			m.broadcast(Event{Type: EventEpisodeOver, Payload: *nextInfo})
@@ -186,7 +186,7 @@ func (m *Manager) fireEnded(c *Context) *NextEpisodeInfo {
 }
 
 // naturalEOF reports whether playback reached the true end of the file.
-// PotPlayer (per Byron's config) parks paused on the last frame, so position
+// PotPlayer parks paused on the last frame by default, so position
 // pins at/near duration; the 2 s epsilon absorbs the 5 s sample interval's
 // coarseness. State is deliberately not consulted — position alone is enough.
 func naturalEOF(pos, duration time.Duration) bool {

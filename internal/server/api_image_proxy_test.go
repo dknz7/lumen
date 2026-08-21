@@ -38,7 +38,7 @@ func TestImageProxyForwardsWithTokenServerSide(t *testing.T) {
 	if w.status != 200 {
 		t.Fatalf("status %d", w.status)
 	}
-	// Try-with-fallback (Session 6): the handler tries the account token first
+	// Try-with-fallback : the handler tries the account token first
 	// and retries with the per-server token on failure. With no account token
 	// configured (empty string), the first attempt errors out and we fall
 	// through to the per-server token, so we expect "secret-token". If a future

@@ -39,7 +39,7 @@ func TestAPIServersReturnsConfiguredServers(t *testing.T) {
 	if got[0]["name"] != "Stargaze" || got[0]["status"] != "connected" {
 		t.Errorf("server 0: %+v", got[0])
 	}
-	// Empty name should fall through to machineIdentifier — Session 1 finding.
+	// Empty name should fall through to machineIdentifier — an earlier session finding.
 	if got[1]["displayName"] != "def" {
 		t.Errorf("server 1 displayName fallback failed: %+v", got[1])
 	}

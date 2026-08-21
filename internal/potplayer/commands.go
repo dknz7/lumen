@@ -3,8 +3,8 @@ package potplayer
 import "time"
 
 // Win32 message constants and Pot Player command IDs confirmed against Pot
-// Player Mini v260422 (1.7.22859) during the Session 0 spike — see
-// docs/session-0-findings.md.
+// Player Mini v260422 (1.7.22859) during the an earlier session spike — see
+// docs/the project notes.
 
 const (
 	wmUser       uintptr = 0x0400 // base for user-defined messages

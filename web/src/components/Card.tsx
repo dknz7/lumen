@@ -71,7 +71,7 @@ export default function Card(props: CardProps) {
 
   // Watchlist-add UX state — once successfully added, the button stays as
   // CircleCheck for the session (matches DiscoverTile + Watchlist patterns
-  // per Byron's design call). Optimistic flip on click, revert on error.
+  // by design). Optimistic flip on click, revert on error.
   const [watchlistAdded, setWatchlistAdded] = createSignal(false);
   const [watchlistBusy, setWatchlistBusy] = createSignal(false);
 

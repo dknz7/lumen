@@ -24,8 +24,7 @@ export {
   Bookmark,       // Watchlist menu entry
   Compass,        // Discover menu entry
   Library,        // Libraries section header
-  Star,           // Stargaze server group + left-menu entry
-  Server,         // DKNZPLEX (and any other) server group + left-menu entry
+  Server,         // that server (and any other) server group + left-menu entry
   Flame,          // Trending Movies / Trending TV shelf headers
   Film,           // Recently Released Movies shelves
   Tv,             // Recently Released Episodes shelves

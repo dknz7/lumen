@@ -145,8 +145,7 @@ function WatchlistCard(props: {
   const availability = useAvailability(() => props.item.guid, onScreen);
 
   // Best local match: highest resolution wins, tiebreak alphabetically by
-  // server display name. For Pineapple Express on Stargaze 1080p in Byron's
-  // library this naturally selects the Stargaze copy.
+  // server display name — so a 4K copy beats a 1080p one, deterministically.
   const bestMatch = createMemo<Match | null>(() => {
     const list = availability() ?? [];
     if (list.length === 0) return null;

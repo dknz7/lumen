@@ -12,7 +12,7 @@ import { stableArrayByKey } from "../util/stableArray";
 import "./Recommended.css";
 import { store } from "../state/settings";
 
-// Per spec — Phase 4 Task 10. New shelf order (Byron's call): Coming Soon
+// Per spec — Phase 4 Task 10. New shelf order (the user's call): Coming Soon
 // leads, then trailers, then recently added, then aired episodes. Watchlist
 // namespace.
 const SHELVES: { id: string; title: string; slug: string }[] = [

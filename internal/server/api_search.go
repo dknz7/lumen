@@ -32,7 +32,7 @@ type searchResponse struct {
 //
 // Boundary error scrub: per-source errors stay in the operator log;
 // the SPA only ever sees successful buckets (possibly empty). Mirrors
-// the pattern from /api/discover-item / /api/tmdb (Session 6 finding).
+// the pattern from /api/discover-item / /api/tmdb (observed against a real server).
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	if s.plex == nil {
 		writeError(w, http.StatusInternalServerError, "plex client not initialised")

@@ -50,7 +50,7 @@ func (c *Client) probe(baseURL string, timeout time.Duration) bool {
 //
 // plex.direct URLs are preferred because some custom-domain connections sit
 // behind CDNs that only whitelist a subset of Plex API paths — /identity works
-// but /library/metadata/*/thumb/* may 404 (Session 2 finding against DKNZPLEX's
+// but /library/metadata/*/thumb/* may 404 (observed against one server's
 // Level 3 edge). plex.direct URLs bypass that by routing directly to the PMS.
 func sortConnections(in []Connection) []Connection {
 	out := make([]Connection, len(in))

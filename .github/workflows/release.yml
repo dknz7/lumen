@@ -93,7 +93,7 @@ jobs:
             contains a standalone `lumen.exe` you can run from anywhere.
 
             ### Requirements
-            - Windows 10 (21H2+) or Windows 11, 64-bit
+            - Windows 10 2004+ or Windows 11, 64-bit
             - [PotPlayer](https://potplayer.daum.net/) for playback
             - A Plex account
 

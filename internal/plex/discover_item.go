@@ -147,7 +147,7 @@ type discoverItemWire struct {
 			// Guid (capital) is the absorber array of external IDs (imdb/tmdb/tvdb).
 			// Plex also emits a lowercase "guid" string at the same level — Go's
 			// case-insensitive json matching means we must declare both fields
-			// (above + here) so they don't collide; same Session 3 / 5 gotcha.
+			// (above + here) so they don't collide; the same gotcha.
 			Guid []struct {
 				ID string `json:"id"`
 			} `json:"Guid"`
@@ -159,7 +159,7 @@ type discoverItemWire struct {
 			// StudioString absorbs Plex's lowercase "studio" string so Go's
 			// case-insensitive json matching doesn't try to slot it into
 			// Studio (the rich array) and fail to decode. We only want the
-			// array — same Session 3 / 5 trick used for Guid vs guid.
+			// array — the same trick used for Guid vs guid.
 			StudioString string `json:"studio"`
 
 			// Studio is the rich array form. Plex emits this AND the top-level
@@ -170,7 +170,7 @@ type discoverItemWire struct {
 
 			// RatingScalar absorbs Plex's lowercase "rating" float
 			// (duplicates the Rotten Tomatoes critic value from
-			// Rating[]). Same Session 3 / 5 / 6 case-insensitive json
+			// Rating[]). The same case-insensitive json
 			// absorber pattern as guid/Guid and studio/Studio: without
 			// this sink, Go's case-insensitive matcher slots the scalar
 			// into the Rating array below and the whole Metadata decode
@@ -187,7 +187,7 @@ type discoverItemWire struct {
 			// surface — server-local Plex returns int IDs (and the existing helpers
 			// personsFromRole/personsFromCrew in libraries.go expect that shape).
 			// We can't reuse those helpers; declare a string-id local shape and
-			// inline-adapt below. Same Session 5 Phase A.5/A.6 lesson as Part.ID.
+			// inline-adapt below. The same lesson as Part.ID.
 			Role []struct {
 				ID    string `json:"id"`
 				Tag   string `json:"tag"`

@@ -20,9 +20,9 @@ const SORT_OPTIONS = [
 
 // Plex library "type" query param: 4=episode. Empty = library default (Shows
 // for TV libraries, Movies for Movies libraries). Default is "episodes"
-// for TV libraries per Byron's design call — he finds episodes more useful
+// for TV libraries per the user's design call — he finds episodes more useful
 // at the browse level than the show roll-up view.
-// Session 3: previously persisted in localStorage (LS_SORT, LS_VIEW);
+// an earlier session: previously persisted in localStorage (LS_SORT, LS_VIEW);
 // now persists to config.json via the settings store.
 const VIEW_MODE_OPTIONS = [
   { value: "",  label: "Shows" },

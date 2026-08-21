@@ -2,11 +2,10 @@ import type { Library, Server } from "../api/types";
 
 // Home layout derivation.
 //
-// Home's shelves used to be compile-time constants naming one particular
-// person's servers and libraries ("Stargaze", "DKNZPLEX", "Movies - 4K UHD",
-// "TV Shows - 4K HDR", "Anime"). On any other installation every shelf
-// resolved to a "not found in servers" stub, which made the app's main page
-// useless to everyone except its author.
+// Home's shelves used to be compile-time constants naming the original
+// author's own servers and library titles. On any other installation every
+// shelf resolved to a "not found in servers" stub, which made the app's main
+// page useless to everyone except its author.
 //
 // The layout is now derived from what the backend actually reports: a group
 // per server, a Recently Added shelf per library. Ordering, hiding and

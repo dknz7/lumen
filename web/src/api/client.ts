@@ -228,7 +228,7 @@ export const api = {
     return res.json();
   },
 
-  // Session 2 just needs the path-building helper — actual images are <img src=...>.
+  // an earlier session just needs the path-building helper — actual images are <img src=...>.
   image: (serverID: string, path: string, preset?: ImageDimPreset) => {
     const base = `/api/image-proxy?server=${encodeURIComponent(serverID)}&path=${encodeURIComponent(path)}`;
     if (!preset) return base;

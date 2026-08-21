@@ -8,7 +8,7 @@ import { createMemo } from "solid-js";
  * from the previous render even when the underlying data is identical.
  * `<For>` then unmounts and remounts every child, which:
  *   - Drops in-flight click events (mousedown on old DOM, mouseup on new
- *     DOM → browser doesn't fire click). Session 6.5: this manifested as
+ *     DOM → browser doesn't fire click). an earlier session: this manifested as
  *     "double-click required" on Discover tiles after window-focus refetch.
  *   - Causes a visible flicker as posters re-fetch / reattach.
  *   - Wastes DOM work proportional to list size.

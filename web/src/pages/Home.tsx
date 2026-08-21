@@ -226,7 +226,7 @@ function ContinueWatching(props: { servers: Server[] }) {
   // true during refetch as well as initial fetch, and switching cwItems
   // to undefined during refetch flips Shelf's isPaginated() false →
   // grid destroyed and rebuilt → click-loss when window-focus refetch
-  // lands during a click (Session 6.5 round 2). decksData() preserves
+  // lands during a click (a real regression). decksData() preserves
   // the previous value during refetch; we keep the grid visible.
   const cwItems = () => {
     if (decksData.error || !decksData()) return undefined;
