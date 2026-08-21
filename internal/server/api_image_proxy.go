@@ -180,7 +180,7 @@ func (s *Server) fetchImageProxyWithFallback(ctx context.Context, base, path str
 		return resp, kind, err
 	}
 
-	resp, kind, err := tryToken(s.cfg.Plex.AccountToken, "account")
+	resp, kind, err := tryToken(s.accountToken(), "account")
 	if err == nil && resp.StatusCode == http.StatusOK {
 		return resp, kind, nil
 	}

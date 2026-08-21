@@ -40,28 +40,33 @@ func (s *Server) handleServersRefresh(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 
-	// Merge into config — preserve DisplayName overrides per server.
-	var merged []config.Server
-	for _, sr := range servers {
-		var display string
-		for _, prev := range s.cfg.Plex.Servers {
-			if prev.MachineIdentifier == sr.MachineIdentifier {
-				display = prev.DisplayName
-				break
+	// Merge into config — preserve DisplayName overrides per server. The read
+	// of the existing names and the replacement of the slice happen in one
+	// critical section so a concurrent rename can't be lost or half-applied.
+	var count int
+	if err := s.mutateCfg(func(c *config.Config) {
+		merged := make([]config.Server, 0, len(servers))
+		for _, sr := range servers {
+			var display string
+			for _, prev := range c.Plex.Servers {
+				if prev.MachineIdentifier == sr.MachineIdentifier {
+					display = prev.DisplayName
+					break
+				}
 			}
+			merged = append(merged, config.Server{
+				Name:               sr.Name,
+				DisplayName:        display,
+				MachineIdentifier:  sr.MachineIdentifier,
+				AccessToken:        sr.AccessToken,
+				LastGoodConnection: sr.BaseURL,
+			})
 		}
-		merged = append(merged, config.Server{
-			Name:               sr.Name,
-			DisplayName:        display,
-			MachineIdentifier:  sr.MachineIdentifier,
-			AccessToken:        sr.AccessToken,
-			LastGoodConnection: sr.BaseURL,
-		})
-	}
-	s.cfg.Plex.Servers = merged
-	if err := s.cfg.Save(); err != nil {
+		c.Plex.Servers = merged
+		count = len(merged)
+	}); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, map[string]any{"status": "refreshed", "count": len(merged)})
+	writeJSON(w, map[string]any{"status": "refreshed", "count": count})
 }

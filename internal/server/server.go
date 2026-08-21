@@ -6,6 +6,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"lumen/internal/config"
@@ -17,6 +18,10 @@ import (
 // Server bundles the http.Server, mux, Plex client, and loaded config into one
 // lifecycle-managed unit.
 type Server struct {
+	// cfgMu guards every read and write of cfg. See the accessors in api.go —
+	// nothing outside them may touch cfg directly. Regression coverage lives in
+	// api_settings_concurrent_test.go.
+	cfgMu         sync.RWMutex
 	cfg           *config.Config
 	plex          *plex.Client
 	mux           *http.ServeMux
@@ -29,6 +34,9 @@ type Server struct {
 	auth          *authState
 	quit          chan struct{}
 	playback      *playback.Manager
+	window        windowController
+	hls           *hlsProxy
+	hlsClient     *http.Client
 }
 
 // New constructs the Server but does not bind yet. addr is in "host:port" form
@@ -40,8 +48,11 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 		plex: c,
 		mux:  mux,
 		http: &http.Server{
-			Addr:         addr,
-			Handler:      mux,
+			Addr: addr,
+			// Every request passes the cross-origin guard first — see
+			// origin_guard.go for why loopback is not the same as private.
+			Handler: nil, // set below, needs s
+
 			ReadTimeout:  15 * time.Second,
 			WriteTimeout: 30 * time.Second,
 			IdleTimeout:  60 * time.Second,
@@ -51,18 +62,24 @@ func New(cfg *config.Config, c *plex.Client, addr string) *Server {
 		discoverItems: newDiscoverItemCache(),
 		images:        newImageCache(),
 		auth:          newAuthState(),
+		hls:           newHLSProxy(),
+		// Its own client: trailer manifests and segments are streamed, so this
+		// must not inherit a short whole-request timeout.
+		hlsClient: &http.Client{Timeout: 60 * time.Second},
 		// Buffered so handleQuit's send never blocks even if main isn't yet
 		// selecting on the channel.
 		quit: make(chan struct{}, 1),
 	}
 	s.playback = playback.NewManager(c, func() string {
-		override := cfg.UI.Playback.PotPlayerPath
-		p, err := potplayer.ResolveExePath(override)
+		// Via the accessor: this closure runs on the playback goroutine, which
+		// can race a settings PUT changing the override path.
+		p, err := potplayer.ResolveExePath(s.potPlayerPath())
 		if err != nil {
 			return ""
 		}
 		return p
 	})
+	s.http.Handler = s.originGuard(mux)
 	s.registerRoutes()
 	return s
 }
@@ -110,6 +127,11 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/tmdb/trailer/", s.handleTMDBTrailer)
 	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
 	s.mux.HandleFunc("/api/quit", s.handleQuit)
+	s.mux.HandleFunc("/api/hls/", s.handleHLS)
+	s.mux.HandleFunc("/api/window/show", s.handleWindowShow)
+	s.mux.HandleFunc("/api/window/hide", s.handleWindowHide)
+	s.mux.HandleFunc("/api/about", s.handleAbout)
+	s.mux.HandleFunc("/api/status", s.handleStatus)
 	s.mux.HandleFunc("/", s.handleSPA)
 }
 
@@ -119,6 +141,13 @@ func (s *Server) ListenAndServe() error {
 	if err != nil {
 		return err
 	}
+	return s.Serve(ln)
+}
+
+// Serve serves on an already-bound listener. The GUI entrypoint binds first so
+// "port already in use" can be reported before a window opens, rather than as a
+// mystery blank window afterwards.
+func (s *Server) Serve(ln net.Listener) error {
 	s.ln = ln
 	return s.http.Serve(ln)
 }

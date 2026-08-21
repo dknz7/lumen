@@ -23,7 +23,7 @@ const tmdbCacheTTL = 30 * 24 * time.Hour
 // 404 when no matching TMDB entry or no YouTube trailer/teaser. SPA falls
 // through to the Plex Extras item.trailer field on 404.
 func (s *Server) handleTMDBTrailer(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.TMDBKey == "" {
+	if s.tmdbKey() == "" {
 		writeError(w, http.StatusServiceUnavailable, "no TMDB key configured")
 		return
 	}
@@ -47,7 +47,7 @@ func (s *Server) handleTMDBTrailer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := plex.NewTMDBClient(s.cfg.TMDBKey)
+	client := plex.NewTMDBClient(s.tmdbKey())
 	yt, err := client.LookupTrailerByIMDBID(id, mediaType)
 	if err != nil {
 		// Scrub: Go's *url.Error.Error() includes the full request URL on

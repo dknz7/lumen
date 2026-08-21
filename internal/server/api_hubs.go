@@ -40,7 +40,7 @@ func (c *hubCache) set(key string, items []plex.HubItem) {
 }
 
 func (s *Server) handleHub(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token — run lumen auth")
 		return
 	}
@@ -57,14 +57,32 @@ func (s *Server) handleHub(w http.ResponseWriter, r *http.Request) {
 	}
 	key := namespace + "/" + slug
 	if cached, ok := s.hubs.get(key); ok {
-		writeJSON(w, cached)
+		writeJSON(w, s.withHLSHandles(cached))
 		return
 	}
-	items, err := s.plex.GetHub(namespace, slug, s.cfg.Plex.AccountToken)
+	items, err := s.plex.GetHub(namespace, slug, s.accountToken())
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
 	s.hubs.set(key, items)
-	writeJSON(w, items)
+	writeJSON(w, s.withHLSHandles(items))
+}
+
+// withHLSHandles swaps each item's upstream trailer URL for an opaque
+// /api/hls/<handle> path, so the account token stays inside this process.
+//
+// Minting happens per response rather than before caching: handles expire after
+// 30 minutes and the hub cache can outlive that, which would leave the SPA
+// holding dead links.
+func (s *Server) withHLSHandles(items []plex.HubItem) []plex.HubItem {
+	token := s.accountToken()
+	out := make([]plex.HubItem, len(items))
+	copy(out, items)
+	for i := range out {
+		if out[i].HLSUrl != "" {
+			out[i].HLSUrl = s.hls.mint(out[i].HLSUrl, token)
+		}
+	}
+	return out
 }

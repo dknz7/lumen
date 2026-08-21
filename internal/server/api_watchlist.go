@@ -51,20 +51,20 @@ func (c *watchlistCache) invalidate() {
 }
 
 func (s *Server) handleWatchlist(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token — run lumen auth")
 		return
 	}
-	if cached, ok := s.watchlist.get(s.cfg.Plex.AccountToken); ok {
+	if cached, ok := s.watchlist.get(s.accountToken()); ok {
 		writeJSON(w, cached)
 		return
 	}
-	items, err := s.plex.GetWatchlist(s.cfg.Plex.AccountToken)
+	items, err := s.plex.GetWatchlist(s.accountToken())
 	if err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
-	s.watchlist.set(s.cfg.Plex.AccountToken, items)
+	s.watchlist.set(s.accountToken(), items)
 	writeJSON(w, items)
 }
 
@@ -76,7 +76,7 @@ func (s *Server) handleWatchlistAdd(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "POST required")
 		return
 	}
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token")
 		return
 	}
@@ -91,7 +91,7 @@ func (s *Server) handleWatchlistAdd(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "ratingKey required")
 		return
 	}
-	if err := s.plex.AddToWatchlist(s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+	if err := s.plex.AddToWatchlist(s.accountToken(), body.RatingKey); err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}
@@ -109,7 +109,7 @@ func (s *Server) handleWatchlistAddFromItem(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusMethodNotAllowed, "POST required")
 		return
 	}
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token")
 		return
 	}
@@ -134,7 +134,7 @@ func (s *Server) handleWatchlistAddFromItem(w http.ResponseWriter, r *http.Reque
 		writeError(w, http.StatusNotFound, "unknown server")
 		return
 	}
-	if err := s.plex.AddItemToWatchlist(toPlexServer(srv), s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+	if err := s.plex.AddItemToWatchlist(toPlexServer(srv), s.accountToken(), body.RatingKey); err != nil {
 		// Boundary scrub — log full detail server-side, hand the SPA a
 		// generic message. Resolution failures (missing parent ratingKey,
 		// non-plex GUID) carry actionable hints for Byron in the operator log.
@@ -155,7 +155,7 @@ func (s *Server) handleWatchlistRemoveFromItem(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusMethodNotAllowed, "POST required")
 		return
 	}
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token")
 		return
 	}
@@ -180,7 +180,7 @@ func (s *Server) handleWatchlistRemoveFromItem(w http.ResponseWriter, r *http.Re
 		writeError(w, http.StatusNotFound, "unknown server")
 		return
 	}
-	if err := s.plex.RemoveItemFromWatchlist(toPlexServer(srv), s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+	if err := s.plex.RemoveItemFromWatchlist(toPlexServer(srv), s.accountToken(), body.RatingKey); err != nil {
 		log.Printf("watchlist remove-from-item server=%s rk=%s: %v", body.Server, body.RatingKey, err)
 		writeError(w, http.StatusBadGateway, "watchlist remove failed")
 		return
@@ -194,7 +194,7 @@ func (s *Server) handleWatchlistRemove(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "POST required")
 		return
 	}
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token")
 		return
 	}
@@ -209,7 +209,7 @@ func (s *Server) handleWatchlistRemove(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "ratingKey required")
 		return
 	}
-	if err := s.plex.RemoveFromWatchlist(s.cfg.Plex.AccountToken, body.RatingKey); err != nil {
+	if err := s.plex.RemoveFromWatchlist(s.accountToken(), body.RatingKey); err != nil {
 		writeError(w, http.StatusBadGateway, err.Error())
 		return
 	}

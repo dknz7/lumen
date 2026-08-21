@@ -22,8 +22,12 @@ func (s *Server) handleAvailability(w http.ResponseWriter, r *http.Request) {
 		matches []plex.Match
 		err     error
 	}
-	results := make(chan result, len(s.cfg.Plex.Servers))
-	for _, srv := range s.cfg.Plex.Servers {
+	// One snapshot, used for the channel size, the fan-out and the fan-in. Three
+	// separate serverList() calls could disagree if /api/servers/refresh lands
+	// mid-request, and a mismatched receive count deadlocks the handler.
+	servers := s.serverList()
+	results := make(chan result, len(servers))
+	for _, srv := range servers {
 		srv := srv
 		go func() {
 			matches, err := s.plex.GetAvailability(toPlexServer(&srv), guid)
@@ -34,7 +38,7 @@ func (s *Server) handleAvailability(w http.ResponseWriter, r *http.Request) {
 	// the SPA's <Show when={availability()}> treats null as falsy and gets
 	// stuck on "Checking your servers…" instead of rendering the empty state.
 	all := []plex.Match{}
-	for range s.cfg.Plex.Servers {
+	for range servers {
 		r := <-results
 		if r.err != nil {
 			continue // silent per spec — absence = offline or no match

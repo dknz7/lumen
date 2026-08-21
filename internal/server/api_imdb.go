@@ -20,7 +20,7 @@ const omdbCacheTTL = 30 * 24 * time.Hour // 30 days per spec §6
 // with file mtime as the freshness anchor. Returns 404 when OMDB has no data
 // (Response: False) — SPA renders the IMDB pill as "—" in that case.
 func (s *Server) handleIMDB(w http.ResponseWriter, r *http.Request) {
-	if s.cfg.OMDBKey == "" {
+	if s.omdbKey() == "" {
 		writeError(w, http.StatusServiceUnavailable, "no OMDB key configured")
 		return
 	}
@@ -38,7 +38,7 @@ func (s *Server) handleIMDB(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := plex.NewOMDBClient(s.cfg.OMDBKey)
+	client := plex.NewOMDBClient(s.omdbKey())
 	rating, err := client.LookupByIMDBId(id)
 	if err != nil {
 		// Scrub: OMDB's api key rides in the URL query string, and Go's

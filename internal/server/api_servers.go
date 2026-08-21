@@ -21,8 +21,8 @@ type serverDTO struct {
 
 // handleServers returns the full server list known to config.
 func (s *Server) handleServers(w http.ResponseWriter, r *http.Request) {
-	out := make([]serverDTO, 0, len(s.cfg.Plex.Servers))
-	for _, srv := range s.cfg.Plex.Servers {
+	out := make([]serverDTO, 0, len(s.serverList()))
+	for _, srv := range s.serverList() {
 		status := "offline"
 		if srv.LastGoodConnection != "" {
 			status = "connected"
@@ -78,8 +78,16 @@ func (s *Server) handleServerScoped(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusBadRequest, "invalid JSON")
 			return
 		}
-		srv.DisplayName = body.DisplayName
-		if err := s.cfg.Save(); err != nil {
+		// srv is a copy, so the rename has to be applied to the live config
+		// under the write lock rather than through that pointer.
+		if err := s.mutateCfg(func(c *config.Config) {
+			for i := range c.Plex.Servers {
+				if c.Plex.Servers[i].MachineIdentifier == machineID {
+					c.Plex.Servers[i].DisplayName = body.DisplayName
+					return
+				}
+			}
+		}); err != nil {
 			writeError(w, http.StatusInternalServerError, err.Error())
 			return
 		}

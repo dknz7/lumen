@@ -38,7 +38,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "plex client not initialised")
 		return
 	}
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		writeError(w, http.StatusUnauthorized, "no account token — run lumen auth")
 		return
 	}
@@ -47,9 +47,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "q query param required")
 		return
 	}
-	log.Printf("search: query=%q (servers=%d)", query, len(s.cfg.Plex.Servers))
+	servers := s.serverList()
+	log.Printf("search: query=%q (servers=%d)", query, len(servers))
 
-	servers := s.cfg.Plex.Servers
 	resp := searchResponse{
 		Servers:  make([]searchServerBucket, len(servers)),
 		Discover: nil,
@@ -95,7 +95,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	var discoverItems []plex.Item
 	go func() {
 		defer wg.Done()
-		items, err := s.plex.SearchDiscover(query, s.cfg.Plex.AccountToken)
+		items, err := s.plex.SearchDiscover(query, s.accountToken())
 		if err != nil {
 			log.Printf("search: discover ERROR: %v", err)
 			return

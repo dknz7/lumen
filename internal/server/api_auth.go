@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"lumen/internal/config"
 	"lumen/internal/plex"
 )
 
@@ -82,8 +83,9 @@ func (s *Server) handleAuthPoll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Linked. Persist + clear pending.
-	s.cfg.Plex.AccountToken = token
-	if err := s.cfg.Save(); err != nil {
+	if err := s.mutateCfg(func(c *config.Config) {
+		c.Plex.AccountToken = token
+	}); err != nil {
 		writeError(w, http.StatusInternalServerError, "save config: "+err.Error())
 		return
 	}

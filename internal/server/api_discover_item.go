@@ -52,7 +52,7 @@ func (c *discoverItemCache) set(key string, item *plex.DiscoverItem) {
 // Watchlist tile click destinations).
 func (s *Server) handleDiscoverItem(w http.ResponseWriter, r *http.Request) {
 	log.Printf("discover-item request: %s", r.URL.Path)
-	if s.cfg.Plex.AccountToken == "" {
+	if s.accountToken() == "" {
 		log.Printf("discover-item: no account token configured")
 		writeError(w, http.StatusUnauthorized, "no account token — run lumen auth")
 		return
@@ -69,7 +69,7 @@ func (s *Server) handleDiscoverItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("discover-item cache miss, fetching from Plex: %s", rk)
-	item, err := s.plex.GetDiscoverItem(s.cfg.Plex.AccountToken, rk)
+	item, err := s.plex.GetDiscoverItem(s.accountToken(), rk)
 	if err != nil {
 		// Boundary error scrub — same idiom as handleIMDB / handleTMDBTrailer.
 		// err.Error() may include the upstream URL (and could leak the
