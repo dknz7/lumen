@@ -73,7 +73,13 @@ func TestImageProxyValidatesPath(t *testing.T) {
 		name string
 	}{
 		{"?server=abc", 400, "missing path"},
-		{"?server=abc&path=http://evil.com/exfil", 400, "absolute URL path"},
+		// Absolute URLs are accepted only for Plex's own metadata CDN, which is
+		// where cast and crew headshots live. Anything else is refused, so this
+		// can't be used as an open proxy.
+		{"?server=abc&path=http://evil.com/exfil", 403, "absolute URL, host not allowed"},
+		{"?server=abc&path=https://evil.com/exfil", 403, "absolute https URL, host not allowed"},
+		{"?server=abc&path=http://metadata-static.plex.tv/x.jpg", 403, "allowed host but plain http"},
+		{"?server=abc&path=https://metadata-static.plex.tv.evil.com/x.jpg", 403, "suffix-confusion host"},
 		{"?server=abc&path=../../../etc/passwd", 400, "path traversal"},
 		{"?server=abc&path=/library/metadata/1/thumb/1", 200, "valid — but 500-502 is also fine since server has no BaseURL"},
 		{"?server=nonexistent&path=/library/metadata/1/thumb/1", 404, "unknown server"},

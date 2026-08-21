@@ -22,7 +22,7 @@ const (
 // /photo/:/transcode endpoint, matching the exact URL format Plex Web uses.
 // The SPA never sees the token.
 //
-// Critical format details (discovered Session 2 against DKNZPLEX's Level 3 CDN):
+// Critical format details, established against a CDN-fronted Plex server:
 //  1. The inner "url" query param MUST keep raw slashes — URL-encoded %2F
 //     causes the CDN to return 404. This bypasses Go's url.Values.Encode()
 //     which would otherwise escape them.
@@ -31,16 +31,14 @@ const (
 //     (authenticates the transcode request itself). Plex Web does this.
 //
 // This specific format is load-bearing for CDN-fronted Plex deployments.
-// Don't simplify it with url.Values without re-verifying against Byron's setup.
+// Don't simplify it with url.Values without re-verifying against a real
+// CDN-fronted server.
 //
-// TODO(session-4.5+): Stargaze movie thumbnails 404 through this proxy
-// while episodes from the same server load correctly. DKNZPLEX is fine for
-// both. Hypothesis: Stargaze returns `thumb` paths in a different format
-// for movies (type=1) vs episodes (type=4), OR this handler's URL-rewrite
-// special-cases episode grandparentThumb fallback in a way that doesn't
-// fire for movie thumb. Investigation steps documented in
-// docs/session-4-findings.md → "Known Issues (Stargaze movie thumbnails —
-// deferred)". Capture failing + working URLs from DevTools and compare.
+// Known issue: on some servers, movie thumbnails 404 through this proxy while
+// episodes from the same server load fine. Suspected cause is a difference in
+// the `thumb` path format between movies (type=1) and episodes (type=4). The
+// account/server token fallback below works around most of it. To investigate,
+// capture a failing and a working URL from DevTools and diff them.
 func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	machineID := q.Get("server")
@@ -53,16 +51,26 @@ func (s *Server) handleImageProxy(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "path query param required")
 		return
 	}
+	// Plex serves cast and crew headshots as ABSOLUTE URLs on its own metadata
+	// CDN (metadata-static.plex.tv), not as server-relative paths. Rejecting
+	// those outright meant every person thumb on every detail page 400'd and
+	// silently fell back to a grey silhouette — 78 failed requests on a single
+	// show page.
+	//
+	// They need no token, so they are fetched directly and cached like any
+	// other image. The host allowlist is what keeps this from being an open
+	// proxy for arbitrary URLs.
+	if isAbsoluteURL(path) {
+		s.serveCDNImage(w, r, path)
+		return
+	}
+
 	if !strings.HasPrefix(path, "/") {
 		writeError(w, http.StatusBadRequest, "path must start with /")
 		return
 	}
 	if strings.Contains(path, "..") {
 		writeError(w, http.StatusBadRequest, "path traversal not allowed")
-		return
-	}
-	if u, err := url.Parse(path); err == nil && (u.Scheme != "" || u.Host != "") {
-		writeError(w, http.StatusBadRequest, "path must be server-relative")
 		return
 	}
 	srv := s.serverByID(machineID)

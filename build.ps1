@@ -95,8 +95,9 @@ if (-not $goversioninfo) {
 }
 if ($goversioninfo) {
     $exe = if ($goversioninfo -is [string]) { $goversioninfo } else { $goversioninfo.Source }
-    & $exe -o "$root\cmd\lumen\resource_windows_amd64.syso" `
-        -platform-specific=false `
+    # -64 is required. Without it goversioninfo emits a 32-bit resource and the
+    # Go link fails with "unknown relocation type 7".
+    & $exe -64 -o "$root\cmd\lumen\resource_windows_amd64.syso" `
         -ver-major $verMajor -ver-minor $verMinor -ver-patch $verPatch -ver-build 0 `
         -product-ver-major $verMajor -product-ver-minor $verMinor -product-ver-patch $verPatch -product-ver-build 0 `
         -file-version $Version -product-version $Version `
