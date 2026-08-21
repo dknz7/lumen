@@ -23,6 +23,7 @@ type UIConfig struct {
 	DefaultSort     string                    `json:"defaultSort"`     // library default sort
 	DefaultViewMode string                    `json:"defaultViewMode"` // "shows" | "episodes" for TV libraries
 	Playback        PlaybackUIConfig          `json:"playback"`
+	Window          WindowUIConfig            `json:"window"`
 	HiddenLibraries []string                  `json:"hiddenLibraries"` // "serverID:libraryKey" entries
 	ShelfState      map[string]PageShelfState `json:"shelfState"`      // keyed by page: "home", "recommended", "discover"
 }
@@ -30,6 +31,15 @@ type UIConfig struct {
 // PlaybackUIConfig — persists the Pot Player override path (Session 4 reads it).
 type PlaybackUIConfig struct {
 	PotPlayerPath string `json:"potPlayerPath"`
+}
+
+// WindowUIConfig controls how the desktop window behaves. Read live by the
+// shell each time the user closes or minimises, so changes apply without a
+// restart.
+type WindowUIConfig struct {
+	CloseAction    string `json:"closeAction"`    // "tray" (default) | "quit"
+	MinimizeToTray bool   `json:"minimizeToTray"` // minimise hides to tray instead of the taskbar
+	StartHidden    bool   `json:"startHidden"`    // launch straight to the tray
 }
 
 // PageShelfState stores per-page shelf/group order + visibility + collapse.
@@ -148,6 +158,11 @@ func Load() (*Config, error) {
 	if c.UI.DefaultViewMode == "" {
 		c.UI.DefaultViewMode = "episodes"
 	}
+	if c.UI.Window.CloseAction == "" {
+		// Closing to tray is the default: Lumen keeps playback state and a
+		// warm cache, and quitting is one click away in the tray menu.
+		c.UI.Window.CloseAction = "tray"
+	}
 	if c.UI.ShelfState == nil {
 		c.UI.ShelfState = map[string]PageShelfState{}
 	}
@@ -265,6 +280,7 @@ func newDefault() *Config {
 		CardLayout:      "poster",
 		DefaultSort:     "addedAt:desc",
 		DefaultViewMode: "episodes",
+		Window:          WindowUIConfig{CloseAction: "tray"},
 		ShelfState:      map[string]PageShelfState{},
 		HiddenLibraries: []string{},
 	}

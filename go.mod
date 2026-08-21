@@ -3,7 +3,14 @@ module lumen
 go 1.26.2
 
 require (
-	github.com/google/uuid v1.6.0 // indirect
-	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
-	golang.org/x/sys v0.43.0 // indirect
+	github.com/energye/systray v1.0.3
+	github.com/google/uuid v1.6.0
+	github.com/jchv/go-webview2 v0.0.0-20260205173254-56598839c808
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
+	golang.org/x/sys v0.43.0
+)
+
+require (
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/jchv/go-winloader v0.0.0-20250406163304-c1995be93bd1 // indirect
 )

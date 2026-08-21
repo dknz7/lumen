@@ -30,6 +30,16 @@ func ScratchDir() string {
 	return filepath.Join(os.TempDir(), "lumen")
 }
 
+// LogFile returns the absolute path of the main log file, creating the log
+// directory if needed. Lumen is built with -H windowsgui and so has no console
+// to print to; this file is where log output actually goes.
+func LogFile() (string, error) {
+	if err := EnsureDirs(); err != nil {
+		return "", err
+	}
+	return filepath.Join(LogsDir(), "lumen.log"), nil
+}
+
 // EnsureDirs creates every directory Lumen expects under %APPDATA%\Lumen.
 // Idempotent — safe to call on every startup.
 func EnsureDirs() error {

@@ -1,4 +1,9 @@
-// Lumen — personal Windows Plex companion. CLI entrypoint.
+// Lumen — Windows desktop client for Plex. Entrypoint.
+//
+// The binary is linked with -H windowsgui, so it is a GUI-subsystem process
+// with no console. Launching it with no arguments opens the app window; the
+// subcommands below stay available for scripting and debugging, and reattach
+// themselves to the calling terminal so their output is visible.
 package main
 
 import (
@@ -6,45 +11,81 @@ import (
 	"os"
 )
 
-const version = "0.1.0-dev"
+// Stamped at build time, e.g.
+//
+//	-ldflags "-X main.version=1.0.0 -X main.commit=abc1234"
+var (
+	version   = "0.0.0-dev"
+	commit    = ""
+	buildDate = ""
+)
 
 func main() {
+	// No arguments: the normal double-click / Start-menu path. Straight to GUI.
 	if len(os.Args) < 2 {
-		usage()
-		os.Exit(2)
+		runApp(appOptions{})
+		return
 	}
+
 	switch os.Args[1] {
+	// --- GUI ---
+	case "--tray", "-tray":
+		// Used by the "start with Windows" shortcut: boot to the tray only.
+		runApp(appOptions{StartHidden: true})
+	case "serve":
+		// Kept as a subcommand so shortcuts created by older versions still
+		// work. Defaults to the window; --browser restores the old behaviour.
+		runServe(os.Args[2:])
+
+	// --- CLI. These print, so borrow the parent terminal's console. ---
 	case "auth":
+		attachParentConsole()
 		runAuth(os.Args[2:])
 	case "list":
+		attachParentConsole()
 		runList(os.Args[2:])
 	case "probe-hubs":
+		attachParentConsole()
 		runProbeHubs(os.Args[2:])
-	case "serve":
-		runServe(os.Args[2:])
 	case "rename":
+		attachParentConsole()
 		runRename(os.Args[2:])
 	case "install-shortcut":
+		attachParentConsole()
 		runInstallShortcut(os.Args[2:])
 	case "version", "--version", "-v":
+		attachParentConsole()
 		fmt.Printf("lumen %s\n", version)
+	case "help", "--help", "-h", "/?":
+		attachParentConsole()
+		usage(os.Stdout)
 	default:
+		attachParentConsole()
 		fmt.Fprintf(os.Stderr, "unknown subcommand: %s\n\n", os.Args[1])
-		usage()
+		usage(os.Stderr)
 		os.Exit(2)
 	}
 }
 
-func usage() {
-	fmt.Fprint(os.Stderr, `usage: lumen <subcommand> [args]
+func usage(w *os.File) {
+	fmt.Fprintf(w, `Lumen %s — a Windows desktop client for Plex.
+
+usage: lumen [subcommand] [flags]
+
+Running lumen with no arguments opens the app.
 
 subcommands:
-  auth         Run Plex PIN flow and store account token
-  list         List connected Plex servers and their libraries
-  probe-hubs   Probe Plex Discover hub slugs (diagnostic)
-  serve        Start the Lumen web app (HTTP server on 127.0.0.1:7832)
-  rename            Set a local display name for a server (e.g. rename <machineID> "Stargaze")
+  (none)            Open the Lumen window
+  --tray            Start minimised to the system tray
+  serve             Open the Lumen window (alias, kept for old shortcuts)
+    --browser         ... in your default browser instead of a native window
+    --addr <addr>     ... on a different address (default 127.0.0.1:7832)
+  auth              Link a Plex account via the PIN flow
+  list              List connected Plex servers and their libraries
+  rename            Set a local display name for a server:
+                      lumen rename <machineID> "Living Room"
   install-shortcut  Create a Lumen shortcut on your Desktop
-  version           Print lumen version
-`)
+  probe-hubs        Probe Plex Discover hub slugs (diagnostic)
+  version           Print the version
+`, version)
 }
