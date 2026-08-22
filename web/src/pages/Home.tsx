@@ -295,8 +295,15 @@ function ServerGroup(props: { group: GroupDef }) {
     });
   }
 
+  // Group's id MUST match the ids handed to <SortableProvider> above, which
+  // are the raw group ids. A "group-" prefix here meant createSortable
+  // registered "group-<machineID>" while the provider — and onGroupDragEnd's
+  // indexOf(draggable.id) — only ever knew "<machineID>", so every group drop
+  // resolved to index -1 and returned early. Reordering servers had silently
+  // done nothing for as long as the prefix existed; the tell was that no
+  // groupOrder key had ever been written to config.json.
   return (
-    <Group id={`group-${groupID()}`} title={props.group.title} icon={iconForGroup()}>
+    <Group id={groupID()} title={props.group.title} icon={iconForGroup()}>
       <Show
         when={props.group.shelves.length > 0}
         fallback={
