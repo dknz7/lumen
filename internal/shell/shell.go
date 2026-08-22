@@ -73,6 +73,14 @@ func wndProc(hwnd, msg, wparam, lparam uintptr) uintptr {
 			return 0
 		}
 
+	case wmDpiChanged:
+		// The window has crossed onto a monitor with a different scale factor.
+		// Windows hands us the rect it wants in lParam; honouring it keeps the
+		// frame the same physical size while WebView2 re-rasterises its
+		// contents underneath at the new scale.
+		applySuggestedDPIBounds(hwnd, lparam)
+		return 0
+
 	case wmQueryEndSession, wmEndSession:
 		// Windows is logging off or shutting down. Never hide-to-tray here —
 		// that blocks shutdown and Windows kills us anyway.
@@ -141,6 +149,14 @@ func Run(opts Options) error {
 		} else {
 			log.Printf("shell: could not subclass window, close-to-tray disabled: %v", err)
 		}
+
+		// opts.Width/Height are logical pixels. They used to behave that way
+		// for free — the process was DPI-unaware, so Windows stretched the
+		// whole surface afterwards. Now that awareness is on they would land
+		// as physical pixels and open a fifth narrower on a 125% display, so
+		// they are scaled explicitly to the monitor the window actually
+		// appeared on.
+		scaleInitialSize(state.hwnd, opts.Width, opts.Height)
 
 		w.Navigate(opts.URL)
 		if opts.StartHidden {

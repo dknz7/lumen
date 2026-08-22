@@ -9,6 +9,8 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"lumen/internal/shell"
 )
 
 // Stamped at build time, e.g.
@@ -21,6 +23,13 @@ var (
 )
 
 func main() {
+	// Before anything else, and specifically before any window exists: opt in
+	// to per-monitor DPI awareness. Windows latches a process's awareness the
+	// moment it creates its first HWND, so this genuinely has to be first.
+	// Without it every window is rendered at 96 DPI and bitmap-stretched to
+	// the monitor's scale — 25% oversized and visibly soft on a 125% display.
+	shell.EnablePerMonitorDPI()
+
 	// No arguments: the normal double-click / Start-menu path. Straight to GUI.
 	if len(os.Args) < 2 {
 		runApp(appOptions{})
