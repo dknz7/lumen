@@ -29,15 +29,6 @@ export default function Episodes(props: {
     seasons.error ? [] : (seasons() ?? []).filter((s) => s.index > 0),
   );
 
-  // Episodes were the one list still iterated raw while refetchOnFocus was
-  // attached: <For> keys by reference, so every alt-tab handed it new objects
-  // and remounted every row — the click-loss/flicker class that
-  // stableArrayByKey exists to prevent, fixed everywhere else.
-  const stableEpisodes = stableArrayByKey<Item>(
-    () => (episodes.error ? [] : ((episodes() as Item[] | undefined) ?? [])),
-    (ep) => ep.ratingKey,
-  );
-
   const [activeKey, setActiveKey] = createSignal<string | null>(null);
   // pendingNavigate flips to true on a "navigate-mode" pill click and stays
   // until the corresponding episodes resource resolves — at which point the
@@ -81,6 +72,23 @@ export default function Episodes(props: {
   const [episodes, { refetch: refetchEpisodes }] = createResource(
     () => activeKey(),
     (key) => (key ? api.seasonEpisodes(props.serverID, key) : Promise.resolve([] as Item[]))
+  );
+
+  // Episodes were the one list still iterated raw while refetchOnFocus was
+  // attached: <For> keys by reference, so every alt-tab handed it new objects
+  // and remounted every row — the click-loss/flicker class that
+  // stableArrayByKey exists to prevent, fixed everywhere else.
+  //
+  // This MUST stay below the `episodes` resource. stableArrayByKey is a
+  // createMemo, and Solid runs a memo's body the instant it is created — so
+  // declaring it above `episodes` read a const inside its temporal dead zone
+  // and threw "Cannot access 'episodes' before initialization" (minified to a
+  // bare 'f') the moment any episode or show detail page mounted. Continue
+  // Watching is almost all episodes, which is why that shelf looked cursed
+  // while Recently Added — seasons and movies — was fine.
+  const stableEpisodes = stableArrayByKey<Item>(
+    () => (episodes.error ? [] : ((episodes() as Item[] | undefined) ?? [])),
+    (ep) => ep.ratingKey,
   );
 
   // Pick up viewCount changes from within-Lumen mutations (Mark Watched on a
