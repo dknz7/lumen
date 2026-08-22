@@ -154,6 +154,105 @@ lumen serve --browser   Run headless, open in your default browser instead
 lumen version           Print version
 ```
 
+## Themes
+
+Lumen ships **Pure OLED** and **Tokyo Night**. A theme is one file of colour
+values — no CSS, no component changes.
+
+```
+web/src/themes/
+  index.ts        ThemeTokens, applyTheme(), and the THEMES registry
+  pure-oled.ts
+  tokyo-night.ts
+```
+
+To add one, copy an existing theme, change the values, and register it:
+
+```ts
+// web/src/themes/midnight.ts
+import type { Theme } from "./index";
+
+export const midnight: Theme = {
+  id: "midnight",          // persisted in config.json as ui.theme
+  name: "Midnight",        // label in Settings > Appearance
+  tokens: { /* all 25 */ },
+};
+```
+
+```ts
+// web/src/themes/index.ts
+import { midnight } from "./midnight";
+export const THEMES: Theme[] = [pureOled, tokyoNight, midnight];
+```
+
+That is the whole job — the picker is generated from `THEMES`, and
+`applyTheme` writes every token to `:root` as a CSS custom property, so
+components pick the change up with no re-render.
+
+### The 25 tokens
+
+Any CSS colour value works — hex, `rgba()`, anything the browser accepts.
+`TypeScript` will tell you if you miss one.
+
+| Token | CSS variable | Used for |
+|---|---|---|
+| `bg` | `--bg` | Page canvas |
+| `bgMenu` | `--bg-menu` | Left rail |
+| `bgElevated` | `--bg-elevated` | Top-bar pill, shelves, meta pills |
+| `bgInverse` | `--bg-inverse` | Primary buttons, selected tabs |
+| `text` | `--text` | Titles, headings, icons |
+| `textMuted` | `--text-muted` | Body copy, dates, durations |
+| `textInverse` | `--text-inverse` | Text on `bgInverse` |
+| `menuIcon` | `--menu-icon` | Left-rail chevrons and idle nav links |
+| `border` | `--border` | Hard dividers |
+| `borderSoft` | `--border-soft` | Subtle separators, in-pill dividers |
+| `stroke` | `--stroke` | Hover outlines, secondary button borders |
+| `statusOnline` | `--status-online` | Reachable server dot |
+| `statusOffline` | `--status-offline` | Unreachable server dot |
+| `shadow` | `--shadow` | Full `box-shadow` value, not a colour |
+| `accent` | `--accent`, `--led-teal` | LEDs, progress fills, Save button |
+| `accentContrast` | `--accent-contrast` | Text drawn on `accent` |
+| `danger` | `--danger` | Error text |
+| `dangerStrong` | `--danger-strong` | Error borders, destructive fills |
+| `warning` | `--warning` | Transcoding, degraded states |
+| `success` | `--success` | Watched, direct play, healthy |
+| `overlay` | `--overlay` | Scrim behind modals |
+| `surfaceSubtle` | `--surface-subtle` | Hover fills, skeleton shimmer |
+| `cardEmpty` | `--bg-card-empty` | Poster background with no artwork |
+| `shelfOuter` | `--bg-shelf-outer` | Shelf container |
+| `shelfInner` | `--bg-shelf-inner` | Shelf row background |
+
+`--led-teal` is a legacy alias of `--accent`, kept so older rules keep working.
+
+### What a theme deliberately cannot change
+
+Two sets of colours stay fixed, on purpose:
+
+- **Brand marks** — the IMDB yellow and the Rotten Tomatoes red and green.
+  They identify someone else's product and must look the same everywhere.
+- **Colours drawn over artwork** — the black gradients under poster titles,
+  the white ring on the play button. These sit on top of arbitrary images,
+  not on a theme surface, and a themed scrim stops doing its job.
+
+If you are adding a token, that is the test: does it sit on a Lumen surface,
+or on a poster?
+
+### Deriving values
+
+Alpha variants come from `color-mix` rather than being hardcoded, so they
+follow the theme:
+
+```css
+background: color-mix(in srgb, var(--accent) 85%, transparent);
+```
+
+### Checking your work
+
+Themes are colour-only, so a passing build proves nothing. Switch between
+every theme with **Settings > Appearance** and actually look at Home, a detail
+page, the Watchlist and each Settings panel. Errors and warnings are easiest
+to reach by pointing Lumen at an unreachable server and clearing the OMDB key.
+
 ## Contributing
 
 Issues and PRs welcome. A few things worth knowing before you dive in:
