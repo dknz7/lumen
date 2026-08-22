@@ -37,13 +37,13 @@
 }
 
 .as-warn {
-  color: #f0b878;
+  color: var(--warning);
   font-size: 13px;
 }
 
 .as-field-error {
   margin-top: 4px;
-  color: #f07878;
+  color: var(--danger);
   font-size: 12px;
 }
 
@@ -52,7 +52,7 @@
   flex-direction: column;
   gap: 10px;
   align-items: flex-start;
-  color: #f07878;
+  color: var(--danger);
   font-size: 13px;
 }
 
@@ -147,8 +147,8 @@
 }
 
 .as-forget--yes:hover {
-  color: #f07878;
-  border-color: #c83c3c;
+  color: var(--danger);
+  border-color: var(--danger-strong);
 }
 
 .as-server-actions {

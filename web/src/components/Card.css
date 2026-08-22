@@ -120,12 +120,12 @@
    stable visual confirmation rather than relying on a fleeting toast. */
 .card-watchlist-btn.is-on {
   opacity: 1;
-  color: var(--led-teal);
-  border-color: var(--led-teal);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .card-watchlist-btn:not(.is-on):hover {
-  background: rgba(45, 212, 191, 0.85);
+  background: color-mix(in srgb, var(--accent) 85%, transparent);
 }
 
 .card-watchlist-btn:disabled {
@@ -133,11 +133,11 @@
 }
 
 .card-mark-watched-btn:hover {
-  background: rgba(40, 180, 90, 0.85);
+  background: color-mix(in srgb, var(--success) 85%, transparent);
 }
 
 .card-remove-btn:hover {
-  background: rgba(200, 40, 40, 0.85);
+  background: color-mix(in srgb, var(--danger-strong) 85%, transparent);
 }
 
 /* Hover-to-play overlay — centered circular button that fades in on card hover.
@@ -210,7 +210,7 @@
   left: -32px;
   width: 120px;
   padding: 3px 0;
-  background: var(--led-teal);
+  background: var(--accent);
   color: var(--bg);
   font-family: var(--font-mono);
   font-size: 10px;

@@ -20,7 +20,7 @@
   line-height: 1.5;
 }
 .reauth-modal a {
-  color: var(--led-teal);
+  color: var(--accent);
 }
 .reauth-code {
   font-family: var(--font-mono, monospace);

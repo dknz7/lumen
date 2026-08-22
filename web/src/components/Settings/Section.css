@@ -90,8 +90,8 @@
 }
 
 .settings-btn-danger:hover:not(:disabled) {
-  border-color: #c83c3c;
-  color: #f07878;
+  border-color: var(--danger-strong);
+  color: var(--danger);
 }
 
 /* Inline Save button for API-key inputs (OMDB / TMDB). Sits below the input
@@ -106,8 +106,8 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
-  background: var(--led-teal, #2dd4bf);
-  color: #000;
+  background: var(--accent);
+  color: var(--accent-contrast);
   transition: background 0.18s ease, color 0.18s ease;
 }
 
@@ -116,8 +116,8 @@
 }
 
 .settings-key-save--saved {
-  background: #000;
-  color: #fff;
+  background: var(--bg);
+  color: var(--text);
   cursor: default;
 }
 

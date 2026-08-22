@@ -1,7 +1,7 @@
 .close-confirm-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--overlay);
   display: grid;
   place-items: center;
   z-index: 200;
@@ -11,9 +11,9 @@
 .close-confirm-modal {
   background: var(--bg);
   color: var(--text);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border-soft);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: var(--shadow), inset 0 1px 0 var(--border-soft);
   padding: 24px 24px 20px;
   width: min(420px, 90vw);
   display: flex;
@@ -63,14 +63,16 @@
   border-color: var(--stroke);
 }
 
-/* Destructive red — Tailwind red-700 base, red-600 on hover. */
+/* Destructive fill. Was a hardcoded Tailwind red-700/red-600 pair, which no
+   theme could reach; it now takes the theme's strong danger colour and keeps
+   the "hover is lighter" relationship by mixing toward the text colour. */
 .close-confirm-confirm {
-  background: #b91c1c;
+  background: var(--danger-strong);
   color: var(--text);
-  border-color: #b91c1c;
+  border-color: var(--danger-strong);
 }
 
 .close-confirm-confirm:hover {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: color-mix(in srgb, var(--danger-strong) 85%, var(--text));
+  border-color: color-mix(in srgb, var(--danger-strong) 85%, var(--text));
 }

@@ -29,7 +29,7 @@
 
 .shelf-drag-handle:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border-soft);
 }
 
 .shelf.is-dragging {
@@ -132,7 +132,7 @@
   height: 36px;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 41, 0.85);
+  background: color-mix(in srgb, var(--bg-elevated) 85%, transparent);
   color: var(--text);
   border: 1px solid var(--border-soft);
   border-radius: 50%;
@@ -147,7 +147,7 @@
 .shelf-arrow.right { right: 4px; }
 
 .shelf-arrow:hover {
-  background: rgba(15, 23, 41, 1);
+  background: var(--bg-elevated);
   border-color: var(--stroke);
 }
 

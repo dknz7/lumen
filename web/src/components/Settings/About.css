@@ -61,7 +61,7 @@
 }
 
 .about-value--warn {
-  color: #f0b878;
+  color: var(--warning);
 }
 
 .about-hint {
@@ -73,7 +73,7 @@
 }
 
 .about-error {
-  color: #f07878;
+  color: var(--danger);
   font-size: 13px;
 }
 

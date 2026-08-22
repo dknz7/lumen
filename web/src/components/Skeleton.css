@@ -6,9 +6,9 @@
 .skeleton {
   background: linear-gradient(
     90deg,
-    var(--surface, #1a1a1a) 25%,
-    rgba(255, 255, 255, 0.06) 50%,
-    var(--surface, #1a1a1a) 75%
+    var(--bg-menu) 25%,
+    var(--surface-subtle) 50%,
+    var(--bg-menu) 75%
   );
   background-size: 800px 100%;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;

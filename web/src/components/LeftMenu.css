@@ -144,8 +144,8 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--led-teal);
-  box-shadow: 0 0 6px var(--led-teal), 0 0 2px rgba(45, 212, 191, 0.6);
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent), 0 0 2px color-mix(in srgb, var(--accent) 60%, transparent);
   flex-shrink: 0;
 }
 
@@ -245,5 +245,5 @@
 .libraries-error {
   padding: 8px 14px;
   font-size: 11px;
-  color: #f0a0a0;
+  color: var(--danger);
 }

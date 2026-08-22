@@ -9,13 +9,13 @@
 }
 
 .pb-status--found {
-  background: rgba(76, 175, 80, 0.15);
-  color: #6ddb72;
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
 }
 
 .pb-status--missing {
-  background: rgba(240, 120, 120, 0.15);
-  color: #f07878;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
 }
 
 .pb-status--unknown {

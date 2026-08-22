@@ -33,7 +33,7 @@
 /* A shelf whose own fetch failed. Distinct from the neutral "nothing here"
  * stub so a failure never reads as an empty library. */
 .shelf-stub--error {
-  color: #f0a0a0;
+  color: var(--danger);
 }
 
 .shelf-retry {

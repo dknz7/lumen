@@ -173,10 +173,10 @@
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .watchlist-card-mark-watched:hover {
-  background: rgba(40, 180, 90, 0.85);
+  background: color-mix(in srgb, var(--success) 85%, transparent);
 }
 .watchlist-card-remove:hover {
-  background: rgba(200, 40, 40, 0.85);
+  background: color-mix(in srgb, var(--danger-strong) 85%, transparent);
 }
 .watchlist-title {
   font-weight: 600;
@@ -198,7 +198,7 @@
  * count stuck on "…" and no indication anything had gone wrong. */
 .watchlist-error {
   padding: 20px 8px;
-  color: #f0a0a0;
+  color: var(--danger);
   font-size: 13px;
 }
 

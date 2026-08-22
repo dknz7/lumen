@@ -154,7 +154,7 @@
 
 .discover-tile-action-btn:hover {
   background: rgba(0, 0, 0, 0.9);
-  border-color: var(--led-teal);
+  border-color: var(--accent);
 }
 
 .discover-tile-action-btn:disabled {
@@ -164,8 +164,8 @@
 
 /* Watchlisted-on state — teal LED tint mirrors the "WATCHED" ribbon hue. */
 .discover-tile-action-btn.is-on {
-  color: var(--led-teal);
-  border-color: var(--led-teal);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .discover-tile-meta {
@@ -184,7 +184,7 @@
 }
 
 .discover-tile:hover .discover-tile-title {
-  color: var(--led-teal);
+  color: var(--accent);
 }
 
 .discover-tile-year {

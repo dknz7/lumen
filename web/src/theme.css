@@ -16,7 +16,19 @@
   --stroke:         #ffffff;   /* white stroke — hover outlines, secondary button borders */
   --status-online:  #4caf50;   /* connected server indicator */
   --status-offline: #6b7280;   /* offline server indicator */
-  --led-teal:       #2dd4bf;   /* settings-pill decorative LED */
+  --led-teal:       #2dd4bf;   /* alias of --accent, kept for existing rules */
+
+  /* Accent and state. Defaults mirror Pure OLED; applyTheme overwrites all of
+     them on boot and on every theme change. Declared here so the app renders
+     correctly in the moment before settings resolve. */
+  --accent:          #2dd4bf;
+  --accent-contrast: #000000;
+  --danger:          #f07878;
+  --danger-strong:   #c83c3c;
+  --warning:         #e0b050;
+  --success:         #4caf50;
+  --overlay:         rgba(0, 0, 0, 0.65);
+  --surface-subtle:  rgba(255, 255, 255, 0.06);
   --bg-card-empty:  #262626;   /* card poster background when no thumb / thumb failed */
 
   /* Shelf surfaces — kept very transparent so the OLED black canvas reads
