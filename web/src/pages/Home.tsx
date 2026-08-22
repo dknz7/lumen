@@ -1,7 +1,7 @@
 import { createMemo, createResource, createSignal, For, JSX, Show } from "solid-js";
 import { DragDropProvider, DragDropSensors, SortableProvider, closestCenter } from "@thisbeyond/solid-dnd";
 import { api } from "../api/client";
-import type { Item, Library, Server } from "../api/types";
+import type { Collection, Item, Library, Server } from "../api/types";
 import Group from "../components/Group";
 import Shelf from "../components/Shelf";
 import Card from "../components/Card";
@@ -73,7 +73,12 @@ export default function Home() {
     const srvs = servers() as Server[] | undefined;
     const libs = libsByServer();
     if (!srvs || !libs) return [];
-    return deriveHomeLayout(srvs, libs, hiddenSet());
+    return deriveHomeLayout(
+      srvs,
+      libs,
+      hiddenSet(),
+      settingsStore.settings()?.collectionShelves ?? [],
+    );
   });
 
   const groupOrder = () =>
@@ -320,7 +325,7 @@ function ServerGroup(props: { group: GroupDef }) {
                 const def = () => props.group.shelves.find((sh) => sh.id === id);
                 return (
                   <Show when={def()}>
-                    {(d) => <RecentShelf def={d() as Extract<ShelfDef, { kind: "server-recent" }>} />}
+                    {(d) => <ShelfForDef def={d()} />}
                   </Show>
                 );
               }}
@@ -329,6 +334,89 @@ function ServerGroup(props: { group: GroupDef }) {
         </DragDropProvider>
       </Show>
     </Group>
+  );
+}
+
+// ShelfForDef picks the renderer for a shelf definition. Two kinds exist:
+// Recently Added, derived automatically for every video library, and
+// collection shelves the user opted into in Settings.
+function ShelfForDef(props: { def: ShelfDef }) {
+  return (
+    <Show
+      when={props.def.kind === "server-collection"}
+      fallback={<RecentShelf def={props.def as Extract<ShelfDef, { kind: "server-recent" }>} />}
+    >
+      <CollectionShelf def={props.def as Extract<ShelfDef, { kind: "server-collection" }>} />
+    </Show>
+  );
+}
+
+// CollectionShelf renders one Plex collection as a Home shelf.
+//
+// The collection is resolved by TITLE, never by ratingKey. Server admins
+// rebuild collections and a rebuild issues fresh ratingKeys while keeping the
+// title, so a key-based reference would quietly go dead with no way to tell a
+// deleted collection from a rebuilt one. Costs one extra request per shelf to
+// list the library's collections; that response is small.
+function CollectionShelf(props: { def: Extract<ShelfDef, { kind: "server-collection" }> }) {
+  const [cols] = createResource(
+    () => `${props.def.serverID}:${props.def.libraryKey}`,
+    () => api.collections(props.def.serverID, props.def.libraryKey),
+  );
+
+  const collection = createMemo(() => {
+    if (cols.error || !cols()) return null;
+    return (cols() as Collection[]).find((c) => c.title === props.def.collectionTitle) ?? null;
+  });
+
+  const [items, { refetch: refetchItems }] = createResource(
+    () => collection()?.ratingKey,
+    (rk) => api.collectionItems(props.def.serverID, rk, 20),
+  );
+
+  refetchOnFocus(() => refetchItems());
+
+  // Declared below `items` deliberately: stableArrayByKey is a createMemo and
+  // Solid runs a memo body on creation, so reading `items` from above it would
+  // land in its temporal dead zone.
+  const stable = stableArrayByKey<Item>(
+    () => (items.error ? [] : ((items() as Item[] | undefined) ?? [])),
+    (it) => it.ratingKey,
+  );
+
+  const itemList = () => {
+    if (items.error || !items()) return undefined;
+    const list = stable();
+    return list.length > 0 ? list : undefined;
+  };
+
+  return (
+    <Shelf
+      id={props.def.id}
+      title={props.def.title}
+      rowsPerPage={shelfRows()}
+      icon={iconForShelf(props.def)}
+      items={itemList()}
+      renderItem={(it: Item) => <Card item={it} serverID={props.def.serverID} />}
+    >
+      <Show when={cols.error}>
+        <div class="shelf-stub shelf-stub--error">
+          Couldn't load collections for {props.def.libraryTitle} — {errorMessage(cols.error)}
+        </div>
+      </Show>
+      <Show when={!cols.error && !!cols() && !collection()}>
+        <div class="shelf-stub">
+          "{props.def.collectionTitle}" is no longer in {props.def.libraryTitle}. Remove it in
+          Settings &rsaquo; Home Shelves.
+        </div>
+      </Show>
+      <Show when={!cols.error && (cols.loading || (!!collection() && items.loading && !items()))}>
+        <Skeleton kind="card" count={6} />
+      </Show>
+      <Show when={!cols.error && !!collection() && !items.loading && !itemList()}>
+        <div class="shelf-stub">Nothing in {props.def.title} yet.</div>
+      </Show>
+    </Shelf>
   );
 }
 

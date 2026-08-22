@@ -58,6 +58,37 @@ export function shelfIDFor(serverID: string, libraryKey: string): string {
   return `recent:${serverID}:${libraryKey}`;
 }
 
+export function collectionShelfIDFor(
+  serverID: string,
+  libraryKey: string,
+  collectionTitle: string,
+): string {
+  return `collection:${serverID}:${libraryKey}:${collectionTitle}`;
+}
+
+/**
+ * Parses one persisted "serverID:libraryKey:collection title" selection.
+ *
+ * Only the first two colons are separators. Collection titles routinely
+ * contain one ("Marvel: Phase One"), and a naive split would truncate them —
+ * so the remainder after the second colon is taken whole.
+ */
+export function parseCollectionSelection(
+  entry: string,
+): { serverID: string; libraryKey: string; collectionTitle: string } | null {
+  const first = entry.indexOf(":");
+  if (first < 1) return null;
+  const second = entry.indexOf(":", first + 1);
+  if (second < 0 || second === first + 1) return null;
+  const collectionTitle = entry.slice(second + 1);
+  if (!collectionTitle) return null;
+  return {
+    serverID: entry.slice(0, first),
+    libraryKey: entry.slice(first + 1, second),
+    collectionTitle,
+  };
+}
+
 /**
  * deriveHomeLayout builds the default Home layout.
  *
@@ -69,23 +100,48 @@ export function deriveHomeLayout(
   servers: Server[],
   librariesByServer: Record<string, Library[]>,
   hiddenLibraries: Set<string>,
+  collectionShelves: string[] = [],
 ): GroupDef[] {
   return servers.map((srv) => {
     const libs = librariesByServer[srv.machineIdentifier] ?? [];
-    const shelves: ShelfDef[] = libs
+    const visible = libs
       .filter((lib) => !hiddenLibraries.has(`${srv.machineIdentifier}:${lib.key}`))
-      // Only the library types Lumen can render as cards. A photo library
-      // would produce an empty shelf.
-      .filter((lib) => lib.type === "movie" || lib.type === "show")
-      .map((lib) => ({
-        kind: "server-recent" as const,
-        id: shelfIDFor(srv.machineIdentifier, lib.key),
-        title: shelfTitle(lib),
-        serverID: srv.machineIdentifier,
-        libraryKey: lib.key,
+      // Only the library types Lumen can render as cards. A photo or music
+      // library would produce an empty shelf.
+      .filter((lib) => lib.type === "movie" || lib.type === "show");
+
+    const shelves: ShelfDef[] = visible.map((lib) => ({
+      kind: "server-recent" as const,
+      id: shelfIDFor(srv.machineIdentifier, lib.key),
+      title: shelfTitle(lib),
+      serverID: srv.machineIdentifier,
+      libraryKey: lib.key,
+      libraryTitle: lib.title,
+      libraryType: lib.type,
+    }));
+
+    // Collection shelves the user has opted into, in the order they were
+    // saved. Unlike Recently Added there is no derivable rule for which of a
+    // server's collections deserve a shelf — one library here has thirty — so
+    // they are an explicit choice made in Settings rather than something
+    // inferred. Selections naming a library that is hidden, gone, or not a
+    // video library are skipped rather than rendered as stubs.
+    const byKey = new Map(visible.map((lib) => [lib.key, lib]));
+    for (const entry of collectionShelves) {
+      const sel = parseCollectionSelection(entry);
+      if (!sel || sel.serverID !== srv.machineIdentifier) continue;
+      const lib = byKey.get(sel.libraryKey);
+      if (!lib) continue;
+      shelves.push({
+        kind: "server-collection",
+        id: collectionShelfIDFor(sel.serverID, sel.libraryKey, sel.collectionTitle),
+        title: sel.collectionTitle,
+        serverID: sel.serverID,
+        libraryKey: sel.libraryKey,
         libraryTitle: lib.title,
-        libraryType: lib.type,
-      }));
+        collectionTitle: sel.collectionTitle,
+      });
+    }
 
     return {
       id: srv.machineIdentifier,

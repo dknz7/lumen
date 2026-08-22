@@ -11,6 +11,8 @@ export interface UISettings {
   playback: { potPlayerPath: string };
   window: WindowSettings;
   hiddenLibraries: string[];
+  /** "serverID:libraryKey:collection title" entries — see Settings > Home Shelves. */
+  collectionShelves: string[];
   shelfState: Record<string, PageShelfState>;
 }
 

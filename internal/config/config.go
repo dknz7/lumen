@@ -13,19 +13,26 @@ import (
 
 // UIConfig holds every user-tunable UI preference. Persisted in config.json.
 type UIConfig struct {
-	Theme           string                    `json:"theme"`           // "pure-oled" | future themes
-	Zoom            int                       `json:"zoom"`            // card zoom percentage, 50-150
-	CardSize        string                    `json:"cardSize"`        // "s" | "m" | "l" | "xl"
-	CardDensity     int                       `json:"cardDensity"`     // 0-100, grid gap slider
-	RowsPerShelf    int                       `json:"rowsPerShelf"`    // 1-4
-	FontSize        int                       `json:"fontSize"`        // base rem in px, default 14
-	CardLayout      string                    `json:"cardLayout"`      // "poster" | "landscape"
-	DefaultSort     string                    `json:"defaultSort"`     // library default sort
-	DefaultViewMode string                    `json:"defaultViewMode"` // "shows" | "episodes" for TV libraries
-	Playback        PlaybackUIConfig          `json:"playback"`
-	Window          WindowUIConfig            `json:"window"`
-	HiddenLibraries []string                  `json:"hiddenLibraries"` // "serverID:libraryKey" entries
-	ShelfState      map[string]PageShelfState `json:"shelfState"`      // keyed by page: "home", "recommended", "discover"
+	Theme           string           `json:"theme"`           // "pure-oled" | future themes
+	Zoom            int              `json:"zoom"`            // card zoom percentage, 50-150
+	CardSize        string           `json:"cardSize"`        // "s" | "m" | "l" | "xl"
+	CardDensity     int              `json:"cardDensity"`     // 0-100, grid gap slider
+	RowsPerShelf    int              `json:"rowsPerShelf"`    // 1-4
+	FontSize        int              `json:"fontSize"`        // base rem in px, default 14
+	CardLayout      string           `json:"cardLayout"`      // "poster" | "landscape"
+	DefaultSort     string           `json:"defaultSort"`     // library default sort
+	DefaultViewMode string           `json:"defaultViewMode"` // "shows" | "episodes" for TV libraries
+	Playback        PlaybackUIConfig `json:"playback"`
+	Window          WindowUIConfig   `json:"window"`
+	HiddenLibraries []string         `json:"hiddenLibraries"` // "serverID:libraryKey" entries
+	// CollectionShelves picks which Plex collections get a Home shelf, as
+	// "serverID:libraryKey:collectionTitle" entries. Keyed on the collection's
+	// TITLE rather than its ratingKey: admins rebuild collections (Stargaze
+	// regenerates its Trending lists on a schedule) and a rebuild issues fresh
+	// ratingKeys while keeping the title, so a key would silently go dead.
+	// Titles may contain colons, so consumers split on the first two only.
+	CollectionShelves []string                  `json:"collectionShelves"`
+	ShelfState        map[string]PageShelfState `json:"shelfState"` // keyed by page: "home", "recommended", "discover"
 }
 
 // PlaybackUIConfig — persists the Pot Player override path.
@@ -168,6 +175,9 @@ func Load() (*Config, error) {
 	}
 	if c.UI.HiddenLibraries == nil {
 		c.UI.HiddenLibraries = []string{}
+	}
+	if c.UI.CollectionShelves == nil {
+		c.UI.CollectionShelves = []string{}
 	}
 
 	tok, err := decryptField(w.Plex.AccountToken)

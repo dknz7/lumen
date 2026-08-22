@@ -1,0 +1,111 @@
+.hs-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.hs-server {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hs-server-name {
+  margin: 0 0 4px;
+  font-family: var(--font-headline);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: var(--text);
+}
+
+.hs-library {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.hs-library-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.hs-library-header:hover {
+  background: var(--bg-elevated);
+}
+
+.hs-caret {
+  display: inline-flex;
+  color: var(--menu-icon);
+}
+
+.hs-library-title {
+  flex: 1;
+}
+
+.hs-badge {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-inverse);
+  color: var(--text-inverse);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.hs-collections {
+  list-style: none;
+  margin: 0;
+  padding: 4px 10px 10px 30px;
+  display: grid;
+  /* Two columns where there is room: one library here has thirty collections
+     and a single column turns the panel into a scroll marathon. */
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 2px 16px;
+}
+
+.hs-collection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.hs-collection:hover {
+  color: var(--text);
+}
+
+.hs-collection input[type="checkbox"] {
+  accent-color: var(--text);
+  cursor: pointer;
+  flex: none;
+}
+
+.hs-loading,
+.hs-empty {
+  margin: 0;
+  padding: 6px 10px 10px 30px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.hs-error {
+  margin: 0;
+  padding: 6px 10px 10px 30px;
+  color: var(--text-muted);
+  font-size: 12px;
+}

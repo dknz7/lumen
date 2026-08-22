@@ -47,8 +47,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 				MinimizeToTray *bool   `json:"minimizeToTray"`
 				StartHidden    *bool   `json:"startHidden"`
 			} `json:"window"`
-			HiddenLibraries *[]string       `json:"hiddenLibraries"`
-			ShelfState      *map[string]any `json:"shelfState"`
+			HiddenLibraries   *[]string       `json:"hiddenLibraries"`
+			CollectionShelves *[]string       `json:"collectionShelves"`
+			ShelfState        *map[string]any `json:"shelfState"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -107,6 +108,9 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			}
 			if incoming.HiddenLibraries != nil {
 				c.UI.HiddenLibraries = *incoming.HiddenLibraries
+			}
+			if incoming.CollectionShelves != nil {
+				c.UI.CollectionShelves = *incoming.CollectionShelves
 			}
 			if incoming.ShelfState != nil {
 				// Re-marshal + unmarshal to coerce map[string]any → typed

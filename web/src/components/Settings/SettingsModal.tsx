@@ -3,6 +3,7 @@ import { Dynamic } from "solid-js/web";
 // @ts-expect-error — motionone/solid's package.json exports field hides its d.ts file
 import { Motion, Presence } from "@motionone/solid";
 import Appearance from "./Appearance";
+import HomeShelves from "./HomeShelves";
 import WindowTray from "./WindowTray";
 import AccountsServers from "./AccountsServers";
 import Playback from "./Playback";
@@ -14,6 +15,7 @@ import "./SettingsModal.css";
 
 const SECTIONS = [
   { id: "appearance",  label: "Appearance",         component: Appearance },
+  { id: "shelves",     label: "Home Shelves",       component: HomeShelves },
   { id: "window",      label: "Window & Tray",      component: WindowTray },
   { id: "accounts",    label: "Accounts & Servers", component: AccountsServers },
   { id: "playback",    label: "Playback",           component: Playback },
