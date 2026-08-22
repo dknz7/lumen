@@ -134,6 +134,7 @@ func (s *Server) registerRoutes() {
 	s.mux.HandleFunc("/api/shortcut", s.handleShortcut)
 	s.mux.HandleFunc("/api/quit", s.handleQuit)
 	s.mux.HandleFunc("/api/hls/", s.handleHLS)
+	s.mux.HandleFunc("/api/open-external", s.handleOpenExternal)
 	s.mux.HandleFunc("/api/window/show", s.handleWindowShow)
 	s.mux.HandleFunc("/api/window/hide", s.handleWindowHide)
 	s.mux.HandleFunc("/api/about", s.handleAbout)

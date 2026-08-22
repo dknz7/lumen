@@ -252,6 +252,22 @@ export const api = {
     return res.json();
   },
 
+  // Hands a URL to the Go side, which opens it in the user's real default
+  // browser. Needed because WebView2 answers target="_blank" with a bare
+  // second WebView2 window rather than a browser tab — see
+  // util/externalLinks.ts.
+  openExternal: async (url: string) => {
+    const res = await fetch("/api/open-external", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) {
+      throw new Error(`${res.status} POST /api/open-external: ${await res.text()}`);
+    }
+    return res.json();
+  },
+
   quit: async () => {
     const res = await fetch("/api/quit", { method: "POST" });
     if (!res.ok) {

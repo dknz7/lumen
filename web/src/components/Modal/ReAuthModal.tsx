@@ -1,6 +1,7 @@
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import ModalShell from "./ModalShell";
 import { api } from "../../api/client";
+import { openExternal } from "../../util/externalLinks";
 import "./ReAuthModal.css";
 
 export interface ReAuthModalProps {
@@ -23,7 +24,10 @@ export default function ReAuthModal(props: ReAuthModalProps) {
       const r = await api.authStart();
       setCode(r.code);
       setLinkURL(r.linkURL);
-      window.open(r.linkURL, "_blank", "noreferrer");
+      // Not window.open: inside WebView2 that spawns a bare second WebView2
+      // window, and being script-driven it never passes the delegated link
+      // interceptor either.
+      openExternal(r.linkURL);
       pollLoop();
     } catch (e) {
       setStatus("error");

@@ -30,6 +30,7 @@ import Discover from "./pages/Discover";
 import SearchResults from "./pages/SearchResults";
 import { store as settingsStore } from "./state/settings";
 import { playbackStore } from "./state/playback";
+import { installExternalLinkHandler } from "./util/externalLinks";
 import "./theme.css";
 
 // Settings load populates the store and applies the theme. The UI renders
@@ -41,6 +42,11 @@ import "./theme.css";
 // slow first paint could end up with settings that simply never worked.
 settingsStore.loadWithRetry();
 playbackStore.connect();
+
+// Route every off-origin link to the default browser. Inside WebView2 a
+// target="_blank" anchor otherwise opens a chrome-less second WebView2 window
+// instead of a browser tab.
+installExternalLinkHandler();
 
 // A route can't open App's modal directly, so bounce to Home — the Settings
 // entry in the left menu is one click away and clearly labelled.
