@@ -26,7 +26,7 @@ Watch progress still scrobbles back to Plex, so your library stays in sync exact
 
 ## What it does
 
-- **Browse your libraries** — shelves for Continue Watching, Recently Added, On Deck, and per-library grids with sorting.
+- **Browse your libraries** — shelves for Continue Watching, Recently Added, On Deck, and per-library grids with sorting. Home shelves are built from movie and TV libraries; music and photo libraries appear in the sidebar but have no artwork or playback support — Lumen is a video client.
 - **Watchlist & Recommended** — your Plex watchlist, plus Plex's recommendations, with availability badges showing what you can actually play right now.
 - **Discover** — browse the wider Plex catalogue, including things you don't own, with a detail page for each.
 - **Search** — across your servers and Plex Discover at once.
