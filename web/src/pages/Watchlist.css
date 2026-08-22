@@ -1,10 +1,15 @@
 .watchlist-page {
   padding: 24px 32px;
 }
+/* No justify-content here on purpose. This header has exactly three flex
+   children — heading, controls, count — so space-between parked the middle
+   one (the Type/Sort dropdowns) dead centre while every other page in the app
+   sits its controls beside the title. The count is pushed right on its own
+   below, which is the same shape Library.css uses. */
 .watchlist-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 24px;
   position: sticky;
   top: 0;
   background: var(--bg);
@@ -33,6 +38,7 @@
   font-size: 13px;
 }
 .watchlist-count {
+  margin-left: auto;
   color: var(--text-muted);
   font-size: 13px;
   font-variant-numeric: tabular-nums;
