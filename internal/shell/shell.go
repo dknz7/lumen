@@ -235,7 +235,13 @@ func Quit() {
 	wv := state.wv
 	state.mu.Unlock()
 	if wv != nil {
-		wv.Terminate()
+		// Via Dispatch, not directly. Terminate() is PostQuitMessage(0), which
+		// posts to the CALLING thread's queue — and Quit() is called from the
+		// tray thread or an HTTP goroutine, never the window's. The WM_QUIT
+		// would land on a queue nobody is pumping and the window would sit
+		// there. Dispatch marshals onto the window thread first, the same way
+		// Show and Hide do.
+		wv.Dispatch(func() { wv.Terminate() })
 	} else {
 		systray.Quit()
 	}

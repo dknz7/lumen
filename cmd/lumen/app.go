@@ -105,6 +105,25 @@ func runApp(opts appOptions) {
 	// Let the SPA and any second launch drive the window.
 	srv.SetWindowController(shell.Show, shell.Hide)
 
+	// The SPA's "Close Lumen" button posts /api/quit, which fires this
+	// channel. Only runBrowserMode ever consumed it, so in the desktop build
+	// the endpoint answered "shutting down" and then nothing happened at all —
+	// the button looked wired and wasn't.
+	//
+	// Guarded on shell.Running() because the WebView2 fallback below hands off
+	// to runBrowserMode, which selects on this same channel. Without the
+	// guard this goroutine would win the race, browser mode would wait on a
+	// signal that had already been consumed, and closing from the SPA would
+	// hang instead of exiting.
+	go func() {
+		<-srv.Quit()
+		if shell.Running() {
+			shell.Quit()
+			return
+		}
+		_ = srv.Shutdown()
+	}()
+
 	// Native window + tray.
 	shellErr := shell.Run(shell.Options{
 		URL:         url,
