@@ -1,6 +1,6 @@
 import { createRoot, createSignal, untrack } from "solid-js";
 import { settingsAPI, UISettings } from "../api/settings";
-import { applyTheme, themeByID } from "../themes";
+import { applyTheme, loadCustomThemes, themeByID } from "../themes";
 // Static import: Toast is statically imported by most of the component tree
 // anyway, so a dynamic import here bought nothing and made Vite warn that the
 // chunk could not be split.
@@ -61,6 +61,10 @@ function createSettingsStore() {
     const s = await settingsAPI.get();
     setSettings(s);
     setLoaded(true);
+    // Custom themes first: a saved theme id may name a file in
+    // %APPDATA%\Lumen\themes, and resolving it after applyTheme would flash
+    // the fallback before settling. loadCustomThemes never throws.
+    await loadCustomThemes();
     applyTheme(themeByID(s.theme));
     applyRootDerived(s);
   }

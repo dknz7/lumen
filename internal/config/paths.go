@@ -25,6 +25,16 @@ func LogsDir() string {
 	return filepath.Join(Dir(), "logs")
 }
 
+// ThemesDir returns %APPDATA%\Lumen\themes, where user-written themes live.
+//
+// Themes are JSON, never code. A theme is twenty-five strings; making it a
+// module would mean either shipping a compiler or evaluating a file the user
+// downloaded from someone else, inside a page that can reach the local API.
+// Data can be validated before it is applied, which is the whole point.
+func ThemesDir() string {
+	return filepath.Join(Dir(), "themes")
+}
+
 // ScratchDir returns %TEMP%\lumen.
 func ScratchDir() string {
 	return filepath.Join(os.TempDir(), "lumen")
@@ -49,6 +59,7 @@ func EnsureDirs() error {
 		filepath.Join(CacheDir(), "images"),
 		filepath.Join(CacheDir(), "omdb"),
 		LogsDir(),
+		ThemesDir(),
 	} {
 		if err := os.MkdirAll(d, 0o755); err != nil {
 			return err

@@ -156,43 +156,53 @@ lumen version           Print version
 
 ## Themes
 
-Lumen ships **Pure OLED** and **Tokyo Night**. A theme is one file of colour
-values — no CSS, no component changes.
+Lumen ships **Pure OLED** and **Tokyo Night**, and you can add your own without
+touching the code or rebuilding anything.
+
+A theme is 25 colour values in a JSON file. Drop it in
 
 ```
-web/src/themes/
-  index.ts        ThemeTokens, applyTheme(), and the THEMES registry
-  pure-oled.ts
-  tokyo-night.ts
+%APPDATA%\Lumen\themes
 ```
 
-To add one, copy an existing theme, change the values, and register it:
+and hit **Reload** in *Settings > Appearance*. It appears in the picker under
+**Custom**. There's a button there to open the folder, and another to export
+whichever theme is active as a complete file to start from — so you never
+begin from a blank document.
 
-```ts
-// web/src/themes/midnight.ts
-import type { Theme } from "./index";
+### Writing one
 
-export const midnight: Theme = {
-  id: "midnight",          // persisted in config.json as ui.theme
-  name: "Midnight",        // label in Settings > Appearance
-  tokens: { /* all 25 */ },
-};
+`extends` inherits from a built-in, so you only write the colours you actually
+want to change:
+
+```json
+{
+  "id": "gruvbox-dark",
+  "name": "Gruvbox Dark",
+  "extends": "pure-oled",
+  "tokens": {
+    "bg": "#282828",
+    "bgMenu": "#1d2021",
+    "text": "#ebdbb2",
+    "accent": "#fabd2f",
+    "accentContrast": "#282828",
+    "danger": "#fb4934",
+    "success": "#b8bb26"
+  }
+}
 ```
 
-```ts
-// web/src/themes/index.ts
-import { midnight } from "./midnight";
-export const THEMES: Theme[] = [pureOled, tokyoNight, midnight];
-```
+Without `extends` all 25 tokens are required. With it, anything you leave out
+comes from the parent — which also means a token added in a later version of
+Lumen inherits a sensible value instead of breaking your theme.
 
-That is the whole job — the picker is generated from `THEMES`, and
-`applyTheme` writes every token to `:root` as a CSS custom property, so
-components pick the change up with no re-render.
+Any CSS colour works: hex, `rgb()`, `rgba()`, `color-mix()`, a named colour.
+
+If a file is rejected, *Settings > Appearance* says which file and why — a
+trailing comma, an unknown token name, a value the browser won't accept.
+Nothing fails silently.
 
 ### The 25 tokens
-
-Any CSS colour value works — hex, `rgba()`, anything the browser accepts.
-`TypeScript` will tell you if you miss one.
 
 | Token | CSS variable | Used for |
 |---|---|---|
@@ -224,18 +234,19 @@ Any CSS colour value works — hex, `rgba()`, anything the browser accepts.
 
 `--led-teal` is a legacy alias of `--accent`, kept so older rules keep working.
 
-### What a theme deliberately cannot change
+### Why JSON and not a module
 
-Two sets of colours stay fixed, on purpose:
+A theme is data, so it's stored as data. Making it a TypeScript or JavaScript
+file would mean either shipping a compiler or evaluating a file the user
+downloaded from someone else — inside a page that can already reach the local
+API. Themes are exactly the kind of thing people copy from a gist, and "here's
+a nice theme, run this" is a working attack.
 
-- **Brand marks** — the IMDB yellow and the Rotten Tomatoes red and green.
-  They identify someone else's product and must look the same everywhere.
-- **Colours drawn over artwork** — the black gradients under poster titles,
-  the white ring on the play button. These sit on top of arbitrary images,
-  not on a theme surface, and a themed scrim stops doing its job.
-
-If you are adding a token, that is the test: does it sit on a Lumen surface,
-or on a poster?
+Because it's data, every value can be checked before it's used. Lumen asks the
+browser whether each one is valid for the property it will become — `color`
+for most, `box-shadow` for `shadow`, which is the token that would otherwise
+accept a `url()` and fetch from a remote host on render. A file that fails is
+reported, never partly applied.
 
 ### Deriving values
 
@@ -246,12 +257,33 @@ follow the theme:
 background: color-mix(in srgb, var(--accent) 85%, transparent);
 ```
 
+### What a theme deliberately cannot change
+
+Two sets of colours stay fixed, on purpose:
+
+- **Brand marks** — the IMDB yellow and the Rotten Tomatoes red and green.
+  They identify someone else's product and must look the same everywhere.
+- **Colours drawn over artwork** — the black gradients under poster titles,
+  the white ring on the play button. These sit on top of arbitrary images,
+  not on a theme surface, and a themed scrim stops doing its job.
+
+If you're adding a token, that's the test: does it sit on a Lumen surface, or
+on a poster?
+
+### Built-in themes
+
+The two that ship live in `web/src/themes/` as TypeScript, because they're
+compiled in and get the benefit of the compiler checking them. They use the
+same token set, so a JSON theme and a built-in are the same thing in different
+clothes. Adding one is a file plus an entry in `BUILTIN_THEMES`.
+
 ### Checking your work
 
-Themes are colour-only, so a passing build proves nothing. Switch between
-every theme with **Settings > Appearance** and actually look at Home, a detail
-page, the Watchlist and each Settings panel. Errors and warnings are easiest
-to reach by pointing Lumen at an unreachable server and clearing the OMDB key.
+A theme is colour-only, so a green build proves nothing. Switch between themes
+in *Settings > Appearance* and actually look at Home, a detail page, the
+Watchlist and each Settings panel. The `danger` and `warning` tokens are the
+easiest to miss — they only appear when something is wrong, so point Lumen at
+an unreachable server and clear the OMDB key to see them.
 
 ## Contributing
 

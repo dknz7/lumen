@@ -1,0 +1,66 @@
+/* The theme block is several stacked elements, not a single control, so its
+   label sits at the top of the row rather than centred against the middle. */
+.settings-row--stacked {
+  align-items: start;
+}
+
+.settings-row--stacked > label:first-child {
+  padding-top: 6px;
+}
+
+.theme-help {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.theme-help code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--surface-subtle);
+  color: var(--text);
+}
+
+.theme-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.theme-path {
+  margin: 10px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Rejected theme files, with the reason. Styled as a warning rather than an
+   error: nothing is broken, one file just did not load. */
+.theme-errors {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.theme-errors li {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.theme-errors strong {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
