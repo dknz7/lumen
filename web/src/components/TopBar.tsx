@@ -152,7 +152,7 @@ export default function TopBar() {
             <span class="zoom-icon" aria-hidden="true"><Search size={12} /></span>
             <input
               type="range"
-              min="80"
+              min="50"
               max="150"
               value={zoom()}
               class="zoom-slider"

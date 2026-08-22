@@ -14,7 +14,7 @@ import (
 // UIConfig holds every user-tunable UI preference. Persisted in config.json.
 type UIConfig struct {
 	Theme           string                    `json:"theme"`           // "pure-oled" | future themes
-	Zoom            int                       `json:"zoom"`            // viewport zoom percentage, 80-150
+	Zoom            int                       `json:"zoom"`            // card zoom percentage, 50-150
 	CardSize        string                    `json:"cardSize"`        // "s" | "m" | "l" | "xl"
 	CardDensity     int                       `json:"cardDensity"`     // 0-100, grid gap slider
 	RowsPerShelf    int                       `json:"rowsPerShelf"`    // 1-4
