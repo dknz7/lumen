@@ -98,10 +98,21 @@ function createSettingsStore() {
     }
   }
 
-  const flushDebounced = debounce(async (patch: Partial<UISettings>) => {
+  // Changes waiting for the debounced PUT, merged rather than replaced. The
+  // debounce used to pass on only the LAST patch of its 300ms window, so two
+  // different settings changed in quick succession (a library sort pick, then
+  // a zoom tick) sent only the second and the first was silently lost once
+  // the PUT response replaced the optimistic state.
+  let pending: Partial<UISettings> = {};
+  const flushDebounced = debounce(async () => {
+    const sending = pending;
+    pending = {};
     try {
-      const updated = await settingsAPI.put(patch);
-      setSettings(updated);
+      const updated = await settingsAPI.put(sending);
+      // Anything patched while this PUT was in flight hasn't been sent yet.
+      // Keep it on top of the server's answer, or it would flick back to the
+      // old value until its own PUT lands.
+      setSettings({ ...updated, ...pending });
     } catch (e) {
       console.error("settings PUT failed:", e);
     }
@@ -129,7 +140,8 @@ function createSettingsStore() {
     }
     applyRootDerived(next);
 
-    flushDebounced(update);
+    pending = { ...pending, ...update };
+    flushDebounced();
   }
 
   return { settings, loaded, load, loadWithRetry, patch };
