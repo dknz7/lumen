@@ -14,23 +14,43 @@ import { createMemo } from "solid-js";
  *   - Wastes DOM work proportional to list size.
  *
  * stableArrayByKey memoises the array so each refetch reuses the previous
- * object reference for any item whose key (typically ratingKey) matches.
- * `<For>` then sees stable refs and skips remount entirely. New keys mount
- * fresh, missing keys unmount — same as before. The trade-off: if the
- * server-side data for an existing key changes (e.g. a tile's title or
- * thumb is updated), the SPA continues showing the previous snapshot until
- * the key churns. Acceptable for marketing-style hub data; reactive child
- * state (watchlist set, etc.) updates separately and isn't gated by this.
+ * object reference for any item whose key (typically ratingKey) matches AND
+ * whose data is unchanged. `<For>` then sees stable refs and skips remount
+ * for those. New keys mount fresh, missing keys unmount, and an item whose
+ * data changed takes the fresh object, so only that one card remounts.
+ *
+ * The "data is unchanged" check is what keeps this honest. It used to reuse
+ * the old object on key match alone, which froze every item's data for as
+ * long as the view stayed mounted: a refetch added new items but left each
+ * existing card showing whatever it first loaded, so watched state, titles
+ * and posters went stale and the grid became a mix of fresh and frozen.
+ * Lumen lives in the tray for days, so "as long as the view stayed mounted"
+ * was days. Equality is by JSON, which is exact for API payloads: they are
+ * plain JSON data (parsed responses, or spread copies of them, like Home's
+ * Continue Watching items) and no field changes between identical fetches.
+ * Items must not be mutated in place: each one's JSON is computed once.
  *
  * Usage:
  *   const [items] = createResource<HubItem[]>(() => api.hub("home", slug));
  *   const stable = stableArrayByKey(() => items() ?? [], (it) => it.ratingKey);
  *   <For each={stable()}>{...}</For>
  */
-export function stableArrayByKey<T>(
+export function stableArrayByKey<T extends object>(
   source: () => T[] | undefined,
   keyOf: (item: T) => string,
 ): () => T[] {
+  // Serialised form of each object, computed once per object. Weak, so
+  // objects that drop out of the list are collected along with their entry.
+  const serialised = new WeakMap<T, string>();
+  const sig = (it: T): string => {
+    let s = serialised.get(it);
+    if (s === undefined) {
+      s = JSON.stringify(it);
+      serialised.set(it, s);
+    }
+    return s;
+  };
+
   return createMemo<T[]>((prev) => {
     const next = source() ?? [];
     if (!prev || prev.length === 0) return next;
@@ -39,7 +59,8 @@ export function stableArrayByKey<T>(
     for (const it of prev) prevByKey.set(keyOf(it), it);
     let allSame = next.length === prev.length;
     const result: T[] = next.map((it, i) => {
-      const stable = prevByKey.get(keyOf(it)) ?? it;
+      const old = prevByKey.get(keyOf(it));
+      const stable = old !== undefined && sig(old) === sig(it) ? old : it;
       if (allSame && stable !== prev[i]) allSame = false;
       return stable;
     });
