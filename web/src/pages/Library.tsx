@@ -53,11 +53,29 @@ export default function Library() {
   // state/settings.ts, which sets --card-width on :root. Library no longer
   // needs its own scoped override — the global value drives the grid.
 
-  // Initialise from settings store; fall back to defaults if store not yet loaded.
+  // Sort and view mode follow the saved defaults, including when settings
+  // arrive after this page has mounted.
+  //
+  // They used to be read once, at mount. Reached from the menu, settings were
+  // long loaded and the saved sort applied; on a fresh load (F5, or the app
+  // opening straight onto a library) the page mounted before settings
+  // arrived, fell back to Date Added, and never looked again. So one library
+  // showed two different orders depending on how you got there, which read
+  // as stale data that F5 "fixed".
+  //
+  // Once the user picks a sort or view on this page, their pick wins and is
+  // saved as the new default; until then, the saved default is followed.
   const [sort, setSort] = createSignal(settingsStore.settings()?.defaultSort ?? SORT_OPTIONS[0].value);
   const [viewMode, setViewMode] = createSignal(
     viewModeToFilter(settingsStore.settings()?.defaultViewMode ?? "episodes")
   );
+  let pickedSort = false;
+  let pickedView = false;
+  createEffect(on(() => settingsStore.settings(), (s) => {
+    if (!s) return;
+    if (!pickedSort && s.defaultSort) setSort(s.defaultSort);
+    if (!pickedView) setViewMode(viewModeToFilter(s.defaultViewMode ?? "episodes"));
+  }));
 
   const [allLibs, { refetch: refetchAllLibs }] = createResource(
     () => params.serverID,
@@ -101,13 +119,19 @@ export default function Library() {
   // page to 0) whenever any setting elsewhere changes — including the
   // debounced PUT response that lands ~300ms after this very call. That
   // race caused the Page-2 snap-back regression (Task 29b smoke test).
+  //
+  // Only for the user's own picks: adopting the saved default when settings
+  // arrive late is not a change to save, and must not throw away a ?page=N
+  // the URL arrived with.
   createEffect(on(sort, (s) => {
+    if (!pickedSort) return;
     untrack(() => {
       settingsStore.patch({ defaultSort: s });
     });
     setPage(0);
   }, { defer: true }));
   createEffect(on(viewMode, (v) => {
+    if (!pickedView) return;
     untrack(() => {
       settingsStore.patch({ defaultViewMode: filterToViewMode(v) as any });
     });
@@ -240,7 +264,7 @@ export default function Library() {
         <Show when={isTVLibrary()}>
           <label>
             View:
-            <select value={viewMode()} onChange={(e) => setViewMode(e.currentTarget.value)}>
+            <select value={viewMode()} onChange={(e) => { pickedView = true; setViewMode(e.currentTarget.value); }}>
               <For each={VIEW_MODE_OPTIONS}>
                 {(o) => <option value={o.value}>{o.label}</option>}
               </For>
@@ -249,7 +273,7 @@ export default function Library() {
         </Show>
         <label>
           Sort:
-          <select value={sort()} onChange={(e) => setSort(e.currentTarget.value)}>
+          <select value={sort()} onChange={(e) => { pickedSort = true; setSort(e.currentTarget.value); }}>
             <For each={SORT_OPTIONS}>
               {(o) => <option value={o.value}>{o.label}</option>}
             </For>
