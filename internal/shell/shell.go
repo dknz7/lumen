@@ -59,6 +59,12 @@ var state struct {
 // to WebView2's own proc — which needs WM_SIZE, WM_PAINT and friends to keep
 // the browser control glued to the frame.
 func wndProc(hwnd, msg, wparam, lparam uintptr) uintptr {
+	// Observe only; the message still falls through to the switch and on to
+	// WebView2's proc. See visibility.go.
+	if noteVisibility(msg, wparam, func() bool { return isWindowVisible(hwnd) && !isIconic(hwnd) }) {
+		requestRefresh()
+	}
+
 	switch msg {
 	case wmClose:
 		// Quit() sets this first so the real teardown isn't swallowed.
