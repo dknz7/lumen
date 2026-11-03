@@ -13,8 +13,15 @@ import type { Match } from "../api/types";
 //
 // So: stop asking about things nobody is looking at. Cards request availability
 // when they scroll into view, requests coalesce into chunks, and results are
-// cached for the session. Someone who never scrolls past the first screen
-// costs one request instead of five hundred.
+// cached until the next lumen:data-invalidated. Someone who never scrolls past
+// the first screen costs one request instead of five hundred.
+//
+// The cache used to live for the whole session, and Lumen lives in the tray
+// for days, so a title that landed on a server after the first lookup kept
+// its old "not in your library" state until F5. Now an invalidation (which the
+// shell fires on every restore from tray or minimise) drops the cache, and
+// cards that are on screen ask again. Off-screen cards ask when they scroll
+// in, so a refresh costs one batch for what's visible, not the whole list.
 
 const CHUNK = 40;
 const DEBOUNCE_MS = 120;
@@ -24,6 +31,14 @@ const listeners = new Map<string, Set<(m: Match[]) => void>>();
 const queued = new Set<string>();
 const inFlight = new Set<string>();
 let timer: number | undefined;
+
+// Bumped on every invalidation. A batch remembers the generation it was sent
+// in; if an invalidation lands while it's in flight, its answer predates the
+// refresh, so it's dropped and the guids are asked again.
+let generation = 0;
+const [epoch, setEpoch] = createSignal(0);
+
+window.addEventListener("lumen:data-invalidated", () => invalidateAvailability());
 
 function scheduleFlush() {
   if (timer === undefined) timer = window.setTimeout(flush, DEBOUNCE_MS);
@@ -47,10 +62,18 @@ function flush() {
     queued.delete(g);
     inFlight.add(g);
   });
+  const sentIn = generation;
+  // Re-ask for anything still being watched, once this batch is out of the
+  // way (enqueue skips guids that are in flight).
+  const requeueWatched = () =>
+    batch.forEach((g) => {
+      if (listeners.has(g)) queued.add(g);
+    });
 
   void api
     .availabilityBatch(batch)
     .then((map) => {
+      if (sentIn !== generation) return requeueWatched();
       for (const guid of batch) {
         const matches = map[guid] ?? [];
         cache.set(guid, matches);
@@ -61,6 +84,7 @@ function flush() {
       // Availability is an enhancement — a failure should grey out a Play
       // button, never wedge the page. Resolve empty so nothing spins forever.
       console.error("availability batch failed:", e);
+      if (sentIn !== generation) return requeueWatched();
       batch.forEach((guid) => resolve(guid, []));
     })
     .finally(() => {
@@ -71,9 +95,14 @@ function flush() {
   if (queued.size > 0) scheduleFlush(); // anything beyond CHUNK
 }
 
-/** Clears the session cache. Call when the set of servers changes. */
+/**
+ * Drops cached results; on-screen cards ask again. Runs on every
+ * lumen:data-invalidated, and is also callable directly.
+ */
 export function invalidateAvailability() {
+  generation++;
   cache.clear();
+  setEpoch(generation);
 }
 
 /**
@@ -99,6 +128,7 @@ export function useAvailability(
   }
 
   createEffect(() => {
+    epoch(); // re-run after an invalidation
     const g = guid();
     if (!g || !active()) return;
 
@@ -110,10 +140,13 @@ export function useAvailability(
     if (subscribedTo !== g) {
       unsubscribe();
       subscribedTo = g;
-      let set = listeners.get(g);
-      if (!set) listeners.set(g, (set = new Set()));
-      set.add(setValue);
     }
+    // Always (re)register: resolve() drops a guid's listeners once answered,
+    // so after an invalidation the card has to sign up again. Until the new
+    // answer lands the card keeps showing the old one, so nothing flickers.
+    let set = listeners.get(g);
+    if (!set) listeners.set(g, (set = new Set()));
+    set.add(setValue);
     enqueue(g);
   });
 
