@@ -176,3 +176,29 @@ func TestSecretsAreEncryptedOnDisk(t *testing.T) {
 		t.Errorf("on-disk JSON malformed: %v", err)
 	}
 }
+
+// Per-library and per-type sort/view preferences. A config written before
+// they existed must load with empty (not nil) maps, and both must survive a
+// save and reload.
+func TestLibraryAndTypePrefsDefaultAndRoundTrip(t *testing.T) {
+	t.Setenv("APPDATA", t.TempDir())
+	c1, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c1.UI.LibraryPrefs == nil || c1.UI.TypePrefs == nil {
+		t.Fatalf("prefs maps should be initialised empty, got %v / %v", c1.UI.LibraryPrefs, c1.UI.TypePrefs)
+	}
+	c1.UI.LibraryPrefs = map[string]LibraryPref{"abc:11": {Sort: "titleSort:asc", ViewMode: "shows"}}
+	c1.UI.TypePrefs = map[string]LibraryPref{"show": {Sort: "originallyAvailableAt:desc"}}
+	if err := c1.Save(); err != nil {
+		t.Fatal(err)
+	}
+	c2, _ := Load()
+	if got := c2.UI.LibraryPrefs["abc:11"]; got.Sort != "titleSort:asc" || got.ViewMode != "shows" {
+		t.Errorf("library pref round-trip: %+v", got)
+	}
+	if got := c2.UI.TypePrefs["show"]; got.Sort != "originallyAvailableAt:desc" || got.ViewMode != "" {
+		t.Errorf("type pref round-trip: %+v", got)
+	}
+}

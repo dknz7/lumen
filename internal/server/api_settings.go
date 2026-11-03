@@ -47,9 +47,11 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 				MinimizeToTray *bool   `json:"minimizeToTray"`
 				StartHidden    *bool   `json:"startHidden"`
 			} `json:"window"`
-			HiddenLibraries   *[]string       `json:"hiddenLibraries"`
-			CollectionShelves *[]string       `json:"collectionShelves"`
-			ShelfState        *map[string]any `json:"shelfState"`
+			HiddenLibraries   *[]string                      `json:"hiddenLibraries"`
+			CollectionShelves *[]string                      `json:"collectionShelves"`
+			ShelfState        *map[string]any                `json:"shelfState"`
+			LibraryPrefs      *map[string]config.LibraryPref `json:"libraryPrefs"`
+			TypePrefs         *map[string]config.LibraryPref `json:"typePrefs"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON: "+err.Error())
@@ -119,6 +121,16 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 				raw, _ := json.Marshal(*incoming.ShelfState)
 				c.UI.ShelfState = map[string]config.PageShelfState{}
 				_ = json.Unmarshal(raw, &c.UI.ShelfState)
+			}
+			// Freshly decoded maps, owned by nobody else, so swapping them in
+			// whole is safe under the lock. Authoritative like shelfState: a
+			// PUT that includes the field replaces the whole map. A JSON null
+			// decodes to a nil pointer, so it leaves the map untouched.
+			if incoming.LibraryPrefs != nil {
+				c.UI.LibraryPrefs = *incoming.LibraryPrefs
+			}
+			if incoming.TypePrefs != nil {
+				c.UI.TypePrefs = *incoming.TypePrefs
 			}
 			// Encode the response inside the same critical section: doing it
 			// after the lock releases would race the next PUT.

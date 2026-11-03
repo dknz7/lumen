@@ -14,6 +14,16 @@ export interface UISettings {
   /** "serverID:libraryKey:collection title" entries — see Settings > Home Shelves. */
   collectionShelves: string[];
   shelfState: Record<string, PageShelfState>;
+  /** "serverID:libraryKey" → that library's own remembered sort/view. */
+  libraryPrefs: Record<string, LibraryPref>;
+  /** Plex library type (e.g. "movie", "show") → last sort/view picked on any library of that type. */
+  typePrefs: Record<string, LibraryPref>;
+}
+
+/** A remembered sort and TV view mode; a missing field falls through to the next level. */
+export interface LibraryPref {
+  sort?: string;
+  viewMode?: "shows" | "episodes" | "";
 }
 
 export interface WindowSettings {

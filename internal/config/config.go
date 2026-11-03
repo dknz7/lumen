@@ -33,6 +33,20 @@ type UIConfig struct {
 	// Titles may contain colons, so consumers split on the first two only.
 	CollectionShelves []string                  `json:"collectionShelves"`
 	ShelfState        map[string]PageShelfState `json:"shelfState"` // keyed by page: "home", "recommended", "discover"
+	// Library sort/view memory. A library opens with its own pick, else the
+	// last pick made on any library of the same type, else DefaultSort and
+	// DefaultViewMode. Picking on a library writes both its own entry and its
+	// type's, so one pick on a TV library carries to every TV library that
+	// hasn't been given its own.
+	LibraryPrefs map[string]LibraryPref `json:"libraryPrefs"` // "serverID:libraryKey" → pref
+	TypePrefs    map[string]LibraryPref `json:"typePrefs"`    // Plex library type (e.g. "movie", "show") → pref
+}
+
+// LibraryPref is a remembered sort and TV view mode. Empty means "not set
+// here, fall through to the next level".
+type LibraryPref struct {
+	Sort     string `json:"sort,omitempty"`     // e.g. "addedAt:desc"
+	ViewMode string `json:"viewMode,omitempty"` // "shows" | "episodes", TV libraries only
 }
 
 // PlaybackUIConfig — persists the Pot Player override path.
@@ -173,6 +187,12 @@ func Load() (*Config, error) {
 	if c.UI.ShelfState == nil {
 		c.UI.ShelfState = map[string]PageShelfState{}
 	}
+	if c.UI.LibraryPrefs == nil {
+		c.UI.LibraryPrefs = map[string]LibraryPref{}
+	}
+	if c.UI.TypePrefs == nil {
+		c.UI.TypePrefs = map[string]LibraryPref{}
+	}
 	if c.UI.HiddenLibraries == nil {
 		c.UI.HiddenLibraries = []string{}
 	}
@@ -293,6 +313,8 @@ func newDefault() *Config {
 		Window:          WindowUIConfig{CloseAction: "tray"},
 		ShelfState:      map[string]PageShelfState{},
 		HiddenLibraries: []string{},
+		LibraryPrefs:    map[string]LibraryPref{},
+		TypePrefs:       map[string]LibraryPref{},
 	}
 	return c
 }

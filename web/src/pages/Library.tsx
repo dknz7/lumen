@@ -1,5 +1,5 @@
 import { useParams, useSearchParams } from "@solidjs/router";
-import { createEffect, createResource, createSignal, For, Match, on, onCleanup, Show, Switch, untrack } from "solid-js";
+import { batch, createEffect, createMemo, createResource, createSignal, For, Match, on, onCleanup, Show, Switch, untrack } from "solid-js";
 import { api } from "../api/client";
 import type { Item, Library as LibraryType } from "../api/types";
 import Card from "../components/Card";
@@ -9,6 +9,7 @@ import { refetchOnFocus } from "../util/focusRefetch";
 import { stableArrayByKey } from "../util/stableArray";
 import "./Library.css";
 import { librariesFor } from "../state/libraries";
+import { libraryPrefKey, prefsAfterPick, resolveLibraryPrefs } from "../util/libraryPrefs";
 
 const SORT_OPTIONS = [
   { value: "addedAt:desc", label: "Date Added (newest)" },
@@ -29,9 +30,8 @@ const VIEW_MODE_OPTIONS = [
   { value: "4", label: "Episodes" },
 ];
 
-// Map between settings store value ("episodes"|"shows"|"") and Plex type filter ("4"|"")
+// Map from a settings view mode ("episodes"|"shows"|"") to Plex's type filter ("4"|"")
 const viewModeToFilter = (mode: string) => (mode === "episodes" ? "4" : "");
-const filterToViewMode = (filter: string) => (filter === "4" ? "episodes" : "");
 
 const PAGE_SIZE = 200;
 
@@ -52,30 +52,6 @@ export default function Library() {
   // Note: the zoom slider's effect on card sizes is handled globally in
   // state/settings.ts, which sets --card-width on :root. Library no longer
   // needs its own scoped override — the global value drives the grid.
-
-  // Sort and view mode follow the saved defaults, including when settings
-  // arrive after this page has mounted.
-  //
-  // They used to be read once, at mount. Reached from the menu, settings were
-  // long loaded and the saved sort applied; on a fresh load (F5, or the app
-  // opening straight onto a library) the page mounted before settings
-  // arrived, fell back to Date Added, and never looked again. So one library
-  // showed two different orders depending on how you got there, which read
-  // as stale data that F5 "fixed".
-  //
-  // Once the user picks a sort or view on this page, their pick wins and is
-  // saved as the new default; until then, the saved default is followed.
-  const [sort, setSort] = createSignal(settingsStore.settings()?.defaultSort ?? SORT_OPTIONS[0].value);
-  const [viewMode, setViewMode] = createSignal(
-    viewModeToFilter(settingsStore.settings()?.defaultViewMode ?? "episodes")
-  );
-  let pickedSort = false;
-  let pickedView = false;
-  createEffect(on(() => settingsStore.settings(), (s) => {
-    if (!s) return;
-    if (!pickedSort && s.defaultSort) setSort(s.defaultSort);
-    if (!pickedView) setViewMode(viewModeToFilter(s.defaultViewMode ?? "episodes"));
-  }));
 
   const [allLibs, { refetch: refetchAllLibs }] = createResource(
     () => params.serverID,
@@ -99,44 +75,68 @@ export default function Library() {
   const isTVLibrary = () => currentLibrary()?.type === "show";
   const libName = () => currentLibrary()?.title ?? "";
 
-  // All three reset-page effects use `on(..., { defer: true })` so they
-  // skip the initial mount run — otherwise a back-nav from item-detail to
-  // /library/:s/:l?page=4 would immediately wipe ?page=4 because the
-  // sort/viewMode effects run on first mount with the settings-store
-  // value and would call setPage(0). defer makes them only fire on
-  // *subsequent* changes (real user interaction).
+  // Sort and view mode are remembered per library. A library opens with:
+  //   1. its own last pick (libraryPrefs), else
+  //   2. the last pick on any library of the same type (typePrefs), so one
+  //      pick on a TV library carries to every TV library not given its own,
+  //   3. else the global defaults (Date Added, Episodes).
+  //
+  // Derived from settings rather than copied at mount. Copying at mount was a
+  // bug: on a fresh load (F5, or the app opening onto a library) the page
+  // mounted before settings arrived, fell back to Date Added and never looked
+  // again, so one library showed two different orders depending on how you
+  // reached it, which read as stale data that F5 "fixed".
+  const prefKey = () => libraryPrefKey(params.serverID!, params.libraryID!);
+  const libType = () => currentLibrary()?.type ?? "";
 
-  // Reset page on library/server change.
+  // A pick on this page applies at once, even if settings never loaded and
+  // patch() can't store it. Tagged with its library so it only ever applies
+  // there: clearing it in an effect on library change ran after the items
+  // resource had already fetched the new library with the old pick.
+  const [localPick, setLocalPick] = createSignal<{ key: string; sort?: string; viewMode?: string } | null>(null);
+
+  // Plain strings, not an object: memos compare with ===, so these only change
+  // when the value really does. An object here changed on every settings
+  // update (the zoom slider patches on every tick), and the items resource
+  // refetched the whole page from Plex each time.
+  const sort = createMemo(() => {
+    const local = localPick();
+    if (local?.key === prefKey() && local.sort) return local.sort;
+    return resolveLibraryPrefs(settingsStore.settings(), prefKey(), libType(), SORT_OPTIONS[0].value).sort;
+  });
+  const viewMode = createMemo(() => {
+    const local = localPick();
+    if (local?.key === prefKey() && local.viewMode) return viewModeToFilter(local.viewMode);
+    return viewModeToFilter(resolveLibraryPrefs(settingsStore.settings(), prefKey(), libType(), SORT_OPTIONS[0].value).viewMode);
+  });
+
+  // Saves a pick as this library's own AND as its type's.
+  function pick(update: { sort?: string; viewMode?: "shows" | "episodes" }) {
+    batch(() => {
+      const key = prefKey();
+      const prev = untrack(localPick);
+      setLocalPick({ ...(prev?.key === key ? prev : {}), key, ...update });
+      untrack(() => {
+        const s = settingsStore.settings();
+        if (s) settingsStore.patch(prefsAfterPick(s, key, libType(), update));
+      });
+      setPage(0);
+    });
+  }
+
+  // Reset page on library/server change. Deferred so it skips the initial
+  // mount: a back-nav from item-detail to /library/:s/:l?page=4 must keep
+  // ?page=4.
+  //
+  // Sort/view changes don't reset the page through an effect any more; only a
+  // real pick (pick() above) does. A change that comes from settings arriving
+  // late, or a PUT response landing, must not throw away a ?page=N. An
+  // effect-based reset is what caused the old Page-2 snap-back regression.
   createEffect(on(
     () => [params.serverID, params.libraryID],
     () => setPage(0),
     { defer: true },
   ));
-
-  // Reset page whenever sort/mode changes, and persist the new preference.
-  // patch() reads settingsStore.settings() internally; without untrack the
-  // effect would subscribe to the settings signal and re-fire (resetting
-  // page to 0) whenever any setting elsewhere changes — including the
-  // debounced PUT response that lands ~300ms after this very call. That
-  // race caused the Page-2 snap-back regression (Task 29b smoke test).
-  //
-  // Only for the user's own picks: adopting the saved default when settings
-  // arrive late is not a change to save, and must not throw away a ?page=N
-  // the URL arrived with.
-  createEffect(on(sort, (s) => {
-    if (!pickedSort) return;
-    untrack(() => {
-      settingsStore.patch({ defaultSort: s });
-    });
-    setPage(0);
-  }, { defer: true }));
-  createEffect(on(viewMode, (v) => {
-    if (!pickedView) return;
-    untrack(() => {
-      settingsStore.patch({ defaultViewMode: filterToViewMode(v) as any });
-    });
-    setPage(0);
-  }, { defer: true }));
 
   // Resource value stamps the items with the server/lib they were fetched
   // against. Solid's createResource preserves the previous value during a
@@ -264,7 +264,7 @@ export default function Library() {
         <Show when={isTVLibrary()}>
           <label>
             View:
-            <select value={viewMode()} onChange={(e) => { pickedView = true; setViewMode(e.currentTarget.value); }}>
+            <select value={viewMode()} onChange={(e) => pick({ viewMode: e.currentTarget.value === "4" ? "episodes" : "shows" })}>
               <For each={VIEW_MODE_OPTIONS}>
                 {(o) => <option value={o.value}>{o.label}</option>}
               </For>
@@ -273,7 +273,7 @@ export default function Library() {
         </Show>
         <label>
           Sort:
-          <select value={sort()} onChange={(e) => { pickedSort = true; setSort(e.currentTarget.value); }}>
+          <select value={sort()} onChange={(e) => pick({ sort: e.currentTarget.value })}>
             <For each={SORT_OPTIONS}>
               {(o) => <option value={o.value}>{o.label}</option>}
             </For>
